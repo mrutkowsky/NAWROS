@@ -1,2 +1,5 @@
+ embeddings
 data
-src/__pycache__/
+=======
+data/samsung
+fine-tuning
