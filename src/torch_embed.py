@@ -13,3 +13,4 @@ def embed(tokens: list):
     embeddings = outputs.last_hidden_state.mean(dim=1)  # Mean pooling for sentence-level embeddings
     
     return embeddings
+        

@@ -87,22 +87,3 @@ if __name__ == "__main__":
 
     df_clean_data["tokens"] = df_clean_data["content"].apply(tokenize_text)
     logger.info("Text tokenized successfully.")
-
-
-    b = 0
-    e_column = []
-    for i in range(64, len(df_clean_data), 64):
-        embd = [embed(s, tensor_type="torch") for s in df_clean_data["content"][b:i]]
-        b += 64
-        e_column.extend(embd)
-    
-    df_clean_data["torch"] = e_column
-    
-
-
-
-    # df_clean_data["torch"] = df_clean_data["tokens"].apply(embed, tensor_type="torch")
-    # logger.info("Text embedded successfully.")
-    # df_clean_data["tensorflow"] = df_clean_data["tokens"].apply(embed, tensor_type="tf")
-    logger.info("Text embedded successfully.")
-    print(df_clean_data["content"].head())
