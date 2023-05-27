@@ -1,2 +1,5 @@
 /data/samsung
 /app/utils/__pycache__
+*.xlsx
+*.csv
+*.txt

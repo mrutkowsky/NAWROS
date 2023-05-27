@@ -1,0 +1,113 @@
+<html>
+  <head>
+    <title>NARWOS NLP</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/styles.css') }}">
+  </head>
+  <body>
+    <h1>NARWOS NLP</h1>
+    <h3>Managing files</h3>
+    <div class="mt-20">
+      <form action="/upload_file" class="mt-20" method="post" enctype="multipart/form-data">
+        <label>Load files:</label>
+        <input type="file" name="file" multiple>
+        <br><br>
+        <input type="submit" value="Upload">
+      </form>
+    </div>
+
+    <div class="mt-20">
+      <form action="/delete_file" method="post">
+        <label for="to_delete">Delete file:</label>
+        <select id="to_delete" name="to_delete">
+          <option value="" selected disabled hidden>(Choose file)</option>
+          {% for file in files %}
+              <option value="{{ file }}">{{ file }}</option>
+          {% endfor %}
+        </select>
+        <br><br>
+        <input type="submit" value="Delete">
+      </form>
+    </div>
+
+    {% if message %}
+      <h4 style="color: rgb(175, 18, 196)">{{ message }}</h4>
+    {% endif %}
+
+    <h3>Clustering</h3>
+    <div class="mt-20">
+      <form method="post" action="/choose_files_for_clusters">
+        <label for="chosen_files">Choose files for clustering:</label>
+        {% for file in files %}
+            <input type="checkbox" name="chosen_files" value="{{ file }}"> {{ file }}<br>
+        {% endfor %}
+        <br>
+        <input type="submit" value="Process Selected Files">
+    </form>
+  </div>
+
+
+    <!-- <div class="mt-20">
+      <form action="/choose_files_for_clusters" method="post">
+        <label for="konfiguracje">Dostępne konfiguracje:</label>
+        <select id="konfiguracje" name="konfiguracje">
+          {% for konf in konfiguracje %}
+            <option value="{{ konf }}" {% if konf == "DEFAULT.yaml" %}selected{% endif %}>{{ konf }}</option>
+          {% endfor %}
+        </select>
+        <br><br>
+        <input type="submit" value="Wybierz konfiguracje">
+        {% if komunikat %}
+          {% if komunikat.startswith("(choose)") %}
+            <h4 style="color: green">{{komunikat.split("(choose)")[1]}}</h4>
+          {% endif %}
+        {% endif %}
+      </form>
+    </div>
+
+    <h3>Wyznacz cechy</h3>
+    <div class="wyznacz-cechy mt-20">
+      <form action="/get-features" method="get">
+        <label for="id_obiektu">Id obiektu:</label>
+        <input type="text" id="id_obiektu" name="id_obiektu" required>
+        <br><br>
+        <label for="typ_obiektu">Typ obiektu:</label>
+        <input type="text" id="typ_obiektu" name="typ_obiektu" required>
+        <br><br>
+        <label for="id_wniosku">Id wniosku:</label>
+        <input type="text" id="id_wniosku" name="id_wniosku">
+        <br><br>
+        <label for="stan_na">Stan na:</label>
+        <input type="text" id="stan_na" placeholder="yyyy-mm-dd" name="stan_na" required>
+        <br><br>
+        <input type="submit" value="Wyznacz cechy">
+        {% if komunikat %}
+          {% if komunikat.startswith("(get-features)") %}
+            <h4>{{komunikat.split("(get-features)")[1]}}</h4>
+          {% endif %}
+        {% endif %}
+      </form>
+      <!-- <form action="/choose-params-dz" method="post">
+        <h3>Wyznacz cechy dziecka</h3>
+        <label for="pesel_dziecka">PESEL Dziecka:</label>
+        <input type="text" id="pesel_dziecka" name="pesel_dziecka" required>
+        <br><br>
+        <label for="stan_na">Stan na:</label>
+        <input type="text" id="stan_na" placeholder="yyyy-mm-dd" name="stan_na" required>
+        <br><br>
+        <input type="submit" value="Wyznacz cechy">
+      </form> -->
+
+  <!-- <div class="mt-20">
+    <form action="/choose-params-wn" method="post">
+      <h3>Wyznacz cechy wniosku</h3>
+      <label for="id_ubezpieczonego">ID wniosku:</label>
+      <input type="text" id="id_wniosku" name="id_wniosku" required>
+      <br><br>
+      <label for="stan_na">Stan na:</label>
+      <input type="text" id="stan_na" placeholder="yyyy-mm-dd" name="stan_na" required>
+      <br><br>
+      <input type="submit" value="Wyznacz cechy">
+    </form>
+  </div> -->
+  </body>
+</html>
