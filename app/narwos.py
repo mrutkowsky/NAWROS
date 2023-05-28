@@ -92,7 +92,12 @@ def upload_file():
                 files_uploading_status['uploaded_succesfully'].append(uploaded_file.filename)
                  
             else:
-                files_uploading_status['uploading_failed'][uploaded_file.filename] = validated_file_content 
+                os.remove(os.path.join(
+                    app.config["TEMP_FOLDER"], 
+                    uploaded_file.filename))
+        
+                files_uploading_status['uploading_failed'][uploaded_file.filename] = validated_file_content
+
 
         else:
             files_uploading_status['uploading_failed'][uploaded_file.filename] = 'Extension is not valid'
