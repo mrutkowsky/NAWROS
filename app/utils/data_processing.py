@@ -95,7 +95,7 @@ if __name__ == "__main__":
         save_name = filename.replace('.', '_') + '.index'
         save_path = os.path.join(FAISS_VECTORS_PATH, save_name)
         save_embeddings(vecs[0], save_path)
-        embeded_files[filename] = save_path
+        embeded_files[filename] = save_name
         
 
     with open(EMBEDDINGS_FILE, 'w') as f:
