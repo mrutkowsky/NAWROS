@@ -72,23 +72,15 @@ def cleanup_data(df: pd.DataFrame, filename: str) -> pd.DataFrame:
     return df
 
 
-def get_embeddings(dataloader: DataLoader):
-    vectors = []
+def save_embeddings(dataloader: DataLoader, save_path: str):
+    index = faiss.IndexFlatL2(VEC_SIZE)
+    logger.info(f'Saving embeddings to {save_path}')
     for batch in tqdm(dataloader):
-        vectors.append(embed_sentence(batch))
-        logger.info(f"Embedding stoped after one batch for testing purposes")
+        index.add(embed_sentence(batch))
         #WARNING: REMOVE THIS BREAK IF YOU WANT TO EMBED ALL THE DATA
         break
-
-    return vectors
-
-
-def save_embeddings(embeddings: list, path: str):
-    logger.info(f'Saving embeddings to {path}')
-    index = faiss.IndexFlatL2(VEC_SIZE)
-    index.add(embeddings)
-    assert path.endswith('.index')
-    faiss.write_index(index, path)
+    assert save_path.endswith('.index')
+    faiss.write_index(index, save_path)
 
 
 def get_embedded_files():
@@ -113,10 +105,10 @@ def process_data_from_choosen_files(choosen_files: list):
             df = read_file(os.path.join(VALID_FILES, file_))
             dataset = MyDataset(cleanup_data(df, file_))
             dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
-            vectors = get_embeddings(dataloader)
+            
             save_name = file_.replace('.', '_') + '.index'
             save_path = os.path.join(FAISS_VECTORS_PATH, save_name)
-            save_embeddings(vectors[0], save_path)
+            save_embeddings(dataloader, save_path)
             save_file_as_embeded(file_, save_name)
 
 
