@@ -21,6 +21,5 @@ VEC_SIZE = model.get_sentence_embedding_dimension()
 def embed_sentence(text: str) -> torch.Tensor:
     return model.encode(
         sentences=text,
-        batch_size=32,
         show_progress_bar=True,
         convert_to_numpy=True)
