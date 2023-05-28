@@ -3,10 +3,9 @@ import glob
 import re
 import os
 # Path to the folder where the files are located
-folder_path = os.path.join(os.getcwd(), 'data')
-file_extension = ['xlsx', 'csv', 'txt']
-files = []
-Columns = ["Questioned_Date", "Model_No", "OS", "SW_Version", "CSC", "Category", "Application_Name", "content"]
+FOLDER_PATH = os.path.join(os.getcwd(), 'data')
+FILE_EXTENSION = ['xlsx', 'csv', 'txt']
+COLUMNS = ["Questioned_Date", "Model_No", "OS", "SW_Version", "CSC", "Category", "Application_Name", "content"]
     
 def clean_text(text):
     # Remove punctuation marks
@@ -16,11 +15,12 @@ def clean_text(text):
 
 def get_data(folder_path):
     # Download files with extensions .xlsx, .csv and .txt
-    for extension in file_extension:
+    files = []
+    for extension in FILE_EXTENSION:
         files.extend(glob.glob(f"{folder_path}/*.{extension}"))
 
     # Create an empty pandas table that will hold the merged data
-    merged_data = pd.DataFrame(columns=Columns)
+    merged_data = pd.DataFrame(columns=COLUMNS)
     # Iterate through all the files and add their contents to the pandas table
     for file in files:
         if file.endswith('.xlsx'):
@@ -34,4 +34,4 @@ def get_data(folder_path):
     return merged_data['content'].apply(clean_text)
 
 if __name__ == "__main__":
-    get_data(folder_path)
+    get_data(FOLDER_PATH )
