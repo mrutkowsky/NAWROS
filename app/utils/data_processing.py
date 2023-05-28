@@ -1,18 +1,32 @@
 import os
-import sys
 import json
+import yaml
 import logging
 import numpy as np
 import pandas as pd
-
 import faiss
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
-from config import (BATCH_SIZE, COLUMNS, VECTOR_SIZE, VALID_FILES,
-                    EMBEDDINGS_FILE, FAISS_VECTORS_PATH)
-from embeddings import embed_sentence
-from etl import preprocess_text
+from utils.embeddings import embed_sentence, VEC_SIZE
+from utils.etl import preprocess_text
+
+CONFIG_PATH = os.path.join('utils', 'config.yaml')
+
+with open(CONFIG_PATH) as yaml_file:
+    config = yaml.load(yaml_file, Loader=yaml.FullLoader)
+
+
+DATA_FOLDER = os.path.join(*config['pipeline']['data_folder'])
+VALID_FILES = os.path.join(*config['pipeline']['valid_files'])
+EMBEDDINGS_FOLDER = os.path.join(DATA_FOLDER, config['pipeline']['embeddings_folder'])
+EMBEDDINGS_FILE = os.path.join(EMBEDDINGS_FOLDER, config['pipeline']['embeddings_file'])
+EMPTY_CONTENTS_EXT = config['pipeline']['empty_content_ext']
+EMPTY_CONTENTS_SUFFIX = config['pipeline']['empty_content_suffix']
+EMPTY_CONTENT_FOLDER = os.path.join(DATA_FOLDER, config['pipeline']['empty_content_folder'])
+FAISS_VECTORS_PATH = os.path.join(DATA_FOLDER, config['pipeline']['faiss_vec_folder'])
+COLUMNS = config['pipeline']['columns']
+BATCH_SIZE = config['pipeline']['batch_size']
 
 
 logging.basicConfig(level=logging.INFO,
@@ -31,32 +45,31 @@ class MyDataset(Dataset):
         return len(self.data)
 
 
-def read_file(file_path: str) -> pd.DataFrame:
+def read_file(file_path: str, columns=COLUMNS) -> pd.DataFrame:
     if file_path.endswith('.xlsx'):
-        df = pd.read_excel(file_path, names=COLUMNS)
+        df = pd.read_excel(file_path, usecols=columns)
     else:
-        df = pd.read_csv(file_path, names=COLUMNS)
+        df = pd.read_csv(file_path, usecols=columns)
     return df
 
 
-def cleanup_data(df: pd.DataFrame) -> pd.DataFrame:
-    sentences = list(df['content'])
-    indexes_to_del = [i for i, sent in enumerate(sentences) if not isinstance(sent, str)]
-    sentences = list(filter(lambda x: sentences.index(x) not in indexes_to_del, sentences))
-    df = df.drop(index=indexes_to_del).dropna()
-    sentences = list(map(preprocess_text, sentences))
-    df['content'] = sentences
+def cleanup_data(df: pd.DataFrame, filename: str) -> pd.DataFrame:
+    """
+    Remove rows with empty contents and save them to a separate file.
+    """
+    empty_contents_indexes = np.where(df['content'].apply(lambda x: not isinstance(x, str)))[0]
+
+    save_path = os.path.join(EMPTY_CONTENT_FOLDER,
+         f'{filename.split(".")[-2]}{EMPTY_CONTENTS_SUFFIX}{EMPTY_CONTENTS_EXT}')
+
+    df.iloc[empty_contents_indexes].to_csv(
+        path_or_buf=save_path,
+        index=True)
+  
+    df.drop(index=empty_contents_indexes, inplace=True)
+    df['content'] = df['content'].apply(preprocess_text)
+
     return df
-
-
-def create_dataloaders(valid_files: str) -> list:
-    dataloaders = []
-    for f in valid_files:
-        df = read_file(os.path.join(VALID_FILES, f))
-        dataset = MyDataset(cleanup_data(df))
-        dataloaders.append(DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False))        
-
-    return dataloaders
 
 
 def get_embeddings(dataloader: DataLoader):
@@ -69,34 +82,44 @@ def get_embeddings(dataloader: DataLoader):
 
     return vectors
 
+
 def save_embeddings(embeddings: list, path: str):
     logger.info(f'Saving embeddings to {path}')
-    index = faiss.IndexFlatL2(VECTOR_SIZE)
+    index = faiss.IndexFlatL2(VEC_SIZE)
     index.add(embeddings)
     assert path.endswith('.index')
     faiss.write_index(index, path)
 
 
+def get_embedded_files():
+    return json.load(open(EMBEDDINGS_FILE, 'r'))
+
+
+def save_file_as_embeded(filename, vectors_filename):
+    embeded_files = get_embedded_files()
+    embeded_files[filename] = vectors_filename
+    json.dump(embeded_files, open(EMBEDDINGS_FILE, 'w'))
+
+
+def process_data_from_choosen_files(choosen_files: list):
+    """
+    Process data from files choosen by a user, save embedding for the ones that 
+    are not already embedded.
+    """
+    already_embedded = get_embedded_files()
+    for file_ in choosen_files:
+        if file_ in os.listdir(VALID_FILES) and file_ not in already_embedded.keys():
+
+            df = read_file(os.path.join(VALID_FILES, file_))
+            dataset = MyDataset(cleanup_data(df, file_))
+            dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
+            vectors = get_embeddings(dataloader)
+            save_name = file_.replace('.', '_') + '.index'
+            save_path = os.path.join(FAISS_VECTORS_PATH, save_name)
+            save_embeddings(vectors[0], save_path)
+            save_file_as_embeded(file_, save_name)
+
+
 if __name__ == "__main__":
     all_files = os.listdir(VALID_FILES)
-
-    files_to_embed = []
-    embeded_files = json.load(open(EMBEDDINGS_FILE, 'r'))
-    for f in all_files:
-        if f not in embeded_files.keys():
-            files_to_embed.append(f)
-
-    dls = create_dataloaders(files_to_embed)
-
-    
-    
-    for n, filename in enumerate(files_to_embed):
-        vecs = get_embeddings(dls[n])
-        save_name = filename.replace('.', '_') + '.index'
-        save_path = os.path.join(FAISS_VECTORS_PATH, save_name)
-        save_embeddings(vecs[0], save_path)
-        embeded_files[filename] = save_name
-        
-
-    with open(EMBEDDINGS_FILE, 'w') as f:
-        json.dump(embeded_files, f)
+    process_data_from_choosen_files(all_files)

@@ -1,9 +1,0 @@
-BATCH_SIZE = 32
-DATA_FOLDER_PATH = '../../data/'
-VALID_FILES = '../validated_files'
-EMBEDDINGS_FILE = '../../data/embeddings/embeddings.json'
-FAISS_VECTORS_PATH = '../../data/faiss_vectors'
-COLUMNS = ['content']
-SEED = 42
-ST_MODEL_NAME = 'sentence-transformers/distiluse-base-multilingual-cased-v1'
-VECTOR_SIZE = 512
