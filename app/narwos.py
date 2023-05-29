@@ -6,7 +6,7 @@ import logging
 from utils.module_functions import \
     validate_file, \
     validate_file_extension
-from utils.data_processing import process_data_from_choosen_files
+from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv
 from flask import g
 import plotly.express as px
 import json
@@ -142,11 +142,13 @@ def choose_files_for_clusters():
     df = get_clusters_for_choosen_files(files_for_clustering)
 
     df.to_csv(index=False, path_or_buf='test.csv')
-    
+    save_raport_to_csv(df, 'clusters_raport.csv')
 
     logger.debug(f'Files {files_for_clustering} processed successfully.')
 
     n_clusters = len(df['labels'].unique())
+
+
     return redirect(url_for("index", message=f"{n_clusters} clusters has been clculated."))
 
 

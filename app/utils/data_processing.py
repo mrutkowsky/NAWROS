@@ -44,6 +44,14 @@ class MyDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
+def save_raport_to_csv(df: pd.DataFrame, filename: str):
+    """
+    Saves raport to csv file.
+    """
+    df = df.groupby(df['labels']).size().reset_index(name='counts')
+    save_path = os.path.join(DATA_FOLDER, filename)
+    df.to_csv(save_path, index=False)
+
 
 def read_file(file_path: str, columns=COLUMNS) -> pd.DataFrame:
     if file_path.endswith('.xlsx'):
