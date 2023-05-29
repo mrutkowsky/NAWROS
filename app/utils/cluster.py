@@ -44,7 +44,8 @@ def get_clusters_for_choosen_files(choosen_files: list) -> pd.DataFrame:
     """
 
     embeddings_files = get_embedded_files()
-    all_tensors = []
+    
+    all_vectors = None
 
     for file_ in choosen_files:
 
@@ -55,12 +56,10 @@ def get_clusters_for_choosen_files(choosen_files: list) -> pd.DataFrame:
         vectors = np.zeros((n, index.d), dtype=np.float32)
         index.reconstruct_n(0, n, vectors)
 
-        all_tensors.append(vectors)
-
-    all_tensors = np.vstack(all_tensors)
+        all_vectors = np.vstack((all_vectors, vectors)) if all_vectors else vectors
     
-    clusterable_embeddings = dimension_reduction(all_tensors)
-    dimensions_2d = dimension_reduction(all_tensors, dimension=2)
+    clusterable_embeddings = dimension_reduction(all_vectors)
+    dimensions_2d = dimension_reduction(all_vectors, dimension=2)
     labels = cluster_sentences(clusterable_embeddings)
     logging.info(f"Clusters calculated successfully")
 
