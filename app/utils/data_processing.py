@@ -75,10 +75,9 @@ def cleanup_data(df: pd.DataFrame, filename: str) -> pd.DataFrame:
 def save_embeddings(dataloader: DataLoader, save_path: str):
     index = faiss.IndexFlatL2(VEC_SIZE)
     logger.info(f'Saving embeddings to {save_path}')
-    for batch in tqdm(dataloader):
+    for batch in dataloader:
         index.add(embed_sentence(batch))
-        #WARNING: REMOVE THIS BREAK IF YOU WANT TO EMBED ALL THE DATA
-        break
+
     assert save_path.endswith('.index')
     faiss.write_index(index, save_path)
 
@@ -99,6 +98,7 @@ def process_data_from_choosen_files(choosen_files: list):
     are not already embedded.
     """
     already_embedded = get_embedded_files()
+    logger.info("Loading data from choosen files")
     for file_ in choosen_files:
         if file_ in os.listdir(VALID_FILES) and file_ not in already_embedded.keys():
 

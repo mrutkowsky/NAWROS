@@ -11,7 +11,8 @@ from flask import g
 import plotly.express as px
 import json
 import plotly
-# from utils.c
+from utils.cluster import get_clusters_for_choosen_files
+
 
 app = Flask(__name__)
 
