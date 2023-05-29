@@ -15,14 +15,13 @@ from utils.cluster import get_clusters_for_choosen_files
 
 
 app = Flask(__name__)
-app.secret_key = 'SECRET' 
 
 UPLOAD_FOLDER = 'uploads'
 TEMP_FOLDER = 'tmp'
 VALIDATED_FILES_FOLDER = 'validated_files'
 ALLOWED_EXTENSIONS = {'.csv', '.txt', '.xlsx'}
 LOGGING_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
-LOGGER_LEVEL = 'DEBUG'
+LOGGER_LEVEL = 'INFO'
 REQUIRED_COLUMNS = [
     "Questioned_Date", 
     "Model_No", 

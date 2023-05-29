@@ -1,4 +1,10 @@
 import hdbscan
+from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
+import warnings
+
+warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
+warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
+
 import umap.umap_ as UMAP
 import torch
 import pandas as pd
