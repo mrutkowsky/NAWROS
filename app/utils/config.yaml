@@ -1,0 +1,13 @@
+pipeline:
+  batch_size: 32
+  data_folder:  ['..', 'data']
+  valid_files: ['validated_files']
+  embeddings_folder: 'embeddings'
+  embeddings_file: 'embeddings.json'
+  empty_content_folder: 'empty_content'
+  empty_content_suffix: '_EMPTY_CONTENT'
+  empty_content_ext: '.csv'
+  faiss_vec_folder: 'faiss_vectors'
+  columns: ['content']
+  seed: 42
+  st_model_name: 'sentence-transformers/distiluse-base-multilingual-cased-v1'
