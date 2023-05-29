@@ -55,7 +55,7 @@ input[type="text"]{
     border: 1px solid #ccc;
     border-radius: 5px;
 }
-input[type="submit"] {
+input[type="submit"], button.my-button {
     padding: 10px 10px;
     background-color: lightblue;
     color: white;
