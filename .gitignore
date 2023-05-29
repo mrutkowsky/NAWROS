@@ -2,3 +2,4 @@
 /app/utils/__pycache__
 *.xlsx
 *.csv
+data/embeddings/embeddings.json
