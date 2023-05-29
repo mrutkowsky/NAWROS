@@ -141,7 +141,7 @@ def choose_files_for_clusters():
     process_data_from_choosen_files(files_for_clustering)
     df = get_clusters_for_choosen_files(files_for_clustering)
 
-    df.to_csv(index=False, path_or_buf='test.csv')
+    df.to_csv(index=False, path_or_buf='clusterization.csv')
     save_raport_to_csv(df, 'clusters_raport.csv')
 
     logger.debug(f'Files {files_for_clustering} processed successfully.')
@@ -149,7 +149,7 @@ def choose_files_for_clusters():
     n_clusters = len(df['labels'].unique())
 
 
-    return redirect(url_for("index", message=f"{n_clusters} clusters has been clculated."))
+    return redirect(url_for("index", message=f"{n_clusters} clusters has been created successfully."))
 
 
 @app.route('/show_clusters_submit', methods=['POST'])
@@ -165,7 +165,7 @@ def show_clusters_submit():
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
 
-    df = pd.read_csv('test.csv')
+    df = pd.read_csv('clusterization.csv')
 
     if isinstance(df, pd.DataFrame):
 
