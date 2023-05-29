@@ -7,11 +7,13 @@ from utils.module_functions import \
     validate_file, \
     validate_file_extension
 from utils.data_processing import process_data_from_choosen_files
+
 from flask import g
 import plotly.express as px
 import json
 import plotly
-# from utils.c
+from utils.cluster import get_clusters_for_choosen_files
+
 
 app = Flask(__name__)
 
@@ -180,7 +182,6 @@ def show_clusters():
             return render_template("clusters_viz.html", figure=fig_json)
         
         return 'Nothing to show here'
-
 
 if __name__ == '__main__':
     app.run(debug=True)
