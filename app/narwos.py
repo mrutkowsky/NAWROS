@@ -7,6 +7,7 @@ from utils.module_functions import \
     validate_file, \
     validate_file_extension
 from utils.data_processing import process_data_from_choosen_files
+from utils.cluster import get_clusters_for_choosen_files
 
 app = Flask(__name__)
 
@@ -130,7 +131,10 @@ def choose_files_for_clusters():
     process_data_from_choosen_files(files_for_clustering)
     logger.debug(f'Files {files_for_clustering} processed successfully.')
 
-    return redirect(url_for("index"))
+    df = get_clusters_for_choosen_files(files_for_clustering)
+    n_clusters = len(df['labels'].unique())
+
+    return redirect(url_for("index", message=f"{n_clusters} clusters has been clculated."))
 
 
 if __name__ == '__main__':
