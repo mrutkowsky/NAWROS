@@ -18,6 +18,7 @@ with open(CONFIG_PATH) as yaml_file:
 
 
 DATA_FOLDER = os.path.join(*config['pipeline']['data_folder'])
+CLEARED_DATA_FOLDER = os.path.join(config.get('pipeline').get('cleared_data_folder'))
 VALID_FILES = os.path.join(*config['pipeline']['valid_files'])
 EMBEDDINGS_FOLDER = os.path.join(DATA_FOLDER, config['pipeline']['embeddings_folder'])
 EMBEDDINGS_FILE = os.path.join(EMBEDDINGS_FOLDER, config['pipeline']['embeddings_file'])
@@ -44,11 +45,16 @@ class MyDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-def save_raport_to_csv(df: pd.DataFrame, filename: str):
+def save_raport_to_csv(
+        df: pd.DataFrame, 
+        filename: str,
+        clusters_topics: pd.DataFrame,
+        classes_column_name: str = 'labels'):
     """
     Saves raport to csv file.
     """
-    df = df.groupby(df['labels']).size().reset_index(name='counts')
+    df = df.groupby(df[classes_column_name]).size().reset_index(name='counts')
+    df = pd.concat([df, clusters_topics], axis=1) 
     save_path = os.path.join(DATA_FOLDER, filename)
     df.to_csv(save_path, index=False)
 
@@ -102,7 +108,10 @@ def save_file_as_embeded(filename, vectors_filename):
     json.dump(embeded_files, open(EMBEDDINGS_FILE, 'w'))
 
 
-def process_data_from_choosen_files(chosen_files: list):
+def process_data_from_choosen_files(
+        chosen_files: list,
+        columns: list = None,
+        content_column: str = 'content'):
     """
     Process data from files choosen by a user, save embedding for the ones that 
     are not already embedded.
@@ -116,15 +125,33 @@ def process_data_from_choosen_files(chosen_files: list):
         if file_ in os.listdir(VALID_FILES) and file_ not in already_embedded.keys():
 
             df = read_file(
-                os.path.join(VALID_FILES, file_))
+                file_path=os.path.join(VALID_FILES, file_),
+                columns=None)
             
-            dataset = MyDataset(cleanup_data(df, file_))
+            filename, ext = os.path.splitext(file_)
+            
+            logger.info(f'{filename=}, {ext=}')
+            
+            logger.info(f'Loaded {file_}')
+            df = cleanup_data(df, file_)
+            logger.info(f'Cleaned {file_}')
+            
+            dataset = MyDataset(df[content_column].to_frame())
+            
             dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
+            logger.info('Successfully converted df to Torch Dataset')
             
-            save_name = file_.replace('.', '_') + '.index'
+            save_name = f'{filename}.index'
             save_path = os.path.join(FAISS_VECTORS_PATH, save_name)
+
             save_embeddings(dataloader, save_path)
+            logger.info('Embeddings exctracted successfully')
             save_file_as_embeded(file_, save_name)
+            logger.info(f'File with embeddings saved for {file_}')
+
+            df.to_csv(
+                index=False, 
+                path_or_buf=os.path.join(CLEARED_DATA_FOLDER, f'{filename}.csv'))
 
 
 if __name__ == "__main__":
