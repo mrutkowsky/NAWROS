@@ -29,9 +29,9 @@ COLUMNS = config['pipeline']['columns']
 BATCH_SIZE = config['pipeline']['batch_size']
 
 
-logging.basicConfig(level=logging.INFO,
-                    format="%(levelname)s %(message)s")
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.INFO,
+#                     format="%(levelname)s %(message)s")
+logger = logging.getLogger(__file__)
 
 
 class MyDataset(Dataset):

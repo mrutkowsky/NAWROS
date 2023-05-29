@@ -1,7 +1,7 @@
 import os
 import shutil
 import pandas as pd
-from flask import Flask, request, jsonify, render_template, send_file, redirect, url_for
+from flask import Flask, request, jsonify, render_template, send_file, redirect, url_for, session
 import logging
 from utils.module_functions import \
     validate_file, \
@@ -15,6 +15,7 @@ from utils.cluster import get_clusters_for_choosen_files
 
 
 app = Flask(__name__)
+app.secret_key = 'SECRET' 
 
 UPLOAD_FOLDER = 'uploads'
 TEMP_FOLDER = 'tmp'
@@ -141,7 +142,8 @@ def choose_files_for_clusters():
     process_data_from_choosen_files(files_for_clustering)
     df = get_clusters_for_choosen_files(files_for_clustering)
 
-    g.df = df
+    df.to_csv(index=False, path_or_buf='test.csv')
+    
 
     logger.debug(f'Files {files_for_clustering} processed successfully.')
 
@@ -162,25 +164,21 @@ def show_clusters_submit():
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
 
-    try:
-        df = g.df
-    except AttributeError:
-        return 'Nothing to show here'
-    else:
+    df = pd.read_csv('test.csv')
 
-        if isinstance(df, pd.DataFrame):
+    if isinstance(df, pd.DataFrame):
 
-            scatter_plot = px.scatter(
-                data_frame=df,
-                x='x',
-                y='y',
-                color='labels'
-            )
+        scatter_plot = px.scatter(
+            data_frame=df,
+            x='x',
+            y='y',
+            color='labels'
+        )
 
-            fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
-            return render_template("clusters_viz.html", figure=fig_json)
-        
-        return 'Nothing to show here'
+        fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
+        return render_template("clusters_viz.html", figure=fig_json)
+    
+    return 'Nothing to show here'
 
 
 if __name__ == '__main__':
