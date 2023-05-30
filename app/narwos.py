@@ -181,7 +181,6 @@ def show_clusters():
     
     return 'Nothing to show here'
 
-
 if __name__ == '__main__':
     app.run(debug=True)
 

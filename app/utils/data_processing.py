@@ -28,9 +28,6 @@ FAISS_VECTORS_PATH = os.path.join(DATA_FOLDER, config['pipeline']['faiss_vec_fol
 COLUMNS = config['pipeline']['columns']
 BATCH_SIZE = config['pipeline']['batch_size']
 
-
-# logging.basicConfig(level=logging.INFO,
-#                     format="%(levelname)s %(message)s")
 logger = logging.getLogger(__file__)
 
 
@@ -84,7 +81,7 @@ def save_embeddings(dataloader: DataLoader, save_path: str):
 
     index = faiss.IndexFlatL2(VEC_SIZE)
     logger.info(f'Saving embeddings to {save_path}')
-    
+
     for batch in dataloader:
         index.add(embed_sentence(batch))
 
@@ -113,6 +110,7 @@ def process_data_from_choosen_files(chosen_files: list):
         f"""Loading data from chosen files:{chosen_files}""")
 
     for file_ in chosen_files:
+
         if file_ in os.listdir(VALID_FILES) and file_ not in already_embedded.keys():
 
             df = read_file(

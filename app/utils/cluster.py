@@ -15,6 +15,7 @@ import logging
 
 from utils.data_processing import get_embedded_files, VALID_FILES, FAISS_VECTORS_PATH
 
+
 def dimension_reduction(
         sentence_embeddings: np.ndarray, 
         dimension: int = 5):
@@ -48,13 +49,11 @@ def get_clusters_for_choosen_files(choosen_files: list) -> pd.DataFrame:
     Functions that calculates clusters based on vectors for choosen files
     returns a dataframe with labels and 2d coordinates for each sentence.
     """
-
     embeddings_files = get_embedded_files()
     
     all_vectors = None
 
     for file_ in choosen_files:
-
         logging.info(f'Path to index {embeddings_files[file_]}')
         index = faiss.read_index(os.path.join(FAISS_VECTORS_PATH, embeddings_files[file_]))
         
@@ -73,7 +72,7 @@ def get_clusters_for_choosen_files(choosen_files: list) -> pd.DataFrame:
         'labels': labels,
         'x': dimensions_2d[:, 0],
         'y': dimensions_2d[:, 1]
-    })
+        })
 
     return df
 
