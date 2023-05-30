@@ -28,10 +28,7 @@ FAISS_VECTORS_PATH = os.path.join(DATA_FOLDER, config['pipeline']['faiss_vec_fol
 COLUMNS = config['pipeline']['columns']
 BATCH_SIZE = config['pipeline']['batch_size']
 
-
-logging.basicConfig(level=logging.INFO,
-                    format="%(levelname)s %(message)s")
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__file__)
 
 
 class MyDataset(Dataset):
@@ -43,6 +40,14 @@ class MyDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
+
+def save_raport_to_csv(df: pd.DataFrame, filename: str):
+    """
+    Saves raport to csv file.
+    """
+    df = df.groupby(df['labels']).size().reset_index(name='counts')
+    save_path = os.path.join(DATA_FOLDER, filename)
+    df.to_csv(save_path, index=False)
 
 
 def read_file(file_path: str, columns=COLUMNS) -> pd.DataFrame:
@@ -73,8 +78,10 @@ def cleanup_data(df: pd.DataFrame, filename: str) -> pd.DataFrame:
 
 
 def save_embeddings(dataloader: DataLoader, save_path: str):
+
     index = faiss.IndexFlatL2(VEC_SIZE)
     logger.info(f'Saving embeddings to {save_path}')
+
     for batch in dataloader:
         index.add(embed_sentence(batch))
 
@@ -83,8 +90,8 @@ def save_embeddings(dataloader: DataLoader, save_path: str):
 
 
 def get_embedded_files():
-    return json.load(open(EMBEDDINGS_FILE, 'r'))
-
+    with open(EMBEDDINGS_FILE, 'r', encoding='utf-8') as embedded_json:
+        return json.load(embedded_json)
 
 def save_file_as_embeded(filename, vectors_filename):
     embeded_files = get_embedded_files()
@@ -92,17 +99,23 @@ def save_file_as_embeded(filename, vectors_filename):
     json.dump(embeded_files, open(EMBEDDINGS_FILE, 'w'))
 
 
-def process_data_from_choosen_files(choosen_files: list):
+def process_data_from_choosen_files(chosen_files: list):
     """
     Process data from files choosen by a user, save embedding for the ones that 
     are not already embedded.
     """
+
     already_embedded = get_embedded_files()
-    logger.info("Loading data from choosen files")
-    for file_ in choosen_files:
+    logger.info(
+        f"""Loading data from chosen files:{chosen_files}""")
+
+    for file_ in chosen_files:
+
         if file_ in os.listdir(VALID_FILES) and file_ not in already_embedded.keys():
 
-            df = read_file(os.path.join(VALID_FILES, file_))
+            df = read_file(
+                os.path.join(VALID_FILES, file_))
+            
             dataset = MyDataset(cleanup_data(df, file_))
             dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
             

@@ -1,13 +1,12 @@
 import os
 import shutil
 import pandas as pd
-from flask import Flask, request, jsonify, render_template, send_file, redirect, url_for
+from flask import Flask, request, jsonify, render_template, send_file, redirect, url_for, session
 import logging
 from utils.module_functions import \
     validate_file, \
     validate_file_extension
-from utils.data_processing import process_data_from_choosen_files
-
+from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv
 from flask import g
 import plotly.express as px
 import json
@@ -22,7 +21,7 @@ TEMP_FOLDER = 'tmp'
 VALIDATED_FILES_FOLDER = 'validated_files'
 ALLOWED_EXTENSIONS = {'.csv', '.txt', '.xlsx'}
 LOGGING_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
-LOGGER_LEVEL = 'DEBUG'
+LOGGER_LEVEL = 'INFO'
 REQUIRED_COLUMNS = [
     "Questioned_Date", 
     "Model_No", 
@@ -142,12 +141,15 @@ def choose_files_for_clusters():
     process_data_from_choosen_files(files_for_clustering)
     df = get_clusters_for_choosen_files(files_for_clustering)
 
-    g.df = df
+    df.to_csv(index=False, path_or_buf='clusterization.csv')
+    save_raport_to_csv(df, 'clusters_raport.csv')
 
     logger.debug(f'Files {files_for_clustering} processed successfully.')
 
     n_clusters = len(df['labels'].unique())
-    return redirect(url_for("index", message=f"{n_clusters} clusters has been clculated."))
+
+
+    return redirect(url_for("index", message=f"{n_clusters} clusters has been created successfully."))
 
 
 @app.route('/show_clusters_submit', methods=['POST'])
@@ -163,25 +165,21 @@ def show_clusters_submit():
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
 
-    try:
-        df = g.df
-    except AttributeError:
-        return 'Nothing to show here'
-    else:
+    df = pd.read_csv('clusterization.csv')
 
-        if isinstance(df, pd.DataFrame):
+    if isinstance(df, pd.DataFrame):
 
-            scatter_plot = px.scatter(
-                data_frame=df,
-                x='x',
-                y='y',
-                color='labels'
-            )
+        scatter_plot = px.scatter(
+            data_frame=df,
+            x='x',
+            y='y',
+            color='labels'
+        )
 
-            fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
-            return render_template("clusters_viz.html", figure=fig_json)
-        
-        return 'Nothing to show here'
+        fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
+        return render_template("clusters_viz.html", figure=fig_json)
+    
+    return 'Nothing to show here'
 
 if __name__ == '__main__':
     app.run(debug=True)
