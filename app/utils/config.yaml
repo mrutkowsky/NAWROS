@@ -1,6 +1,7 @@
 pipeline:
   batch_size: 32
   data_folder:  ['..', 'data']
+  cleared_data_folder: 'cleared_data'
   valid_files: ['validated_files']
   embeddings_folder: 'embeddings'
   embeddings_file: 'embeddings.json'
