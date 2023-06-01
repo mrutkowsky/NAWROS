@@ -3,3 +3,4 @@
 *.xlsx
 *.csv
 data/embeddings/embeddings.json
+data/faiss_vectors/
