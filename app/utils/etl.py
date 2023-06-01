@@ -12,10 +12,9 @@ def load_files_into_df(
 
     for dataset in sorted(os.listdir(data_folder_path), reverse=True):
 
-        if dataset in skip_files:
-            continue
-
-        print(dataset)
+        if skip_files is not None:
+            if dataset in skip_files:
+                continue
 
         dataset_filepath = os.path.join(data_folder_path, dataset)
 
