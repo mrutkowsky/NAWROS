@@ -13,7 +13,7 @@ import faiss
 import os
 import logging
 
-from utils.data_processing import get_embedded_files, VALID_FILES, FAISS_VECTORS_PATH
+from utils.data_processing import get_embedded_files, VALID_FILES, FAISS_VECTORS_PATH, read_file, CLEARED_DATA_FOLDER
 
 
 def dimension_reduction(
@@ -44,7 +44,9 @@ def cluster_sentences(
     return cluster.labels_
 
 
-def get_clusters_for_choosen_files(choosen_files: list) -> pd.DataFrame:
+def get_clusters_for_choosen_files(
+        choosen_files: list,
+        content_column: str = 'content') -> pd.DataFrame:
     """
     Functions that calculates clusters based on vectors for choosen files
     returns a dataframe with labels and 2d coordinates for each sentence.
@@ -52,6 +54,7 @@ def get_clusters_for_choosen_files(choosen_files: list) -> pd.DataFrame:
     embeddings_files = get_embedded_files()
     
     all_vectors = None
+    result_df = None
 
     for file_ in choosen_files:
         logging.info(f'Path to index {embeddings_files[file_]}')
@@ -61,7 +64,12 @@ def get_clusters_for_choosen_files(choosen_files: list) -> pd.DataFrame:
         vectors = np.zeros((n, index.d), dtype=np.float32)
         index.reconstruct_n(0, n, vectors)
 
-        all_vectors = np.vstack((all_vectors, vectors)) if all_vectors else vectors
+        all_vectors = np.vstack((all_vectors, vectors)) if all_vectors is not None else vectors
+
+        filename, ext = os.path.splitext(file_)
+        current_file_df = read_file(os.path.join(CLEARED_DATA_FOLDER, f'{filename}.csv'), columns=[content_column])
+        result_df = pd.concat([result_df, current_file_df])
+        result_df = result_df.reset_index(drop=True)
     
     clusterable_embeddings = dimension_reduction(all_vectors)
     dimensions_2d = dimension_reduction(all_vectors, dimension=2)
@@ -73,6 +81,10 @@ def get_clusters_for_choosen_files(choosen_files: list) -> pd.DataFrame:
         'x': dimensions_2d[:, 0],
         'y': dimensions_2d[:, 1]
         })
+
+    logging.info(f'result_df: {result_df}')
+    df['content'] = result_df[content_column].copy()
+    logging.info(f'result_df: {result_df}')
 
     return df
 

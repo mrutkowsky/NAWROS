@@ -12,6 +12,7 @@ import plotly.express as px
 import json
 import plotly
 from utils.cluster import get_clusters_for_choosen_files
+from utils.c_tf_idf_module import get_topics_from_texts
 
 
 app = Flask(__name__)
@@ -139,14 +140,22 @@ def choose_files_for_clusters():
     logger.debug(f'Chosen files: {files_for_clustering}')
 
     process_data_from_choosen_files(files_for_clustering)
-    df = get_clusters_for_choosen_files(files_for_clustering)
 
-    df.to_csv(index=False, path_or_buf='clusterization.csv')
-    save_raport_to_csv(df, 'clusters_raport.csv')
+    clusters_df = get_clusters_for_choosen_files(files_for_clustering)
+    clusters_df.to_csv(index=False, path_or_buf='clusterization.csv')
+
+    clusters_topics_df = get_topics_from_texts(
+        df=clusters_df
+    )
+
+    save_raport_to_csv(
+        df=clusters_df,
+        clusters_topics=clusters_topics_df,
+        filename='clusters_raport.csv')
 
     logger.debug(f'Files {files_for_clustering} processed successfully.')
 
-    n_clusters = len(df['labels'].unique())
+    n_clusters = len(clusters_df['labels'].unique())
 
 
     return redirect(url_for("index", message=f"{n_clusters} clusters has been created successfully."))
