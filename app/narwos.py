@@ -8,7 +8,7 @@ from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
     read_config
-from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv, read_file
+from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv
 import plotly.express as px
 import json
 import plotly
