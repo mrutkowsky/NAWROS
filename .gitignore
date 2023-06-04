@@ -1,7 +1,6 @@
 /app/utils/__pycache__
 *.xlsx
 *.csv
-*.json
 *.gzip.parquet
 /mpnet_finetuned
 *.h5
