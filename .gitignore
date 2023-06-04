@@ -3,3 +3,10 @@
 *.csv
 *.json
 *.gzip.parquet
+/mpnet_finetuned
+*.h5
+*.ipynb
+/tests
+/to_use
+*.pyc
+*.index
