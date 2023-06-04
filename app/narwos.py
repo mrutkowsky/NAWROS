@@ -8,7 +8,7 @@ from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
     read_config
-from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv
+from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv, read_file
 import plotly.express as px
 import json
 import plotly
@@ -272,6 +272,55 @@ def show_clusters():
         return render_template("clusters_viz.html", figure=fig_json)
     
     return 'Nothing to show here'
+
+@app.route('/show_filters_submit', methods=['POST'])
+def show_filter_submit():
+
+    show_filter = request.form.get('show_filter')
+    if show_filter:
+        return redirect(url_for('show_filter', show_filter=show_filter))
+    else:
+        return redirect(url_for("index", message=f"Cannot show the filtering!"))
+
+@app.route('/show_filters', methods=['GET'])
+def show_filter():
+
+    df = pd.read_csv(PATH_TO_CURRENT_DF)
+
+    if isinstance(df, pd.DataFrame):
+
+        return render_template('filtering.html', columns=df.columns)
+    
+    return 'Nothing to show here'
+
+@app.route('/filter', methods=['POST'])
+def filter_data():
+    filters = request.get_json()
+    #column = request.args.get('column')
+    #value = request.args.get('value')
+    #df = get_merged_df_for_filtering()
+    #filtered_df = df[df[column] == value]
+    filtered_df = pd.read_csv(PATH_TO_CURRENT_DF)
+    logger.info(
+        f"""Columns of df to filtr:{filtered_df.columns}""")
+    for filter_data in filters:
+        column = filter_data['column']
+        value = filter_data['value']
+        filtered_df = filtered_df[filtered_df[column] == value]
+
+    # Prepare the CSV file for download
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        filtered_df.to_excel(writer, index=False, sheet_name='Filtered Data')
+        writer.close()
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='filtered_data.xlsx'
+    )
 
 if __name__ == '__main__':
     app.run(debug=True)
