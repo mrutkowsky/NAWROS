@@ -14,6 +14,8 @@ import json
 import plotly
 from utils.cluster import get_clusters_for_choosen_files
 from utils.c_tf_idf_module import get_topics_from_texts
+import io
+import xlsxwriter
 
 app = Flask(__name__)
 
@@ -112,10 +114,12 @@ def index():
 
     validated_files = os.listdir(
         PATH_TO_VALID_FILES)
+        
+    validated_files_to_show = [file for file in validated_files if file != '.gitkeep']
 
     return render_template(
         "index.html", 
-        files=validated_files,
+        files=validated_files_to_show,
         message=message)
 
 @app.route('/upload_file', methods=['POST'])
@@ -296,11 +300,8 @@ def show_filter():
 @app.route('/filter', methods=['POST'])
 def filter_data():
     filters = request.get_json()
-    #column = request.args.get('column')
-    #value = request.args.get('value')
-    #df = get_merged_df_for_filtering()
-    #filtered_df = df[df[column] == value]
     filtered_df = pd.read_csv(PATH_TO_CURRENT_DF)
+    filtered_df = filtered_df.astype(str)
     logger.info(
         f"""Columns of df to filtr:{filtered_df.columns}""")
     for filter_data in filters:
