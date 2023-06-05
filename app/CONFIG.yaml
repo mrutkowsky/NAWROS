@@ -1,0 +1,58 @@
+DIRECTORIES:
+  data: data
+  cleared_files: cleared_files
+  valid_files: validated_files
+  raports: raports
+  empty_content: empty_content
+  tmp: tmp
+  embeddings: embeddings
+  faiss_vectors: faiss_vectors
+  current_df: current_df
+
+FILES:
+  embedded_files: embeddings.json
+  current_df: current_df.gzip.parquet
+
+INPUT_FILES_SETTINGS:
+  allowed_extensions:
+    - .csv 
+    - .txt'
+    - .xlsx
+  required_columns: 
+    - Questioned_Date
+    - Model_No
+    - OS
+    - SW_Version 
+    - CSC
+    - Category 
+    - Application_Name
+    - content
+
+LOGGER:
+  logging_format: '%(asctime)s - %(levelname)s - %(message)s'
+  logger_level: DEBUG
+
+EMPTY_CONTENT_SETTINGS:
+  empty_content_suffix: _EMPTY_CONTENT
+  empty_content_ext: .csv
+
+PIPELINE:
+  content_column: 
+    - content
+  batch_size: 32
+  cleared_file_ext: .csv
+
+ML:
+  seed: 42
+  embeddings:
+    model: 'sentence-transformers/distiluse-base-multilingual-cased-v1'
+  UMAP:
+    n_neighbors: 15
+    min_dist: 0.1
+    n_components: 5
+  topics:
+    - 2
+
+
+
+  

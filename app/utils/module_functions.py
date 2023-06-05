@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import yaml
 
 def compare_columns(
     file_columns: str,
@@ -62,3 +63,18 @@ def validate_file_extension(
         allowed_extensions: set) -> bool:
     
     return True if os.path.splitext(filename)[-1].lower() in allowed_extensions else False
+
+def read_config(  
+        config_filename: str,
+        path_to_dir: str = None
+) -> dict:
+    
+    path_to_configfile = os.path.join(
+        path_to_dir, 
+        config_filename) \
+            if path_to_dir is not None else config_filename
+    
+    with open(path_to_configfile) as yaml_file:
+        config = yaml.load(yaml_file, Loader=yaml.SafeLoader)
+
+    return config

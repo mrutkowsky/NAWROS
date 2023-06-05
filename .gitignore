@@ -1,6 +1,0 @@
-/data/samsung
-/app/utils/__pycache__
-*.xlsx
-*.csv
-data/embeddings/embeddings.json
-data/faiss_vectors/
