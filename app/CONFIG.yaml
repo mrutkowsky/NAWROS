@@ -11,7 +11,7 @@ DIRECTORIES:
 
 FILES:
   embedded_files: embeddings.json
-  current_df: current_df.gzip.parquet
+  current_df: current_df.parquet.gzip
 
 INPUT_FILES_SETTINGS:
   allowed_extensions:

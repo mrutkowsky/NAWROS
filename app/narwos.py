@@ -8,7 +8,7 @@ from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
     read_config
-from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv
+from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv, read_file
 import plotly.express as px
 import json
 import plotly
@@ -24,8 +24,6 @@ app.config['CONFIG_FILE'] = 'CONFIG.yaml'
 CONFIGURATION = read_config(
     app.config['CONFIG_FILE']
 )
-
-print(CONFIGURATION)
 
 DIRECTORIES = CONFIGURATION.get('DIRECTORIES')
 FILES = CONFIGURATION.get('FILES')
@@ -289,7 +287,7 @@ def show_filter_submit():
 @app.route('/show_filters', methods=['GET'])
 def show_filter():
 
-    df = pd.read_csv(PATH_TO_CURRENT_DF)
+    df = read_file(PATH_TO_CURRENT_DF)
 
     if isinstance(df, pd.DataFrame):
 
@@ -299,12 +297,17 @@ def show_filter():
 
 @app.route('/filter', methods=['POST'])
 def filter_data():
+
     filters = request.get_json()
-    filtered_df = pd.read_csv(PATH_TO_CURRENT_DF)
+
+    filtered_df = read_file(PATH_TO_CURRENT_DF)
     filtered_df = filtered_df.astype(str)
+
     logger.info(
-        f"""Columns of df to filtr:{filtered_df.columns}""")
+        f"""Columns of df to filter:{filtered_df.columns}""")
+    
     for filter_data in filters:
+
         column = filter_data['column']
         value = filter_data['value']
         filtered_df = filtered_df[filtered_df[column] == value]
@@ -314,6 +317,7 @@ def filter_data():
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         filtered_df.to_excel(writer, index=False, sheet_name='Filtered Data')
         writer.close()
+
     output.seek(0)
 
     return send_file(
