@@ -2,7 +2,7 @@ import os
 import shutil
 import pandas as pd
 from datetime import datetime
-from flask import Flask, request, jsonify, render_template, send_file, redirect, url_for, session
+from flask import Flask, request, jsonify, render_template, send_file, redirect, url_for, session, make_response
 import logging
 from utils.module_functions import \
     validate_file, \
@@ -14,8 +14,7 @@ import json
 import plotly
 from utils.cluster import get_clusters_for_choosen_files
 from utils.c_tf_idf_module import get_topics_from_texts
-import io
-import xlsxwriter
+from utils.filtering import write_file
 
 app = Flask(__name__)
 
@@ -32,6 +31,7 @@ PIPELINE = CONFIGURATION.get('PIPELINE')
 INPUT_FILES_SETTINGS = CONFIGURATION.get('INPUT_FILES_SETTINGS')
 LOGGER = CONFIGURATION.get('LOGGER')
 ML = CONFIGURATION.get('ML')
+FILTERING = CONFIGURATION.get('FILTERING')
 
 DATA_FOLDER = DIRECTORIES.get('data')
 CLEARED_DATA_DIR = DIRECTORIES.get('cleared_files')
@@ -61,6 +61,8 @@ REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 
 EMBEDDINGS_MODEL = ML.get('embeddings').get('model')
 SEED = ML.get('seed')
+
+FILTERING_DOWNLOAD_NAME = FILTERING.get('download_name')
 
 PATH_TO_VALID_FILES = os.path.join(
     DATA_FOLDER,
@@ -286,20 +288,20 @@ def show_filter_submit():
 
 @app.route('/show_filters', methods=['GET'])
 def show_filter():
+    filtered_df = read_file(PATH_TO_CURRENT_DF)
+    columns_to_exclude = ['x', 'y']
+    filtered_df_excluded = filtered_df.drop(columns_to_exclude, axis=1)
+    if request.method == 'GET':
+        if isinstance(filtered_df_excluded, pd.DataFrame):
 
-    df = read_file(PATH_TO_CURRENT_DF)
-
-    if isinstance(df, pd.DataFrame):
-
-        return render_template('filtering.html', columns=df.columns)
-    
-    return 'Nothing to show here'
+            return render_template('filtering.html', columns=filtered_df_excluded.columns)
+        
+        return 'Nothing to show here'
 
 @app.route('/filter', methods=['POST'])
 def filter_data():
 
     filters = request.get_json()
-
     filtered_df = read_file(PATH_TO_CURRENT_DF)
     filtered_df = filtered_df.astype(str)
 
@@ -307,25 +309,18 @@ def filter_data():
         f"""Columns of df to filter:{filtered_df.columns}""")
     
     for filter_data in filters:
-
         column = filter_data['column']
         value = filter_data['value']
-        filtered_df = filtered_df[filtered_df[column] == value]
-
+        filtered_df = filtered_df.loc[filtered_df[column] == value]
     # Prepare the CSV file for download
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        filtered_df.to_excel(writer, index=False, sheet_name='Filtered Data')
-        writer.close()
-
-    output.seek(0)
-
-    return send_file(
+    output = write_file(filtered_df)
+    response = make_response(send_file(
         output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,
-        download_name='filtered_data.xlsx'
-    )
+        mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment = True,
+        download_name = FILTERING_DOWNLOAD_NAME
+    ))
+    return response
 
 if __name__ == '__main__':
     app.run(debug=True)
