@@ -9,3 +9,4 @@
 /to_use
 *.pyc
 *.index
+app/embeddings/embeddings.json
