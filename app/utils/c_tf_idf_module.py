@@ -92,6 +92,7 @@ def prepare_df_for_ctfidf(
         content_column_name: str = 'content',
         label_column_name: str = 'labels') -> pd.DataFrame:
     
+    df[content_column_name] = df[content_column_name].astype(str)
     docs_per_class = df.groupby(
         by=label_column_name, 
         as_index=False).agg({content_column_name: ' '.join})
