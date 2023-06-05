@@ -36,9 +36,9 @@ def dimension_reduction(
 def cluster_sentences(
         clusterable_embeddings,
         min_cluster_size: int = 15,
-        min_samples: int = 10,
+        min_samples: int = 15,
         metric: str = 'euclidean',                      
-        cluster_selection_method: str = 'leaf'):
+        cluster_selection_method: str = 'eom'):
     
     cluster = hdbscan.HDBSCAN(
         min_cluster_size=min_cluster_size,
@@ -56,16 +56,16 @@ def get_clusters_for_choosen_files(
         path_to_embeddings_dir: str,
         faiss_vectors_dirname: str,
         embedded_files_filename: str,
-        cleared_files_ext: str = '.gzip.parquet',
+        cleared_files_ext: str = '.parquet.gzip',
         labels_column: str = 'labels',
         random_state: int = 42,
         n_neighbors: int = 15,
         min_dist: float = 0.0,
         n_components: int = 5,
         min_cluster_size: int = 15,
-        min_samples: int = 10,
+        min_samples: int = 15,
         metric: str = 'euclidean',                      
-        cluster_selection_method: str = 'leaf') -> pd.DataFrame:
+        cluster_selection_method: str = 'eom') -> pd.DataFrame:
     """
     Functions that calculates clusters based on vectors for choosen files
     returns a dataframe with labels and 2d coordinates for each sentence.

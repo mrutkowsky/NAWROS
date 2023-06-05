@@ -8,7 +8,7 @@ from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
     read_config
-from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv
+from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv, get_stopwords
 import plotly.express as px
 import json
 import plotly
@@ -42,6 +42,7 @@ EMPTY_CONTENT_DIR = DIRECTORIES.get('empty_content')
 FAISS_VECTORS_DIR = DIRECTORIES.get('faiss_vectors')
 RAPORTS_DIR = DIRECTORIES.get('raports')
 CURRENT_DF_DIR = DIRECTORIES.get('current_df')
+STOPWORDS_DIR = DIRECTORIES.get('stop_words')
 
 EMBEDDED_FILES = FILES.get('embedded_files')
 CURRENT_DF_FILE = FILES.get('current_df')
@@ -61,6 +62,9 @@ REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 
 EMBEDDINGS_MODEL = ML.get('embeddings').get('model')
 SEED = ML.get('seed')
+
+UMAP = ML.get('UMAP')
+HDBSCAN = ML.get('HDBSCAN')
 
 PATH_TO_VALID_FILES = os.path.join(
     DATA_FOLDER,
@@ -221,14 +225,24 @@ def choose_files_for_clusters():
         path_to_embeddings_dir=EMBEDDINGS_DIR,
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
         embedded_files_filename=EMBEDDED_FILES,
-        cleared_files_ext=CLEARED_FILE_EXT)
+        cleared_files_ext=CLEARED_FILE_EXT,
+        random_state=SEED,
+        n_neighbors=UMAP.get('n_neighbors'),
+        min_dist=UMAP.get('min_dist'),
+        n_components=UMAP.get('n_components'),
+        min_cluster_size=HDBSCAN.get('min_cluster_size'),
+        min_samples=HDBSCAN.get('min_samples'),
+        metric=HDBSCAN.get('metric'),                      
+        cluster_selection_method=HDBSCAN.get('cluster_selection_method')
+    )
     
     clusters_df.to_csv(
         index=False, 
         path_or_buf=PATH_TO_CURRENT_DF)
 
     clusters_topics_df = get_topics_from_texts(
-        df=clusters_df
+        df=clusters_df,
+        stop_words=get_stopwords(STOPWORDS_DIR)
     )
 
     save_raport_to_csv(

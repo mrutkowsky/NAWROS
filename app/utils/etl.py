@@ -48,7 +48,7 @@ def preprocess_text(text):
     text = re.sub(r'\n+', ' ', text)
     
     # Remove unknown signs, but keep dots, commas, question marks, exclamation marks and hashtags
-    text = re.sub(r'[^\w\s.,!?#()\'\"\-]', '', text)
+    text = re.sub(r'[^a-ząćęłńóśźż\s.,!?()\'\"]|\-(?!\w)|(?<!\w)\-', '', text)
     text = re.sub(r'([?!.,])\1+', r'\1', text)
     
     text = re.sub(r'(?<![a-z0-9])-|-(?![a-z0-9])', '', text)

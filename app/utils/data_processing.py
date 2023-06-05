@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from utils.embeddings_module import load_model, get_embeddings
 from utils.etl import preprocess_text
+import re
 
 logger = logging.getLogger(__file__)
 
@@ -68,24 +69,34 @@ def cleanup_data(
 
     logger.debug(f'Columns: {df.columns}')
     logger.debug(f"{type(df['content'])}")
-    empty_contents_indexes = np.where(df['content'].apply(lambda x: not isinstance(x, str)))[0]
+
+    float_contents_indexes = np.where(df['content'].apply(lambda x: not isinstance(x, str)))[0]
+
+    df.drop(index=float_contents_indexes, inplace=True)
+
+    preprocessed_contents = list(map(preprocess_text, df['content'].values))
+    preprocessed_contents = [
+        " ".join(
+            [preprocess_text(sentence.strip()) for sentence in re.split(r'[.!?]', text) if (sentence.strip())]) for text in preprocessed_contents
+    ]
+
+    df['content'] = preprocessed_contents
+
+    short_contents_indexes = df.loc[df['content'].str.split(" ").str.len() < 3].index
 
     save_path = os.path.join(path_to_empty_content_dir,
          f'{filename.split(".")[-2]}{empty_contents_suffix}{empty_content_ext}')
 
-    df.iloc[empty_contents_indexes].to_csv(
-        path_or_buf=save_path,
-        index=True)
-  
-    df.drop(index=empty_contents_indexes, inplace=True)
+    indexes_to_drop = np.concatenate((float_contents_indexes, short_contents_indexes))
 
-    logger.debug(f"{df['content']}")
-
-    preprocessed_contents = list(map(preprocess_text, df['content'].values))
+    df_dropped_indexes = pd.DataFrame({'Dropped_indexes': indexes_to_drop})
+    df_dropped_indexes.to_csv(save_path)
+    
+    df.drop(index=short_contents_indexes, inplace=True)
 
     logger.debug(f'Preprocessed: {preprocessed_contents}')
 
-    df['content'] = preprocessed_contents
+    
 
     logger.debug(f"{df['content']}")
 
@@ -263,4 +274,13 @@ def process_data_from_choosen_files(
 
                 logger.info(f'File with embeddings saved for {file_}')
 
-            
+def get_stopwords(
+        path_to_dir_with_stopwords: str) -> list:
+    
+    all_stopwords = []
+
+    for lang_file in os.listdir(path_to_dir_with_stopwords):
+        with open(os.path.join(path_to_dir_with_stopwords, lang_file), 'r', encoding='utf-8') as lang_stopwords:
+            all_stopwords.extend([stopword.strip("\n") for stopword in lang_stopwords])
+
+    return all_stopwords

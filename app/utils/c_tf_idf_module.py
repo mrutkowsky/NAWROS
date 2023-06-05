@@ -101,7 +101,8 @@ def prepare_df_for_ctfidf(
 def perform_ctfidf(
         joined_texts: list or pd.Series,
         clusters_labels: list or pd.Series,
-        df_number_of_rows: int) -> np.array:
+        df_number_of_rows: int,
+        stop_words: list = None) -> np.array:
 
     count_vectorizer = CountVectorizer().fit(joined_texts)
     count = count_vectorizer.transform(joined_texts)
@@ -111,12 +112,35 @@ def perform_ctfidf(
     ctfidf = CTFIDFVectorizer().fit_transform(
         count, 
         n_samples=df_number_of_rows).toarray()
+    
+    words_per_class = []
 
-    words_per_class = np.array([
-        [words[index] for index in ctfidf[label].argsort()[-5:]] for label in clusters_labels
-    ])
+    if stop_words is None:
+        stop_words = []
+    
+    words_per_class = []
+    
+    for label in clusters_labels:
 
-    return words_per_class
+        current = []
+
+        for index in ctfidf[label].argsort()[::-1]:
+
+            if len(current) == 5:
+                break
+
+            if words[index] not in stop_words:
+                current.append(words[index])
+            else:
+                continue
+
+        words_per_class.append(current)
+
+    # words_per_class = np.array([
+    #     [words[index] for index in ctfidf[label].argsort()[-5:]] for label in clusters_labels
+    # ])
+
+    return np.array(words_per_class)
 
 def transform_topic_vec_to_df(
         topics_array: np.ndarray,
@@ -130,6 +154,7 @@ def transform_topic_vec_to_df(
 
 def get_topics_from_texts(
         df: pd.DataFrame,
+        stop_words: list = None,
         content_column_name: str = 'content',
         label_column_name: str = 'labels') -> tuple[list]:
     
@@ -147,7 +172,8 @@ def get_topics_from_texts(
     topics_array = perform_ctfidf(
         joined_texts=docs_per_class[content_column_name],
         clusters_labels=docs_per_class[label_column_name],
-        df_number_of_rows=n_of_rows)
+        df_number_of_rows=n_of_rows,
+        stop_words=stop_words)
     
     logging.info('Properly exctracted topics from clusters')
     
