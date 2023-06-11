@@ -2,6 +2,7 @@
 *.xlsx
 *.csv
 *.gzip.parquet
+*.parquet.gzip
 /mpnet_finetuned
 *.h5
 *.ipynb

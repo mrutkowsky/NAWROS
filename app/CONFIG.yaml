@@ -8,10 +8,12 @@ DIRECTORIES:
   embeddings: embeddings
   faiss_vectors: faiss_vectors
   current_df: current_df
+  filtered_df: filtered_df
 
 FILES:
   embedded_files: embeddings.json
   current_df: current_df.parquet.gzip
+  filtered_df: filtered_df.parquet.gzip
 
 INPUT_FILES_SETTINGS:
   allowed_extensions:

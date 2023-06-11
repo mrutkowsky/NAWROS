@@ -14,7 +14,7 @@ import json
 import plotly
 from utils.cluster import get_clusters_for_choosen_files
 from utils.c_tf_idf_module import get_topics_from_texts
-from utils.filtering import write_file
+from utils.filtering import write_file, show_columns_for_filtering
 
 app = Flask(__name__)
 
@@ -42,9 +42,11 @@ EMPTY_CONTENT_DIR = DIRECTORIES.get('empty_content')
 FAISS_VECTORS_DIR = DIRECTORIES.get('faiss_vectors')
 RAPORTS_DIR = DIRECTORIES.get('raports')
 CURRENT_DF_DIR = DIRECTORIES.get('current_df')
+FILTERED_DF_DIR = DIRECTORIES.get('filtered_df')
 
 EMBEDDED_FILES = FILES.get('embedded_files')
 CURRENT_DF_FILE = FILES.get('current_df')
+FILTERED_DF_FILE = FILES.get('filtered_df')
 
 EMPTY_CONTENTS_EXT = EMPTY_CONTENT_SETTINGS.get('empty_content_ext')
 EMPTY_CONTENTS_SUFFIX = EMPTY_CONTENT_SETTINGS.get('empty_content_suffix')
@@ -63,6 +65,7 @@ EMBEDDINGS_MODEL = ML.get('embeddings').get('model')
 SEED = ML.get('seed')
 
 FILTERING_DOWNLOAD_NAME = FILTERING.get('download_name')
+
 
 PATH_TO_VALID_FILES = os.path.join(
     DATA_FOLDER,
@@ -93,6 +96,12 @@ PATH_TO_CURRENT_DF = os.path.join(
     DATA_FOLDER,
     CURRENT_DF_DIR,
     CURRENT_DF_FILE
+)
+
+PATH_TO_FILTERED_DF = os.path.join(
+    DATA_FOLDER,
+    FILTERED_DF_DIR,
+    FILTERED_DF_FILE
 )
 
 logging.basicConfig(
@@ -286,34 +295,47 @@ def show_filter_submit():
     else:
         return redirect(url_for("index", message=f"Cannot show the filtering!"))
 
-@app.route('/show_filters', methods=['GET'])
+@app.route('/show_filter', methods=['GET'])
 def show_filter():
-    filtered_df = read_file(PATH_TO_CURRENT_DF)
-    columns_to_exclude = ['x', 'y']
-    filtered_df_excluded = filtered_df.drop(columns_to_exclude, axis=1)
+    filtered_df = show_columns_for_filtering(PATH_TO_CURRENT_DF)
     if request.method == 'GET':
-        if isinstance(filtered_df_excluded, pd.DataFrame):
+        if isinstance(filtered_df, pd.DataFrame):
 
-            return render_template('filtering.html', columns=filtered_df_excluded.columns)
+            return render_template('filtering.html', columns=filtered_df.columns)
         
         return 'Nothing to show here'
-
-@app.route('/filter', methods=['POST'])
-def filter_data():
-
+    
+@app.route('/apply_filter', methods=['POST'])
+def apply_filter():
     filters = request.get_json()
     filtered_df = read_file(PATH_TO_CURRENT_DF)
     filtered_df = filtered_df.astype(str)
 
     logger.info(
-        f"""Columns of df to filter:{filtered_df.columns}""")
-    
+        f"""{filters} \n
+        Columns of df to filter:{filtered_df.columns}""")
     for filter_data in filters:
         column = filter_data['column']
         value = filter_data['value']
         filtered_df = filtered_df.loc[filtered_df[column] == value]
+    filtered_df.to_csv(
+    index=False, 
+    path_or_buf=PATH_TO_FILTERED_DF)
+    filtered_df_excluded=show_columns_for_filtering(PATH_TO_CURRENT_DF)
+    message = f"{filters} filters has been applied successfully."
+    print(message)
+
+    return render_template('filtering.html', columns=filtered_df_excluded.columns, message=message)
+
+
+@app.route('/filter_download_report', methods=['POST'])
+def filter_data_download_report():
+
+    report_type = request.get_json()
+    filtered_df = read_file(PATH_TO_FILTERED_DF)
+    file_type = report_type['reportType']
     # Prepare the CSV file for download
-    output = write_file(filtered_df)
+    output = write_file(filtered_df, file_type)
     response = make_response(send_file(
         output,
         mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
