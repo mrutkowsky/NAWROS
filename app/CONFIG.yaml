@@ -9,11 +9,14 @@ DIRECTORIES:
   embeddings: embeddings
   faiss_vectors: faiss_vectors
   current_df: current_df
+  filtered_df: filtered_df
   swearwords_dir: swear_words
 
 FILES:
   embedded_files: embeddings.json
   current_df: current_df.gzip.parquet
+  current_df: current_df.parquet.gzip
+  filtered_df: filtered_df.parquet.gzip
   polish_swearwords: 'polish_swearwords.txt'
   english_swearwords: 'english_swearwords.txt'
 
@@ -31,6 +34,18 @@ INPUT_FILES_SETTINGS:
     - Category 
     - Application_Name
     - content
+
+RAPORT:
+  columns:
+    - Questioned_Date
+    - Model_No
+    - OS
+    - SW_Version 
+    - CSC
+    - Category 
+    - Application_Name
+    - content 
+    - labels
 
 LOGGER:
   logging_format: '%(asctime)s - %(levelname)s - %(message)s'
@@ -64,3 +79,8 @@ ML:
     metric: euclidean                      
     cluster_selection_method: eom
  
+  sentiment:
+    model_name: 'cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual'
+
+FILTERING:
+  download_name: 'filtered_data.xlsx'

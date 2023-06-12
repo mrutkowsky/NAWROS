@@ -30,7 +30,7 @@
     </div>
 
     {% if message %}
-      <h4 style="color: rgb(175, 18, 196)">{{ message }}</h4>
+      <h4 style="color: rgb(18, 131, 196)">{{ message }}</h4>
     {% endif %}
 
     <h3>Clustering</h3>
@@ -49,6 +49,15 @@
       <form method="post" action="/show_clusters_submit">
         <label for="show_plot">Show me clusters:</label>
           <button class="my-button" type="submit" name="show_plot" value="show_plot">Show Plot</button>
+      </form>
+    </div>
+
+    
+    <h3>Filtering</h3>
+    <div class="mt-20">
+      <form method="post" action="/show_filters_submit">
+        <label for="show_plot">Let me filter results!</label>
+          <button class="my-button" type="submit" name="show_filter" value="show_filter">Show filter</button>
       </form>
     </div>
 
