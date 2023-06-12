@@ -22,7 +22,19 @@ def dimension_reduction(
         min_dist: float = 0.0,
         n_components: int = 5,
         random_state: int = 42):
-    
+    """
+    Perform dimension reduction on sentence embeddings using UMAP.
+
+    Args:
+        sentence_embeddings (np.ndarray): Array of sentence embeddings.
+        n_neighbors (int): The number of nearest neighbors to consider during UMAP dimension reduction.
+        min_dist (float): The minimum distance between points in the UMAP embedding.
+        n_components (int): The number of components (dimensions) in the UMAP embedding.
+        random_state (int): Random seed for UMAP.
+
+    Returns:
+        np.ndarray: The UMAP embedding of the sentence embeddings.
+    """
     clusterable_embeddings = UMAP.UMAP(
         n_neighbors=n_neighbors,
         min_dist=min_dist,
@@ -36,10 +48,22 @@ def dimension_reduction(
 def cluster_sentences(
         clusterable_embeddings,
         min_cluster_size: int = 15,
-        min_samples: int = 15,
+        min_samples: int = 10,
         metric: str = 'euclidean',                      
-        cluster_selection_method: str = 'eom'):
-    
+        cluster_selection_method: str = 'leaf'):
+    """
+    Perform clustering on the clusterable embeddings using HDBSCAN.
+
+    Args:
+        clusterable_embeddings: Embeddings to be clustered.
+        min_cluster_size (int): The minimum size of a cluster.
+        min_samples (int): The minimum number of samples in a neighborhood to be considered a core point.
+        metric (str): The metric to use for distance calculations.
+        cluster_selection_method (str): The method used to select clusters from the condensed tree.
+
+    Returns:
+        np.ndarray: The cluster labels for each embedding.
+    """
     cluster = hdbscan.HDBSCAN(
         min_cluster_size=min_cluster_size,
         min_samples=min_samples,
@@ -56,20 +80,39 @@ def get_clusters_for_choosen_files(
         path_to_embeddings_dir: str,
         faiss_vectors_dirname: str,
         embedded_files_filename: str,
-        cleared_files_ext: str = '.parquet.gzip',
+        cleared_files_ext: str = '.gzip.parquet',
         labels_column: str = 'labels',
         random_state: int = 42,
         n_neighbors: int = 15,
         min_dist: float = 0.0,
         n_components: int = 5,
         min_cluster_size: int = 15,
-        min_samples: int = 15,
+        min_samples: int = 10,
         metric: str = 'euclidean',                      
-        cluster_selection_method: str = 'eom') -> pd.DataFrame:
+        cluster_selection_method: str = 'leaf') -> pd.DataFrame:
     """
-    Functions that calculates clusters based on vectors for choosen files
-    returns a dataframe with labels and 2d coordinates for each sentence.
-    """
+   Calculate clusters based on vectors for chosen files and return a dataframe with labels and 2D coordinates for each sentence.
+
+   Args:
+       chosen_files (list): List of file names to process.
+       path_to_cleared_files (str): Path to the directory containing cleared files.
+       path_to_embeddings_dir (str): Path to the directory containing embeddings.
+       faiss_vectors_dirname (str): Directory name where the Faiss vectors are stored.
+       embedded_files_filename (str): Filename of the embedded files.
+       cleared_files_ext (str, optional): Extension of the cleared files. Defaults to '.gzip.parquet'.
+       labels_column (str, optional): Column name for the cluster labels. Defaults to 'labels'.
+       random_state (int, optional): Random seed. Defaults to 42.
+       n_neighbors (int, optional): The number of nearest neighbors to consider during UMAP dimension reduction. Defaults to 15.
+       min_dist (float, optional): The minimum distance between points in the UMAP embedding. Defaults to 0.0.
+       n_components (int, optional): The number of components (dimensions) in the UMAP embedding. Defaults to 5.
+       min_cluster_size (int, optional): The minimum size of a cluster. Defaults to 15.
+       min_samples (int, optional): The minimum number of samples in a neighborhood to be considered a core point. Defaults to 10.
+       metric (str, optional): The metric to use for distance calculations. Defaults to 'euclidean'.
+       cluster_selection_method (str, optional): The method used to select clusters from the condensed tree. Defaults to 'leaf'.
+
+   Returns:
+       pd.DataFrame: Dataframe with labels and 2D coordinates for each sentence.
+   """
 
     PATH_TO_JSON_EMBEDDED_FILES = os.path.join(path_to_embeddings_dir, embedded_files_filename)
     PATH_TO_FAISS_VECTORS = os.path.join(path_to_embeddings_dir, faiss_vectors_dirname)

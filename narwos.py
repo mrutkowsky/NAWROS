@@ -8,13 +8,12 @@ from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
     read_config
-from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv, get_stopwords
+from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv
 import plotly.express as px
 import json
 import plotly
 from utils.cluster import get_clusters_for_choosen_files
 from utils.c_tf_idf_module import get_topics_from_texts
-
 
 app = Flask(__name__)
 
@@ -43,8 +42,6 @@ EMPTY_CONTENT_DIR = DIRECTORIES.get('empty_content')
 FAISS_VECTORS_DIR = DIRECTORIES.get('faiss_vectors')
 RAPORTS_DIR = DIRECTORIES.get('raports')
 CURRENT_DF_DIR = DIRECTORIES.get('current_df')
-SWEARWORDS_DIR = DIRECTORIES.get('swearwords_dir')
-STOPWORDS_DIR = DIRECTORIES.get('stop_words')
 
 EMBEDDED_FILES = FILES.get('embedded_files')
 CURRENT_DF_FILE = FILES.get('current_df')
@@ -64,10 +61,6 @@ REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 
 EMBEDDINGS_MODEL = ML.get('embeddings').get('model')
 SEED = ML.get('seed')
-SENTIMENT_MODEL_NAME = ML.get('sentiment').get('model_name')
-
-UMAP = ML.get('UMAP')
-HDBSCAN = ML.get('HDBSCAN')
 
 PATH_TO_VALID_FILES = os.path.join(
     DATA_FOLDER,
@@ -100,18 +93,6 @@ PATH_TO_CURRENT_DF = os.path.join(
     CURRENT_DF_FILE
 )
 
-PATH_PL_SWEARWORDS = os.path.join(
-    DATA_FOLDER,
-    SWEARWORDS_DIR,
-    FILES.get('polish_swearwords')
-)
-
-PATH_EN_SWEARWORDS = os.path.join(
-    DATA_FOLDER,
-    SWEARWORDS_DIR,
-    FILES.get('english_swearwords')
-)
-
 logging.basicConfig(
     level=LOGGER_LEVEL,
     format=LOGGING_FORMAT)
@@ -126,7 +107,12 @@ logger.debug(f'Required columns: {REQUIRED_COLUMNS}')
 
 @app.route("/")
 def index():
+    """
+    Renders the index.html template with the list of validated files.
 
+    Returns:
+        str: Rendered HTML template.
+    """
     message = request.args.get("message")
 
     validated_files = os.listdir(
@@ -139,6 +125,13 @@ def index():
 
 @app.route('/upload_file', methods=['POST'])
 def upload_file():
+    """
+    Uploads files to the server and saves them in the valid_files directory.
+    Validates the uploaded files and moves them to the valid_files directory if they pass validation.
+
+    Returns:
+        redirect: Redirects to the index page with a message.
+    """
         # Check if files were uploaded
     if 'file' not in request.files:
         return jsonify({'error': 'No files found in the request.'}), 400
@@ -194,7 +187,12 @@ def upload_file():
 
 @app.route('/delete_file', methods=['POST'])
 def delete_file():
+    """
+    Deletes a file from the valid_files directory.
 
+    Returns:
+        redirect: Redirects to the index page with a message.
+    """
     filename = request.form.get('to_delete')
 
     try:
@@ -214,13 +212,17 @@ def delete_file():
 
 @app.route('/choose_files_for_clusters', methods=['POST'])
 def choose_files_for_clusters():
+    """
+    Processes the chosen files for clustering.
+    Generates clusters and saves the resulting data frame to a CSV file.
+    Saves the clusterization report to a CSV file.
 
+    Returns:
+        redirect: Redirects to the index page with a message.
+    """
     files_for_clustering = request.form.getlist('chosen_files')
 
     logger.debug(f'Chosen files: {files_for_clustering}')
-
-    swearwords = open(PATH_EN_SWEARWORDS, 'r').read().split('\n') + \
-        open(PATH_PL_SWEARWORDS, 'r').read().split('\n')
 
     process_data_from_choosen_files(
         chosen_files=files_for_clustering,
@@ -231,9 +233,6 @@ def choose_files_for_clusters():
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
         embedded_files_filename=EMBEDDED_FILES,
         embeddings_model_name=EMBEDDINGS_MODEL,
-        sentiment_model_name=SENTIMENT_MODEL_NAME,
-        swearwords=swearwords,
-        content_column_name=CONTENT_COLUMN,
         cleread_file_ext=CLEARED_FILE_EXT,
         empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
         empty_content_ext=EMPTY_CONTENTS_EXT,
@@ -246,24 +245,14 @@ def choose_files_for_clusters():
         path_to_embeddings_dir=EMBEDDINGS_DIR,
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
         embedded_files_filename=EMBEDDED_FILES,
-        cleared_files_ext=CLEARED_FILE_EXT,
-        random_state=SEED,
-        n_neighbors=UMAP.get('n_neighbors'),
-        min_dist=UMAP.get('min_dist'),
-        n_components=UMAP.get('n_components'),
-        min_cluster_size=HDBSCAN.get('min_cluster_size'),
-        min_samples=HDBSCAN.get('min_samples'),
-        metric=HDBSCAN.get('metric'),                      
-        cluster_selection_method=HDBSCAN.get('cluster_selection_method')
-    )
+        cleared_files_ext=CLEARED_FILE_EXT)
     
-    clusters_df.to_parquet(
+    clusters_df.to_csv(
         index=False, 
-        path=PATH_TO_CURRENT_DF)
+        path_or_buf=PATH_TO_CURRENT_DF)
 
     clusters_topics_df = get_topics_from_texts(
-        df=clusters_df,
-        stop_words=get_stopwords(STOPWORDS_DIR)
+        df=clusters_df
     )
 
     save_raport_to_csv(
@@ -281,7 +270,12 @@ def choose_files_for_clusters():
 
 @app.route('/show_clusters_submit', methods=['POST'])
 def show_clusters_submit():
+    """
+    Handles the submission of the "Show Clusters" form.
 
+    Returns:
+        redirect: Redirects to the show_clusters page.
+    """
     show_plot = request.form.get('show_plot')
 
     if show_plot:
@@ -291,7 +285,12 @@ def show_clusters_submit():
 
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
+    """
+    Displays the scatter plot of the clusters.
 
+    Returns:
+        render_template: Renders the clusters_viz.html template with the scatter plot.
+    """
     df = pd.read_csv(PATH_TO_CURRENT_DF)
 
     if isinstance(df, pd.DataFrame):
