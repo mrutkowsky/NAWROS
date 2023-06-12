@@ -19,7 +19,9 @@ def write_file(df, document_type: str) -> pd.DataFrame:
     return output
 
 def show_columns_for_filtering(path: str):
+
     filtered_df = read_file(path)
     columns_to_exclude = ['x', 'y']
     filtered_df_excluded = filtered_df.drop(columns_to_exclude, axis=1)
+    
     return filtered_df_excluded

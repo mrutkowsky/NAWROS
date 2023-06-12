@@ -71,6 +71,8 @@ FILTERING_DOWNLOAD_NAME = FILTERING.get('download_name')
 UMAP = ML.get('UMAP')
 HDBSCAN = ML.get('HDBSCAN')
 
+RAPORT_CONFIG = CONFIGURATION.get('RAPORT')
+RAPORT_COLUMNS = RAPORT_CONFIG.get('columns')
 
 PATH_TO_VALID_FILES = os.path.join(
     DATA_FOLDER,
@@ -312,32 +314,40 @@ def show_filter_submit():
 
 @app.route('/show_filter', methods=['GET'])
 def show_filter():
-    filtered_df = show_columns_for_filtering(PATH_TO_CURRENT_DF)
-    if request.method == 'GET':
-        if isinstance(filtered_df, pd.DataFrame):
 
-            return render_template('filtering.html', columns=filtered_df.columns)
+    if request.method == 'GET':
+        if isinstance(RAPORT_COLUMNS, list):
+
+            return render_template('filtering.html', columns=RAPORT_COLUMNS)
         
         return 'Nothing to show here'
     
 @app.route('/apply_filter', methods=['POST'])
 def apply_filter():
+
     filters = request.get_json()
-    filtered_df = read_file(PATH_TO_CURRENT_DF)
+
+    filtered_df = read_file(PATH_TO_CURRENT_DF, columns=RAPORT_COLUMNS)
     filtered_df = filtered_df.astype(str)
 
     logger.info(
-        f"""{filters} \n
-        Columns of df to filter:{filtered_df.columns}""")
-    for filter_data in filters:
-        column = filter_data['column']
-        value = filter_data['value']
-        filtered_df = filtered_df.loc[filtered_df[column] == value]
+        f"""{filters} Columns of df to filter:{filtered_df.columns}""")
+    
+    query_string = ' & '.join(
+        [f"{filter_dict.get('column')} == {filter_dict.get('value')}" for filter_dict in filters]
+    )
+
+    logger.debug(f"{query_string}")
+
+    filtered_df = filtered_df.query(query_string)
+
     filtered_df.to_csv(
-    index=False, 
-    path_or_buf=PATH_TO_FILTERED_DF)
+        index=False, 
+        path_or_buf=PATH_TO_FILTERED_DF)
+    
     filtered_df_excluded=show_columns_for_filtering(PATH_TO_CURRENT_DF)
     message = f"{filters} filters has been applied successfully."
+
     print(message)
 
     return render_template('filtering.html', columns=filtered_df_excluded.columns, message=message)

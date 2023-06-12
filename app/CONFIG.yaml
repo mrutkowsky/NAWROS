@@ -31,6 +31,18 @@ INPUT_FILES_SETTINGS:
     - Application_Name
     - content
 
+RAPORT:
+  columns:
+    - Questioned_Date
+    - Model_No
+    - OS
+    - SW_Version 
+    - CSC
+    - Category 
+    - Application_Name
+    - content 
+    - labels
+
 LOGGER:
   logging_format: '%(asctime)s - %(levelname)s - %(message)s'
   logger_level: INFO
