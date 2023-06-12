@@ -14,7 +14,7 @@ DIRECTORIES:
 FILES:
   embedded_files: embeddings.json
   current_df: current_df.parquet.gzip
-  filtered_df: filtered_df.csv
+  filtered_df: filtered_df.parquet.gzip
 
 INPUT_FILES_SETTINGS:
   allowed_extensions:
@@ -31,7 +31,7 @@ INPUT_FILES_SETTINGS:
     - Application_Name
     - content
 
-RAPORT:
+RAPORT_SETTINGS:
   columns:
     - Questioned_Date
     - Model_No

@@ -12,7 +12,24 @@
         <input type="file" name="file" multiple>
         <br><br>
         <input type="submit" value="Upload">
+        {% if success_upload %}
+          <p style="color: rgb(80, 187, 80)">Files uploaded successfully:</p>
+          <ol>
+          {% for file_ in success_upload %}
+            <li>{{file_}}</li>
+          {% endfor %}
+          </ol>
+        {% endif %}
+        {% if failed_upload %} 
+          <p style="color: rgb(244, 22, 22)">Failed to upload files:</p>
+          <ol>
+          {% for file_ in failed_upload %}
+            <li>{{file_}}</li>
+          {% endfor %}
+          </ol>
+        {% endif %}
       </form>
+      
     </div>
 
     <div class="mt-20">

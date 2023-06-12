@@ -15,6 +15,7 @@ import plotly
 from utils.cluster import get_clusters_for_choosen_files
 from utils.c_tf_idf_module import get_topics_from_texts
 from utils.filtering import write_file, show_columns_for_filtering
+from copy import copy
 
 app = Flask(__name__)
 
@@ -65,13 +66,12 @@ REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 EMBEDDINGS_MODEL = ML.get('embeddings').get('model')
 SEED = ML.get('seed')
 
-
 FILTERING_DOWNLOAD_NAME = FILTERING.get('download_name')
 
 UMAP = ML.get('UMAP')
 HDBSCAN = ML.get('HDBSCAN')
 
-RAPORT_CONFIG = CONFIGURATION.get('RAPORT')
+RAPORT_CONFIG = CONFIGURATION.get('RAPORT_SETTINGS')
 RAPORT_COLUMNS = RAPORT_CONFIG.get('columns')
 
 PATH_TO_VALID_FILES = os.path.join(
@@ -119,24 +119,33 @@ logger = logging.getLogger(__name__)
 
 logger.debug(f'Required columns: {REQUIRED_COLUMNS}')
 
-# app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-# app.config["TEMP_FOLDER"] = TEMP_FOLDER
-# app.config["VALIDATED_FILES_FOLDER"] = VALIDATED_FILES_FOLDER
-
 @app.route("/")
 def index():
 
     message = request.args.get("message")
+    success_upload = request.args.get("success_upload")
+    failed_upload = request.args.get("failed_upload")
+
+    if success_upload is not None:
+        success_upload = json.loads(success_upload)
+
+    if failed_upload is not None:
+        failed_upload = json.loads(failed_upload)
 
     validated_files = os.listdir(
         PATH_TO_VALID_FILES)
         
-    validated_files_to_show = [file for file in validated_files if file != '.gitkeep']
+    validated_files_to_show = [
+        v_file for v_file in validated_files 
+        if os.path.splitext(v_file)[-1].lower() in ALLOWED_EXTENSIONS
+    ]
 
     return render_template(
         "index.html", 
         files=validated_files_to_show,
-        message=message)
+        message=message,
+        success_upload=success_upload, 
+        failed_upload=failed_upload)
 
 @app.route('/upload_file', methods=['POST'])
 def upload_file():
@@ -146,7 +155,7 @@ def upload_file():
 
     uploaded_files = request.files.getlist('file')
     files_uploading_status = {
-        "uploaded_succesfully": [],
+        "uploaded_successfully": [],
         "uploading_failed": {}}
 
     for uploaded_file in uploaded_files:
@@ -178,7 +187,7 @@ def upload_file():
                     uploaded_file.filename),
                 )
                  
-                files_uploading_status['uploaded_succesfully'].append(uploaded_file.filename)
+                files_uploading_status['uploaded_successfully'].append(uploaded_file.filename)
                  
             else:
                 os.remove(os.path.join(
@@ -191,7 +200,17 @@ def upload_file():
         else:
             files_uploading_status['uploading_failed'][uploaded_file.filename] = 'Extension is not valid'
 
-    return redirect(url_for("index", message=files_uploading_status))
+    # successfully_uploaded_message = f"Files uploaded succesfully:<ol><li>{'</li><li>'.join(files_uploading_status.get('uploaded_succesfully'))}</li></ol>"
+    # uploading_failed_message = f"Failed to upload files:<ol><li>{'</li><li>'.join([f'{key} - {value}' for key, value in files_uploading_status.get('uploading_failed').items()])}</li></ol>"
+    # final_message = f"{successfully_uploaded_message}<br>{uploading_failed_message}"
+
+    success_upload = copy(files_uploading_status['uploaded_successfully'])
+    failed_upload = [f"{key} - {value}" for key, value in files_uploading_status.get('uploading_failed').items()]
+
+    logger.info(success_upload)
+    logger.info(failed_upload)
+
+    return redirect(url_for("index", success_upload=json.dumps(success_upload), failed_upload=json.dumps(failed_upload)))
 
 @app.route('/delete_file', methods=['POST'])
 def delete_file():

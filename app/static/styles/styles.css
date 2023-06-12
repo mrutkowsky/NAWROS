@@ -85,3 +85,7 @@ select {
 .wyznacz-cechy form {
     width: 400px
 }
+
+li {
+    margin-bottom: 10px;
+}

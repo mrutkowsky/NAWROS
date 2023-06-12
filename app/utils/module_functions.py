@@ -44,40 +44,46 @@ def validate_file(
     if tail.endswith('.xlsx'):
 
         try:
-            file_columns = pd.read_excel(
+            file_df = pd.read_excel(
                 file_path, 
-                nrows=1).columns
-        except pd.errors.ParserError:
-            return "Invalid file format or structure."
-        else:
-
-            column_dismatch = compare_columns(
-                file_columns=file_columns,
-                required_columns=required_columns,
-            )
-        
-            if column_dismatch:
-                return list(column_dismatch)
-            
-    else:
-
-        try:
-            file_columns = pd.read_csv(
-                file_path, 
-                nrows=1,
-                sep=delimeter,
-                engine='python').columns 
+                nrows=1)
         except (pd.errors.ParserError, pd.errors.EmptyDataError):
             return "Invalid file format or structure."
         else:
 
+            if file_df.empty:
+                return "Empty dataframe."
+
             column_dismatch = compare_columns(
-                file_columns=file_columns,
+                file_columns=file_df.columns,
+                required_columns=required_columns,
+            )
+        
+            if column_dismatch:
+                return f"File is missing required columns: {list(column_dismatch)}"
+            
+    else:
+
+        try:
+            file_df= pd.read_csv(
+                file_path, 
+                nrows=1,
+                sep=delimeter)
+             
+        except (pd.errors.ParserError, pd.errors.EmptyDataError):
+            return "Invalid file format or structure."
+        else:
+
+            if file_df.empty:
+                return "Empty dataframe."
+
+            column_dismatch = compare_columns(
+                file_columns=file_df.columns,
                 required_columns=required_columns,
             )
             
             if column_dismatch:
-                return list(column_dismatch)
+                return f"File is missing required columns: {list(column_dismatch)}"
             
     return True
 
