@@ -10,7 +10,6 @@ from tqdm import tqdm
 
 from utils.embeddings_module import load_model, get_embeddings
 from utils.etl import preprocess_text
-from utils.sentiment_analysis import load_sentiment_model, predict_sentiment
 
 logger = logging.getLogger(__file__)
 
@@ -162,9 +161,6 @@ def process_data_from_choosen_files(
         faiss_vectors_dirname: str,
         embedded_files_filename: str,
         embeddings_model_name: str,
-        sentiment_model_name: str,
-        swearwords: list,
-        content_column_name: str = 'content',
         faiss_vector_ext: str = '.index',
         cleread_file_ext: str = '.gzip.parquet',
         empty_contents_suffix: str = '_EMPTY_CONTENT',
@@ -196,10 +192,6 @@ def process_data_from_choosen_files(
     
     logger.info(
         f"""Loading data from chosen files:{chosen_files}""")
-    
-    # loading sentiment model
-    sent_tokenizer, sent_models, sent_cofnig = load_sentiment_model(sentiment_model_name)
-    logger.info(f'Sentiment setup loaded successfully.')
 
     for file_ in chosen_files:
 
@@ -225,13 +217,6 @@ def process_data_from_choosen_files(
                     empty_content_ext=empty_content_ext)
                 
                 logger.info(f'Cleaned {file_}')
-
-                logger.info(f'Predicting sentiment for {file_}')
-                df['sentiment'] = df[content_column_name].apply(
-                    predict_sentiment,
-                    args=(sent_tokenizer, sent_models, sent_cofnig, swearwords)
-                )
-                logger.info(f'Sentiment predicted successfully')
 
                 save_df_to_file(
                     df=df,

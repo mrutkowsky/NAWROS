@@ -7,7 +7,7 @@ import numpy as np
 logger = logging.getLogger(__file__)
 
 
-def load_sentiment_model(model_name: str) -> tuple:
+def load_model(model_name: str) -> tuple:
     """
     Initialize tokenizer, model and config from pretrained model.
 
