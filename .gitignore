@@ -2,6 +2,7 @@
 *.xlsx
 *.csv
 *.gzip.parquet
+*.parquet.gzip
 /mpnet_finetuned
 *.h5
 *.ipynb
@@ -9,3 +10,4 @@
 /to_use
 *.pyc
 *.index
+app/embeddings/embeddings.json

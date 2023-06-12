@@ -2,18 +2,19 @@ import os
 import shutil
 import pandas as pd
 from datetime import datetime
-from flask import Flask, request, jsonify, render_template, send_file, redirect, url_for, session
+from flask import Flask, request, jsonify, render_template, send_file, redirect, url_for, session, make_response
 import logging
 from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
     read_config
-from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv, get_stopwords
+from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv, get_stopwords, read_file
 import plotly.express as px
 import json
 import plotly
 from utils.cluster import get_clusters_for_choosen_files
 from utils.c_tf_idf_module import get_topics_from_texts
+from utils.filtering import write_file, show_columns_for_filtering
 
 app = Flask(__name__)
 
@@ -23,8 +24,6 @@ CONFIGURATION = read_config(
     app.config['CONFIG_FILE']
 )
 
-print(CONFIGURATION)
-
 DIRECTORIES = CONFIGURATION.get('DIRECTORIES')
 FILES = CONFIGURATION.get('FILES')
 EMPTY_CONTENT_SETTINGS = CONFIGURATION.get('EMPTY_CONTENT_SETTINGS')
@@ -32,6 +31,7 @@ PIPELINE = CONFIGURATION.get('PIPELINE')
 INPUT_FILES_SETTINGS = CONFIGURATION.get('INPUT_FILES_SETTINGS')
 LOGGER = CONFIGURATION.get('LOGGER')
 ML = CONFIGURATION.get('ML')
+FILTERING = CONFIGURATION.get('FILTERING')
 
 DATA_FOLDER = DIRECTORIES.get('data')
 CLEARED_DATA_DIR = DIRECTORIES.get('cleared_files')
@@ -42,10 +42,12 @@ EMPTY_CONTENT_DIR = DIRECTORIES.get('empty_content')
 FAISS_VECTORS_DIR = DIRECTORIES.get('faiss_vectors')
 RAPORTS_DIR = DIRECTORIES.get('raports')
 CURRENT_DF_DIR = DIRECTORIES.get('current_df')
+FILTERED_DF_DIR = DIRECTORIES.get('filtered_df')
 STOPWORDS_DIR = DIRECTORIES.get('stop_words')
 
 EMBEDDED_FILES = FILES.get('embedded_files')
 CURRENT_DF_FILE = FILES.get('current_df')
+FILTERED_DF_FILE = FILES.get('filtered_df')
 
 EMPTY_CONTENTS_EXT = EMPTY_CONTENT_SETTINGS.get('empty_content_ext')
 EMPTY_CONTENTS_SUFFIX = EMPTY_CONTENT_SETTINGS.get('empty_content_suffix')
@@ -63,8 +65,12 @@ REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 EMBEDDINGS_MODEL = ML.get('embeddings').get('model')
 SEED = ML.get('seed')
 
+
+FILTERING_DOWNLOAD_NAME = FILTERING.get('download_name')
+
 UMAP = ML.get('UMAP')
 HDBSCAN = ML.get('HDBSCAN')
+
 
 PATH_TO_VALID_FILES = os.path.join(
     DATA_FOLDER,
@@ -97,6 +103,12 @@ PATH_TO_CURRENT_DF = os.path.join(
     CURRENT_DF_FILE
 )
 
+PATH_TO_FILTERED_DF = os.path.join(
+    DATA_FOLDER,
+    FILTERED_DF_DIR,
+    FILTERED_DF_FILE
+)
+
 logging.basicConfig(
     level=LOGGER_LEVEL,
     format=LOGGING_FORMAT)
@@ -116,10 +128,12 @@ def index():
 
     validated_files = os.listdir(
         PATH_TO_VALID_FILES)
+        
+    validated_files_to_show = [file for file in validated_files if file != '.gitkeep']
 
     return render_template(
         "index.html", 
-        files=validated_files,
+        files=validated_files_to_show,
         message=message)
 
 @app.route('/upload_file', methods=['POST'])
@@ -286,6 +300,64 @@ def show_clusters():
         return render_template("clusters_viz.html", figure=fig_json)
     
     return 'Nothing to show here'
+
+@app.route('/show_filters_submit', methods=['POST'])
+def show_filter_submit():
+
+    show_filter = request.form.get('show_filter')
+    if show_filter:
+        return redirect(url_for('show_filter', show_filter=show_filter))
+    else:
+        return redirect(url_for("index", message=f"Cannot show the filtering!"))
+
+@app.route('/show_filter', methods=['GET'])
+def show_filter():
+    filtered_df = show_columns_for_filtering(PATH_TO_CURRENT_DF)
+    if request.method == 'GET':
+        if isinstance(filtered_df, pd.DataFrame):
+
+            return render_template('filtering.html', columns=filtered_df.columns)
+        
+        return 'Nothing to show here'
+    
+@app.route('/apply_filter', methods=['POST'])
+def apply_filter():
+    filters = request.get_json()
+    filtered_df = read_file(PATH_TO_CURRENT_DF)
+    filtered_df = filtered_df.astype(str)
+
+    logger.info(
+        f"""{filters} \n
+        Columns of df to filter:{filtered_df.columns}""")
+    for filter_data in filters:
+        column = filter_data['column']
+        value = filter_data['value']
+        filtered_df = filtered_df.loc[filtered_df[column] == value]
+    filtered_df.to_csv(
+    index=False, 
+    path_or_buf=PATH_TO_FILTERED_DF)
+    filtered_df_excluded=show_columns_for_filtering(PATH_TO_CURRENT_DF)
+    message = f"{filters} filters has been applied successfully."
+    print(message)
+
+    return render_template('filtering.html', columns=filtered_df_excluded.columns, message=message)
+
+
+@app.route('/filter_download_report', methods=['POST'])
+def filter_data_download_report():
+
+    report_type = request.get_json()
+    filtered_df = read_file(PATH_TO_FILTERED_DF)
+    file_type = report_type['reportType']
+    # Prepare the CSV file for download
+    output = write_file(filtered_df, file_type)
+    response = make_response(send_file(
+        output,
+        mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment = True,
+        download_name = FILTERING_DOWNLOAD_NAME
+    ))
+    return response
 
 if __name__ == '__main__':
     app.run(debug=True)
