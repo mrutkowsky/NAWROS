@@ -14,8 +14,7 @@ import json
 import plotly
 from utils.cluster import get_clusters_for_choosen_files
 from utils.c_tf_idf_module import get_topics_from_texts
-from utils.sentiment_analysis import (predict_sentiment, load_model, 
-                                      offensive_language)
+
 
 app = Flask(__name__)
 
@@ -216,6 +215,9 @@ def choose_files_for_clusters():
 
     logger.debug(f'Chosen files: {files_for_clustering}')
 
+    swearwords = open(PATH_EN_SWEARWORDS, 'r').read().split('\n') + \
+        open(PATH_PL_SWEARWORDS, 'r').read().split('\n')
+
     process_data_from_choosen_files(
         chosen_files=files_for_clustering,
         path_to_valid_files=PATH_TO_VALID_FILES,
@@ -225,6 +227,9 @@ def choose_files_for_clusters():
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
         embedded_files_filename=EMBEDDED_FILES,
         embeddings_model_name=EMBEDDINGS_MODEL,
+        sentiment_model_name=SENTIMENT_MODEL_NAME,
+        swearwords=swearwords,
+        content_column_name=CONTENT_COLUMN,
         cleread_file_ext=CLEARED_FILE_EXT,
         empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
         empty_content_ext=EMPTY_CONTENTS_EXT,
@@ -239,18 +244,6 @@ def choose_files_for_clusters():
         embedded_files_filename=EMBEDDED_FILES,
         cleared_files_ext=CLEARED_FILE_EXT)
     
-    # sentiment
-    logger.info(f'Predicting sentiment...')
-    swearwords = open(PATH_EN_SWEARWORDS, 'r').read().split('\n') + \
-        open(PATH_PL_SWEARWORDS, 'r').read().split('\n')
-    sent_tokenizer, sent_models, sent_cofnig = load_model(SENTIMENT_MODEL_NAME)
-    clusters_df['sentiment'] = clusters_df[CONTENT_COLUMN].apply(
-        predict_sentiment,
-        args=(sent_tokenizer, sent_models, sent_cofnig, swearwords)
-        )
-    logger.info(f'Sentiment predicted successfully.')
-    clusters_df.to_csv(os.path.join(PATH_TO_RAPORTS_DIR, 'clusters_df.csv'))
-
     clusters_df.to_parquet(
         index=False, 
         path=PATH_TO_CURRENT_DF)
