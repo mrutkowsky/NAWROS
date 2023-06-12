@@ -92,6 +92,22 @@ def prepare_df_for_ctfidf(
         content_column_name: str = 'content',
         label_column_name: str = 'labels') -> pd.DataFrame:
     
+    """Prepare a DataFrame for c-TF-IDF transformation by grouping documents per class.
+
+    Parameters:
+    df : pd.DataFrame
+        Input DataFrame containing documents and labels.
+    content_column_name : str, optional
+        Name of the column containing the document content, by default 'content'.
+    label_column_name : str, optional
+        Name of the column containing the document labels, by default 'labels'.
+
+    Returns:
+    pd.DataFrame
+        DataFrame with documents per class.
+
+    """
+    
     docs_per_class = df.groupby(
         by=label_column_name, 
         as_index=False).agg({content_column_name: ' '.join})
@@ -103,6 +119,22 @@ def perform_ctfidf(
         clusters_labels: list or pd.Series,
         df_number_of_rows: int,
         stop_words: list = None) -> np.array:
+    
+    """Perform c-TF-IDF transformation on joined texts.
+
+    Parameters:
+    joined_texts : list or pd.Series
+        List or Series of joined texts.
+    clusters_labels : list or pd.Series
+        List or Series of cluster labels.
+    df_number_of_rows : int
+        Number of rows in the original DataFrame.
+
+    Returns:
+    np.array
+        Array of c-TF-IDF values.
+
+    """
 
     count_vectorizer = CountVectorizer().fit(joined_texts)
     count = count_vectorizer.transform(joined_texts)
@@ -145,6 +177,20 @@ def perform_ctfidf(
 def transform_topic_vec_to_df(
         topics_array: np.ndarray,
         topic_preffix_name: str = 'Word'):
+    
+    """Transform a topic vector to a DataFrame.
+
+    Parameters:
+    topics_array : np.ndarray
+        Array of topics.
+    topic_preffix_name : str, optional
+        Prefix name for the topic columns, by default 'Word'.
+
+    Returns:
+    pd.DataFrame
+        DataFrame of topics.
+
+    """
 
     topics_df = pd.DataFrame(
         topics_array, 
@@ -157,6 +203,22 @@ def get_topics_from_texts(
         stop_words: list = None,
         content_column_name: str = 'content',
         label_column_name: str = 'labels') -> tuple[list]:
+    
+    """Get topics from texts using c-TF-IDF.
+
+    Parameters:
+    df : pd.DataFrame
+        Input DataFrame containing documents and labels.
+    content_column_name : str, optional
+        Name of the column containing the document content, by default 'content'.
+    label_column_name : str, optional
+        Name of the column containing the document labels, by default 'labels'.
+
+    Returns:
+    tuple[list]
+        Tuple containing a list of topics.
+
+    """
     
     logging.info('Start get_topics_from_texts() execution')
 
