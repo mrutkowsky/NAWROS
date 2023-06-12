@@ -46,11 +46,11 @@ def read_file(
         columns: list = None) -> pd.DataFrame:
 
     if file_path.endswith('.xlsx'):
-        df = pd.read_excel(file_path)
+        df = pd.read_excel(file_path, usecols=columns)
     elif file_path.endswith('.parquet'):
-        df = pd.read_parquet(file_path)
+        df = pd.read_parquet(file_path, columns=columns)
     else:
-        df = pd.read_csv(file_path)
+        df = pd.read_csv(file_path, usecols=columns)
 
     logger.debug(f'df: {df}')
 
