@@ -360,27 +360,34 @@ def apply_filter():
     filtered_df = read_file(PATH_TO_CURRENT_DF, columns=RAPORT_COLUMNS)
     filtered_df = filtered_df.astype(str)
 
+    logger.info(filtered_df)
+
     logger.info(
         f"""{filters} Columns of df to filter:{filtered_df.columns}""")
     
     query_string = ' & '.join(
-        [f"{filter_dict.get('column')} == {filter_dict.get('value')}" for filter_dict in filters]
+        [f"{filter_dict.get('column')} == '{filter_dict.get('value')}'" for filter_dict in filters]
     )
 
-    logger.debug(f"{query_string}")
+    logger.info(f"{query_string}")
 
     filtered_df = filtered_df.query(query_string)
+
+    logger.info(filtered_df)
 
     filtered_df.to_csv(
         index=False, 
         path_or_buf=PATH_TO_FILTERED_DF)
     
-    filtered_df_excluded=show_columns_for_filtering(PATH_TO_CURRENT_DF)
+    # filtered_df_excluded = show_columns_for_filtering(PATH_TO_CURRENT_DF)
     message = f"{filters} filters has been applied successfully."
 
     print(message)
 
-    return render_template('filtering.html', columns=filtered_df_excluded.columns, message=message)
+    return render_template(
+        'filtering.html', 
+        columns=RAPORT_COLUMNS, 
+        message=message)
 
 
 @app.route('/filter_download_report', methods=['POST'])

@@ -19,6 +19,7 @@ FILES:
   filtered_df: filtered_df.parquet.gzip
   polish_swearwords: 'polish_swearwords.txt'
   english_swearwords: 'english_swearwords.txt'
+  filtered_df: filtered_df.csv
 
 INPUT_FILES_SETTINGS:
   allowed_extensions:
