@@ -8,10 +8,13 @@ DIRECTORIES:
   embeddings: embeddings
   faiss_vectors: faiss_vectors
   current_df: current_df
+  swearwords_dir: swear_words
 
 FILES:
   embedded_files: embeddings.json
   current_df: current_df.gzip.parquet
+  polish_swearwords: 'polish_swearwords.txt'
+  english_swearwords: 'english_swearwords.txt'
 
 INPUT_FILES_SETTINGS:
   allowed_extensions:
@@ -30,15 +33,14 @@ INPUT_FILES_SETTINGS:
 
 LOGGER:
   logging_format: '%(asctime)s - %(levelname)s - %(message)s'
-  logger_level: DEBUG
+  logger_level: INFO
 
 EMPTY_CONTENT_SETTINGS:
   empty_content_suffix: _EMPTY_CONTENT
   empty_content_ext: .csv
 
 PIPELINE:
-  content_column: 
-    - content
+  content_column: content
   batch_size: 32
   cleared_file_ext: .csv
 
@@ -52,7 +54,7 @@ ML:
     n_components: 5
   topics:
     - 2
-
-
-
+  sentiment:
+    model_name: 'cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual'
+    
   

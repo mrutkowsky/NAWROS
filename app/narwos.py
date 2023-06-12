@@ -14,6 +14,8 @@ import json
 import plotly
 from utils.cluster import get_clusters_for_choosen_files
 from utils.c_tf_idf_module import get_topics_from_texts
+from utils.sentiment_analysis import (predict_sentiment, load_model, 
+                                      offensive_language)
 
 app = Flask(__name__)
 
@@ -42,6 +44,7 @@ EMPTY_CONTENT_DIR = DIRECTORIES.get('empty_content')
 FAISS_VECTORS_DIR = DIRECTORIES.get('faiss_vectors')
 RAPORTS_DIR = DIRECTORIES.get('raports')
 CURRENT_DF_DIR = DIRECTORIES.get('current_df')
+SWEARWORDS_DIR = DIRECTORIES.get('swearwords_dir')
 
 EMBEDDED_FILES = FILES.get('embedded_files')
 CURRENT_DF_FILE = FILES.get('current_df')
@@ -61,6 +64,7 @@ REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 
 EMBEDDINGS_MODEL = ML.get('embeddings').get('model')
 SEED = ML.get('seed')
+SENTIMENT_MODEL_NAME = ML.get('sentiment').get('model_name')
 
 PATH_TO_VALID_FILES = os.path.join(
     DATA_FOLDER,
@@ -91,6 +95,18 @@ PATH_TO_CURRENT_DF = os.path.join(
     DATA_FOLDER,
     CURRENT_DF_DIR,
     CURRENT_DF_FILE
+)
+
+PATH_PL_SWEARWORDS = os.path.join(
+    DATA_FOLDER,
+    SWEARWORDS_DIR,
+    FILES.get('polish_swearwords')
+)
+
+PATH_EN_SWEARWORDS = os.path.join(
+    DATA_FOLDER,
+    SWEARWORDS_DIR,
+    FILES.get('english_swearwords')
 )
 
 logging.basicConfig(
@@ -223,9 +239,21 @@ def choose_files_for_clusters():
         embedded_files_filename=EMBEDDED_FILES,
         cleared_files_ext=CLEARED_FILE_EXT)
     
-    clusters_df.to_csv(
+    # sentiment
+    logger.info(f'Predicting sentiment...')
+    swearwords = open(PATH_EN_SWEARWORDS, 'r').read().split('\n') + \
+        open(PATH_PL_SWEARWORDS, 'r').read().split('\n')
+    sent_tokenizer, sent_models, sent_cofnig = load_model(SENTIMENT_MODEL_NAME)
+    clusters_df['sentiment'] = clusters_df[CONTENT_COLUMN].apply(
+        predict_sentiment,
+        args=(sent_tokenizer, sent_models, sent_cofnig, swearwords)
+        )
+    logger.info(f'Sentiment predicted successfully.')
+    clusters_df.to_csv(os.path.join(PATH_TO_RAPORTS_DIR, 'clusters_df.csv'))
+
+    clusters_df.to_parquet(
         index=False, 
-        path_or_buf=PATH_TO_CURRENT_DF)
+        path=PATH_TO_CURRENT_DF)
 
     clusters_topics_df = get_topics_from_texts(
         df=clusters_df
