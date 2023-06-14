@@ -49,7 +49,7 @@
                     <option value="{{ column }}">{{ column }}</option>
                     {% endfor %}
                 </select>
-                <label for="value">Enter a value:</label>
+                <label style="margin-top: 10px;" for="value">Enter a value:</label>
                 <input type="text" class="filter-value">
                 <button class="delete" onclick="deleteFilter(this)">Delete</button>
             </div>
@@ -58,7 +58,7 @@
         <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="applyFilters()">Apply Filters</button>
         <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="downloadFilteredData()">Download Report</button>
     </div>
-    <div>
+    <div style="margin-top: 10px;">
         <label for="value">Choose report type</label>
         <select id="reportTypeInput">
             <option value="excel">Excel</option>
@@ -74,7 +74,7 @@
             
             var filterDiv = document.createElement("div");
             filterDiv.innerHTML = `
-                <label for="column">Select a column:</label>
+                <label style="margin-top: 10px;" for="column">Select a column:</label>
                 <select class="filter-column">
                     {% for column in columns %}
                     <option value="{{ column }}">{{ column }}</option>
@@ -82,7 +82,7 @@
                 </select>
                 <label for="value">Enter a value:</label>
                 <input type="text" class="filter-value">
-                <button class="delete" onclick="deleteFilter(this)">Delete</button>   
+                <button class="delete" onclick="deleteFilter(this)">Delete</button>
             `;
             
             filterContainer.appendChild(filterDiv);
