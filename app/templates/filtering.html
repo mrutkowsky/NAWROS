@@ -132,6 +132,12 @@
                     reportType: reportType,
                 };
 
+                if (reportType == 'excel') {
+                    var extensionType = 'xlsx'
+                } else {
+                    var extensionType = 'csv'
+                };
+                var linkDownlaod = "filtered_data."+ extensionType;
                 console.log(reportType);
 
                 fetch(url, {
@@ -146,7 +152,7 @@
                     var url = URL.createObjectURL(blob);
                     var link = document.createElement("a");
                     link.href = url;
-                    link.download = "filtered_data.csv";
+                    link.download = linkDownlaod;
                     link.click();
                     URL.revokeObjectURL(url);
                 })

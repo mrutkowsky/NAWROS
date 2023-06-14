@@ -13,8 +13,8 @@ DIRECTORIES:
 
 FILES:
   embedded_files: embeddings.json
-  current_df: current_df.parquet.gzip
-  filtered_df: filtered_df.parquet.gzip
+  current_df: current_df.gzip.parquet
+  filtered_df: filtered_df.gzip.parquet
 
 INPUT_FILES_SETTINGS:
   allowed_extensions:
