@@ -19,7 +19,7 @@
         }
     </style>
     <style>
-        input[type="submit"], button.delete-filter {
+        input[type="submit"], button.delete {
             margin-right: 10px;
             margin-top: 20px;
             width: 200px;
@@ -51,7 +51,7 @@
                 </select>
                 <label for="value">Enter a value:</label>
                 <input type="text" class="filter-value">
-                <button class="delete-filter" onclick="deleteFilter(this)">Delete</button>
+                <button class="delete" onclick="deleteFilter(this)">Delete</button>
             </div>
         </div>
         <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="addFilter()">Add Filter</button>
@@ -82,7 +82,7 @@
                 </select>
                 <label for="value">Enter a value:</label>
                 <input type="text" class="filter-value">
-                <button class="delete-filter" onclick="deleteFilter(this)">Delete</button>   
+                <button class="delete" onclick="deleteFilter(this)">Delete</button>   
             `;
             
             filterContainer.appendChild(filterDiv);
