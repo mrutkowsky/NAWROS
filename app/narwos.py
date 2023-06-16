@@ -290,18 +290,6 @@ def choose_files_for_clusters():
         cluster_selection_method=HDBSCAN.get('cluster_selection_method')
     )
     
-    # sentiment
-    logger.info(f'Predicting sentiment...')
-    swearwords = open(PATH_EN_SWEARWORDS, 'r').read().split('\n') + \
-        open(PATH_PL_SWEARWORDS, 'r').read().split('\n')
-    sent_tokenizer, sent_models, sent_cofnig = load_model(SENTIMENT_MODEL_NAME)
-    clusters_df['sentiment'] = clusters_df[CONTENT_COLUMN].apply(
-        predict_sentiment,
-        args=(sent_tokenizer, sent_models, sent_cofnig, swearwords)
-        )
-    logger.info(f'Sentiment predicted successfully.')
-    clusters_df.to_csv(os.path.join(PATH_TO_RAPORTS_DIR, 'clusters_df.csv'))
-
     clusters_df.to_parquet(
         index=False, 
         path=PATH_TO_CURRENT_DF)
