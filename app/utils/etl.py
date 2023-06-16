@@ -8,6 +8,18 @@ def load_files_into_df(
     use_cols: list = None,
     skip_files: list = None) -> pd.DataFrame:
 
+    """
+    Load multiple files from a folder into a single DataFrame.
+
+    Args:
+        data_folder_path (str): The path to the folder containing the files.
+        use_cols (list, optional): A list of columns to be used from the files. Defaults to None (all columns are used).
+        skip_files (list, optional): A list of file names to skip during loading. Defaults to None.
+
+    Returns:
+        pd.DataFrame: The combined DataFrame containing the data from all the files.
+    """
+
     df_result = None
 
     for dataset in sorted(os.listdir(data_folder_path), reverse=True):
@@ -41,6 +53,16 @@ def load_files_into_df(
     return df_result
 
 def preprocess_text(text):
+
+    """
+    Preprocess text by applying various transformations to clean it.
+
+    Args:
+        text (str): The input text to preprocess.
+
+    Returns:
+        str: The preprocessed text.
+    """
     # Lowercase the text
     text = text.lower()
     
@@ -61,4 +83,14 @@ def preprocess_text(text):
     return text.strip()
 
 def layer_normalize(vector: np.array):
+    
+    """
+    Normalize a vector by subtracting the mean and dividing by the standard deviation.
+
+    Args:
+        vector (np.array): The input vector to normalize.
+
+    Returns:
+        np.array: The normalized vector.
+    """
     return (vector - np.mean(vector)) / np.std(vector)

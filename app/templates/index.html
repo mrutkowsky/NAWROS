@@ -6,29 +6,46 @@
   <body>
     <h1>NARWOS NLP</h1>
     <h3>Managing files</h3>
-    <div class="mt-20">
-      <form action="/upload_file" class="mt-20" method="post" enctype="multipart/form-data">
-        <label>Load files:</label>
-        <input type="file" name="file" multiple>
-        <br><br>
-        <input type="submit" value="Upload">
-      </form>
-    </div>
+    <div class="container">
+      <div class="left-div">
+        <form action="/upload_file" class="mt-20" method="post" enctype="multipart/form-data">
+          <label>Load files:</label>
+          <input type="file" name="file" multiple>
+          <br><br>
+          <input type="submit" value="Upload">
+          {% if success_upload %}
+            <p style="color: rgb(80, 187, 80)">Files uploaded successfully:</p>
+            <ol>
+            {% for file_ in success_upload %}
+              <li>{{file_}}</li>
+            {% endfor %}
+            </ol>
+          {% endif %}
+          {% if failed_upload %} 
+            <p style="color: rgb(244, 22, 22)">Failed to upload files:</p>
+            <ol>
+            {% for file_ in failed_upload %}
+              <li>{{file_}}</li>
+            {% endfor %}
+            </ol>
+          {% endif %}
+        </form>
+      </div>
 
-    <div class="mt-20">
-      <form action="/delete_file" method="post">
-        <label for="to_delete">Delete file:</label>
-        <select id="to_delete" name="to_delete">
-          <option value="" selected disabled hidden>(Choose file)</option>
-          {% for file in files %}
-              <option value="{{ file }}">{{ file }}</option>
-          {% endfor %}
-        </select>
-        <br><br>
-        <input type="submit" value="Delete">
-      </form>
+      <div class="right-div">
+        <form action="/delete_file" method="post">
+          <label for="to_delete">Delete file:</label>
+          <select id="to_delete" name="to_delete">
+            <option value="" selected disabled hidden>(Choose file)</option>
+            {% for file in files %}
+                <option value="{{ file }}">{{ file }}</option>
+            {% endfor %}
+          </select>
+          <br><br>
+          <input style="background-color: rgb(250, 89, 89)" type="submit" value="Delete">
+        </form>
+      </div>
     </div>
-
     {% if message %}
       <h4 style="color: rgb(18, 131, 196)">{{ message }}</h4>
     {% endif %}

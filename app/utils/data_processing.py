@@ -33,9 +33,20 @@ def save_raport_to_csv(
         path_to_raports_dir: str,
         clusters_topics: pd.DataFrame,
         classes_column_name: str = 'labels'):
+    
     """
-    Saves raport to csv file.
-    """
+    Saves a report to a CSV file.
+
+    Args:
+       df (pd.DataFrame): The DataFrame containing the report data.
+       filename (str): The filename of the CSV file.
+       path_to_raports_dir (str): The directory path to save the CSV file.
+       clusters_topics (pd.DataFrame): The DataFrame containing cluster topics.
+       classes_column_name (str, optional): The column name for the classes. Defaults to 'labels'.
+
+   Returns:
+       None
+   """
     df = df.groupby(df[classes_column_name]).size().reset_index(name='counts')
     df = pd.concat([df, clusters_topics], axis=1) 
     save_path = os.path.join(path_to_raports_dir, filename)
@@ -45,10 +56,21 @@ def save_raport_to_csv(
 def read_file(
         file_path: str, 
         columns: list = None) -> pd.DataFrame:
+    
+    """
+    Read a file and return its content as a DataFrame.
+
+    Args:
+        file_path (str): The path to the file.
+        columns (list, optional): A list of columns to read from the file. Defaults to None.
+
+    Returns:
+        pd.DataFrame: The content of the file as a DataFrame.
+    """
 
     if file_path.endswith('.xlsx'):
         df = pd.read_excel(file_path, usecols=columns)
-    elif file_path.endswith('.parquet'):
+    elif file_path.endswith('.parquet.gzip'):
         df = pd.read_parquet(file_path, columns=columns)
     else:
         df = pd.read_csv(file_path, usecols=columns)
@@ -64,8 +86,19 @@ def cleanup_data(
         path_to_empty_content_dir: str,
         empty_contents_suffix: str,
         empty_content_ext: str) -> pd.DataFrame:
+    
     """
-    Remove rows with empty contents and save them to a separate file.
+    Remove rows with empty contents, save them to a separate file, and preprocess the remaining contents.
+
+    Args:
+        df (pd.DataFrame): The DataFrame to clean up.
+        filename (str): The name of the file being cleaned.
+        path_to_empty_content_dir (str): The directory path to save the file with empty contents.
+        empty_contents_suffix (str): The suffix to append to the filename for the file with empty contents.
+        empty_content_ext (str): The file extension for the file with empty contents.
+
+    Returns:
+        pd.DataFrame: The cleaned-up DataFrame.
     """
 
     logger.debug(f'Columns: {df.columns}')
@@ -104,8 +137,17 @@ def cleanup_data(
     return df
 
 def get_embedded_files(
-        path_to_embeddings_file: str
-):
+        path_to_embeddings_file: str):
+    
+    """
+    Get the embedded files from a JSON file.
+
+    Args:
+        path_to_embeddings_file (str): The path to the JSON file containing the embedded files.
+
+    Returns:
+        dict: The embedded files as a dictionary.
+    """
 
     with open(path_to_embeddings_file, 'r', encoding='utf-8') as embedded_json:
         return json.load(embedded_json)
@@ -114,6 +156,18 @@ def save_file_as_embeded(
         filename: str, 
         vectors_filename: str,
         path_to_embeddings_file: str):
+    
+    """
+    Save the filename and vectors filename as an embedded file in a JSON file.
+
+    Args:
+        filename (str): The original filename.
+        vectors_filename (str): The filename for the vectors.
+        path_to_embeddings_file (str): The path to the JSON file containing the embedded files.
+
+    Returns:
+        None
+    """
 
     embeded_files = get_embedded_files(
         path_to_embeddings_file=path_to_embeddings_file
@@ -128,9 +182,20 @@ def save_df_to_file(
         df: pd.DataFrame,
         filename: str,
         path_to_dir: str,
-        file_ext: str = '.csv'
+        file_ext: str = '.csv') -> None:
+    
+    """
+    Save a DataFrame to a file.
 
-) -> None:
+    Args:
+        df (pd.DataFrame): The DataFrame to save.
+        filename (str): The filename of the file.
+        path_to_dir (str): The directory path to save the file.
+        file_ext (str, optional): The file extension. Defaults to '.csv'.
+
+    Returns:
+        None
+    """
     
     saving_path = os.path.join(path_to_dir, f'{filename}{file_ext}')
     
@@ -172,9 +237,29 @@ def process_data_from_choosen_files(
         empty_content_ext: str = '.csv',
         batch_size: int = 32,
         seed: int = 42):
+    
     """
-    Process data from files choosen by a user, save embedding for the ones that 
-    are not already embedded.
+    Process data from files chosen by a user, save embedding for the ones that are not already embedded.
+
+    Args:
+        chosen_files (list): A list of filenames chosen by the user.
+        path_to_valid_files (str): The directory path to the valid files.
+        path_to_cleared_files (str): The directory path to save the cleaned files.
+        path_to_empty_content_dir (str): The directory path to save the files with empty contents.
+        path_to_embeddings_dir (str): The directory path to save the embeddings.
+        faiss_vectors_dirname (str): The name of the directory to save the Faiss vectors.
+        embedded_files_filename (str): The filename of the JSON file containing the embedded files.
+        embeddings_model_name (str): The name of the embeddings model.
+        faiss_vector_ext (str, optional): The file extension for the Faiss vectors. Defaults to '.index'.
+        cleread_file_ext (str, optional): The file extension for the cleaned files. Defaults to '.gzip.parquet'.
+        empty_contents_suffix (str, optional): The suffix to append to the filename for the files with empty contents.
+            Defaults to '_EMPTY_CONTENT'.
+        empty_content_ext (str, optional): The file extension for the files with empty contents. Defaults to '.csv'.
+        batch_size (int, optional): The batch size for processing the data. Defaults to 32.
+        seed (int, optional): The random seed for the embeddings model. Defaults to 42.
+
+    Returns:
+        None
     """
 
     PATH_TO_JSON_EMBEDDED_FILES = os.path.join(path_to_embeddings_dir, embedded_files_filename)

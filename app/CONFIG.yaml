@@ -21,6 +21,7 @@ FILES:
   english_swearwords: 'english_swearwords.txt'
   filtered_df: filtered_df.csv
 
+
 INPUT_FILES_SETTINGS:
   allowed_extensions:
     - .csv 
@@ -36,7 +37,7 @@ INPUT_FILES_SETTINGS:
     - Application_Name
     - content
 
-RAPORT:
+RAPORT_SETTINGS:
   columns:
     - Questioned_Date
     - Model_No
