@@ -325,7 +325,7 @@ def show_clusters_submit():
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
 
-    df = pd.read_csv(PATH_TO_CURRENT_DF)
+    df = read_file(PATH_TO_CURRENT_DF)
 
     if isinstance(df, pd.DataFrame):
 
