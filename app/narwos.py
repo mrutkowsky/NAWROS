@@ -45,6 +45,8 @@ RAPORTS_DIR = DIRECTORIES.get('raports')
 CURRENT_DF_DIR = DIRECTORIES.get('current_df')
 FILTERED_DF_DIR = DIRECTORIES.get('filtered_df')
 STOPWORDS_DIR = DIRECTORIES.get('stop_words')
+SWEARWORDS_DIR = DIRECTORIES.get('swearwords_dir')
+STOPWORDS_DIR = DIRECTORIES.get('stop_words')
 
 EMBEDDED_FILES = FILES.get('embedded_files')
 CURRENT_DF_FILE = FILES.get('current_df')
@@ -65,6 +67,7 @@ REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 
 EMBEDDINGS_MODEL = ML.get('embeddings').get('model')
 SEED = ML.get('seed')
+SENTIMENT_MODEL_NAME = ML.get('sentiment').get('model_name')
 
 FILTERING_DOWNLOAD_NAME = FILTERING.get('download_name')
 
@@ -109,6 +112,18 @@ PATH_TO_FILTERED_DF = os.path.join(
     DATA_FOLDER,
     FILTERED_DF_DIR,
     FILTERED_DF_FILE
+)
+
+PATH_PL_SWEARWORDS = os.path.join(
+    DATA_FOLDER,
+    SWEARWORDS_DIR,
+    FILES.get('polish_swearwords')
+)
+
+PATH_EN_SWEARWORDS = os.path.join(
+    DATA_FOLDER,
+    SWEARWORDS_DIR,
+    FILES.get('english_swearwords')
 )
 
 logging.basicConfig(
@@ -236,7 +251,8 @@ def delete_file():
 def choose_files_for_clusters():
 
     files_for_clustering = request.form.getlist('chosen_files')
-
+    swearwords = open(PATH_EN_SWEARWORDS, 'r').read().split('\n') + \
+        open(PATH_PL_SWEARWORDS, 'r').read().split('\n')
     logger.debug(f'Chosen files: {files_for_clustering}')
 
     process_data_from_choosen_files(
@@ -248,6 +264,9 @@ def choose_files_for_clusters():
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
         embedded_files_filename=EMBEDDED_FILES,
         embeddings_model_name=EMBEDDINGS_MODEL,
+        sentiment_model_name=SENTIMENT_MODEL_NAME,
+        swearwords=swearwords,
+        content_column_name=CONTENT_COLUMN,
         cleread_file_ext=CLEARED_FILE_EXT,
         empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
         empty_content_ext=EMPTY_CONTENTS_EXT,
@@ -271,9 +290,9 @@ def choose_files_for_clusters():
         cluster_selection_method=HDBSCAN.get('cluster_selection_method')
     )
     
-    clusters_df.to_csv(
+    clusters_df.to_parquet(
         index=False, 
-        path_or_buf=PATH_TO_CURRENT_DF)
+        path=PATH_TO_CURRENT_DF)
 
     clusters_topics_df = get_topics_from_texts(
         df=clusters_df,
@@ -306,7 +325,7 @@ def show_clusters_submit():
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
 
-    df = pd.read_csv(PATH_TO_CURRENT_DF)
+    df = read_file(PATH_TO_CURRENT_DF)
 
     if isinstance(df, pd.DataFrame):
 

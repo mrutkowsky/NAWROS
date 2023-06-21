@@ -91,7 +91,6 @@ def prepare_df_for_ctfidf(
         df: pd.DataFrame,
         content_column_name: str = 'content',
         label_column_name: str = 'labels') -> pd.DataFrame:
-    
     """Prepare a DataFrame for c-TF-IDF transformation by grouping documents per class.
 
     Parameters:
@@ -107,7 +106,6 @@ def prepare_df_for_ctfidf(
         DataFrame with documents per class.
 
     """
-    
     docs_per_class = df.groupby(
         by=label_column_name, 
         as_index=False).agg({content_column_name: ' '.join})
