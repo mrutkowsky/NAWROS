@@ -111,6 +111,8 @@ def prepare_df_for_ctfidf(
     docs_per_class = df.groupby(
         by=label_column_name, 
         as_index=False).agg({content_column_name: ' '.join})
+    
+    print(docs_per_class)
 
     return docs_per_class
 
@@ -152,7 +154,7 @@ def perform_ctfidf(
     
     words_per_class = []
     
-    for label in clusters_labels:
+    for label in sorted(clusters_labels):
 
         current = []
 
