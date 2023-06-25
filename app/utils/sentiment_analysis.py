@@ -37,11 +37,12 @@ def offensive_language(text, swear_words):
 
     text = str(text).lower()
 
-    if any(word in text for word in swear_words):
-        return True
+    for word in text.split(" "):
+
+        if word in swear_words:
+            return True 
     else:
         return False
-
 
 def predict_sentiment(
         data, 
