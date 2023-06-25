@@ -421,3 +421,14 @@ def get_stopwords(
             all_stopwords.extend([stopword.strip("\n") for stopword in lang_stopwords])
 
     return all_stopwords
+
+def get_swearwords(
+        path_to_dir_with_swearwords: str) -> list:
+    
+    all_swearwords = []
+
+    for lang_file in os.listdir(path_to_dir_with_swearwords):
+        with open(os.path.join(path_to_dir_with_swearwords, lang_file), 'r', encoding='utf-8') as lang_stopwords:
+            all_swearwords.extend([stopword.strip("\n") for stopword in lang_stopwords])
+
+    return all_swearwords

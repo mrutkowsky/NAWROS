@@ -8,7 +8,12 @@ from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
     read_config
-from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv, get_stopwords, read_file, del_file_from_embeded
+from utils.data_processing import process_data_from_choosen_files, \
+    save_raport_to_csv, \
+    get_stopwords, \
+    read_file, \
+    del_file_from_embeded, \
+    get_swearwords
 import plotly.express as px
 import json
 import plotly
@@ -119,17 +124,18 @@ PATH_TO_FILTERED_DF = os.path.join(
     FILTERED_DF_FILE
 )
 
-PATH_PL_SWEARWORDS = os.path.join(
+PATH_TO_SWEARWORDS_DIR = os.path.join(
     DATA_FOLDER,
     SWEARWORDS_DIR,
-    FILES.get('polish_swearwords')
 )
 
-PATH_EN_SWEARWORDS = os.path.join(
+PATH_TO_STOPWORDS_DIR = os.path.join(
     DATA_FOLDER,
-    SWEARWORDS_DIR,
-    FILES.get('english_swearwords')
+    STOPWORDS_DIR,
 )
+
+STOP_WORDS = get_stopwords(PATH_TO_STOPWORDS_DIR)
+SWEAR_WORDS = get_swearwords(PATH_TO_SWEARWORDS_DIR)
 
 logging.basicConfig(
     level=LOGGER_LEVEL,
@@ -293,8 +299,6 @@ def delete_file():
 def choose_files_for_clusters():
 
     files_for_clustering = request.form.getlist('chosen_files')
-    swearwords = open(PATH_EN_SWEARWORDS, 'r').read().split('\n') + \
-        open(PATH_PL_SWEARWORDS, 'r').read().split('\n')
     logger.debug(f'Chosen files: {files_for_clustering}')
 
     process_data_from_choosen_files(
@@ -307,7 +311,7 @@ def choose_files_for_clusters():
         embedded_files_filename=EMBEDDED_JSON,
         embeddings_model_name=EMBEDDINGS_MODEL,
         sentiment_model_name=SENTIMENT_MODEL_NAME,
-        swearwords=swearwords,
+        swearwords=SWEAR_WORDS,
         content_column_name=CONTENT_COLUMN,
         cleread_file_ext=CLEARED_FILE_EXT,
         empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
@@ -338,7 +342,7 @@ def choose_files_for_clusters():
 
     clusters_topics_df = get_topics_from_texts(
         df=clusters_df,
-        stop_words=get_stopwords(STOPWORDS_DIR)
+        stop_words=STOP_WORDS
     )
 
     save_raport_to_csv(
