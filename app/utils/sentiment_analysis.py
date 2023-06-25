@@ -4,6 +4,7 @@ import logging
 from scipy.special import softmax
 import numpy as np
 import torch
+import operator as op
 
 logger = logging.getLogger(__file__)
 
@@ -35,12 +36,13 @@ def load_sentiment_model(model_name: str) -> tuple:
 
 def offensive_language(text, swear_words):
 
-    text = str(text).lower()
+    for i in swear_words:
 
-    for word in text.split(" "):
+        if op.countOf(str(text).lower(), i) == 0:
+            c += 1
 
-        if word in swear_words:
-            return True 
+    if c >= 1:
+        return True
     else:
         return False
 
