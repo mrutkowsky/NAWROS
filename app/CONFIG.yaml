@@ -13,7 +13,7 @@ DIRECTORIES:
   swearwords_dir: swear_words
 
 FILES:
-  embedded_files: embeddings.json
+  embedded_json: embeddings.json
   current_df: current_df.parquet.gzip
   filtered_df: filtered_df.parquet.gzip
   polish_swearwords: 'polish_swearwords.txt'
@@ -45,12 +45,13 @@ RAPORT_SETTINGS:
     - CSC
     - Category 
     - Application_Name
-    - content 
+    - content
+    - sentiment 
     - labels
 
 LOGGER:
   logging_format: '%(asctime)s - %(levelname)s - %(message)s'
-  logger_level: INFO
+  logger_level: DEBUG
 
 EMPTY_CONTENT_SETTINGS:
   empty_content_suffix: _EMPTY_CONTENT

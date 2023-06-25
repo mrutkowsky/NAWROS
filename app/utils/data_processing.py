@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from utils.embeddings_module import load_model, get_embeddings
 from utils.etl import preprocess_text
-from utils.sentiment_analysis import load_sentiment_model, predict_sentiment
+from utils.sentiment_analysis import load_sentiment_model, predict_sentiment, offensive_language
 
 logger = logging.getLogger(__file__)
 
@@ -178,6 +178,24 @@ def save_file_as_embeded(
     with open(path_to_embeddings_file, 'w', encoding='utf-8') as embedded_json:
         json.dump(embeded_files, embedded_json)
 
+def del_file_from_embeded(
+    filename_to_del: str,
+    path_to_embeddings_file: str) -> None:
+
+    logger.debug(path_to_embeddings_file)
+
+    with open(path_to_embeddings_file, 'r', encoding='utf-8') as embedded_json:
+        embedded_files_dict = json.load(embedded_json)
+    
+    try:
+        del embedded_files_dict[filename_to_del]
+    except KeyError:
+        return False
+    else:
+        with open(path_to_embeddings_file, 'w', encoding='utf-8') as embedded_json:
+            json.dump(embedded_files_dict, embedded_json)
+            return True
+
 def save_df_to_file(
         df: pd.DataFrame,
         filename: str,
@@ -231,6 +249,8 @@ def process_data_from_choosen_files(
         sentiment_model_name: str,
         swearwords: list,
         content_column_name: str = 'content',
+        sentiment_column_name: str = 'sentiment',
+        offensive_label: str = 'offensive',
         faiss_vector_ext: str = '.index',
         cleread_file_ext: str = '.gzip.parquet',
         empty_contents_suffix: str = '_EMPTY_CONTENT',
@@ -312,10 +332,28 @@ def process_data_from_choosen_files(
                 
                 logger.info(f'Cleaned {file_}')
                 logger.info(f'Predicting sentiment for {file_}')
-                df['sentiment'] = df[content_column_name].apply(
-                    predict_sentiment,
-                    args=(sent_tokenizer, sent_models, sent_cofnig, swearwords)
+
+                dataset = MyDataset(df[content_column_name].to_frame())
+                
+                dataloader = DataLoader(
+                    dataset, 
+                    batch_size=batch_size, 
+                    shuffle=False
                 )
+
+                sentiment_labels = predict_sentiment(
+                    data=dataloader,
+                    tokenizer=sent_tokenizer, 
+                    model=sent_models, 
+                    config=sent_cofnig
+                ) 
+
+                df[sentiment_column_name] = sentiment_labels
+                df[sentiment_column_name] = np.where(
+                    df[content_column_name].apply(lambda x: offensive_language(x, swearwords)), 
+                    offensive_label, 
+                    df[sentiment_column_name])
+
                 logger.info(f'Sentiment predicted successfully')
 
                 save_df_to_file(

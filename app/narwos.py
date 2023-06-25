@@ -8,7 +8,7 @@ from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
     read_config
-from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv, get_stopwords, read_file
+from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv, get_stopwords, read_file, del_file_from_embeded
 import plotly.express as px
 import json
 import plotly
@@ -48,7 +48,7 @@ STOPWORDS_DIR = DIRECTORIES.get('stop_words')
 SWEARWORDS_DIR = DIRECTORIES.get('swearwords_dir')
 STOPWORDS_DIR = DIRECTORIES.get('stop_words')
 
-EMBEDDED_FILES = FILES.get('embedded_files')
+EMBEDDED_JSON = FILES.get('embedded_json')
 CURRENT_DF_FILE = FILES.get('current_df')
 FILTERED_DF_FILE = FILES.get('filtered_df')
 
@@ -100,6 +100,11 @@ PATH_TO_TMP_DIR = os.path.join(
 PATH_TO_RAPORTS_DIR = os.path.join(
     DATA_FOLDER,
     RAPORTS_DIR
+)
+
+PATH_TO_FAISS_VECTORS_DIR = os.path.join(
+    EMBEDDINGS_DIR,
+    FAISS_VECTORS_DIR
 )
 
 PATH_TO_CURRENT_DF = os.path.join(
@@ -231,6 +236,9 @@ def upload_file():
 def delete_file():
 
     filename = request.form.get('to_delete')
+    base_filename = os.path.splitext(filename)[0]
+
+    logger.debug(f'Filename: {filename}, base name: {base_filename}')
 
     try:
         file_path = os.path.join(
@@ -238,13 +246,47 @@ def delete_file():
             filename)
     except OSError:
         return redirect(url_for("index", message=f'File {filename} does not exist.'))
-
-    if os.path.exists(file_path):
+    else:
 
         os.remove(file_path)
-        return redirect(url_for("index", message=f'File {filename} deleted successfully.'))
 
-    return redirect(url_for("index", message=f'Cannot delete file {filename}.'))
+        for data_dir in [PATH_TO_CLEARED_FILES, PATH_TO_FAISS_VECTORS_DIR]:
+
+            logger.debug(f'Current data dir: {data_dir}')
+
+            filename_search_dir = {os.path.splitext(file_)[0]: file_ for file_ in os.listdir(data_dir)}
+
+            logger.debug(f'Current {data_dir} search dir: {filename_search_dir}')
+
+            if base_filename in filename_search_dir:
+
+                logger.debug(f'File name with extension from dict: {filename_search_dir.get(base_filename)}')
+
+                file_path = os.path.join(
+                    data_dir, 
+                    filename_search_dir.get(base_filename))
+
+                if os.path.exists(file_path):
+
+                    try:
+                        os.remove(file_path)
+                    except Exception as e:
+                        logger.error(f'Can not del {filename} from {data_dir} dir! - {e}')
+                    else:
+                        logger.info(f'Successfully deleted file from {data_dir}')
+
+        
+        deleted_successfully_from_json = del_file_from_embeded(
+            filename_to_del=filename,
+            path_to_embeddings_file=os.path.join(EMBEDDINGS_DIR, EMBEDDED_JSON)
+        )
+
+        if deleted_successfully_from_json:
+
+            logger.info(f'Successfully deleted {filename} from JSON file')
+        
+        return redirect(url_for("index", message=f'File {filename} deleted successfully.'))
+    
 
 
 @app.route('/choose_files_for_clusters', methods=['POST'])
@@ -262,7 +304,7 @@ def choose_files_for_clusters():
         path_to_empty_content_dir=PATH_TO_EMPTY_CONTENTS,
         path_to_embeddings_dir=EMBEDDINGS_DIR,
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
-        embedded_files_filename=EMBEDDED_FILES,
+        embedded_files_filename=EMBEDDED_JSON,
         embeddings_model_name=EMBEDDINGS_MODEL,
         sentiment_model_name=SENTIMENT_MODEL_NAME,
         swearwords=swearwords,
@@ -278,7 +320,7 @@ def choose_files_for_clusters():
         path_to_cleared_files=PATH_TO_CLEARED_FILES,
         path_to_embeddings_dir=EMBEDDINGS_DIR,
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
-        embedded_files_filename=EMBEDDED_FILES,
+        embedded_files_filename=EMBEDDED_JSON,
         cleared_files_ext=CLEARED_FILE_EXT,
         random_state=SEED,
         n_neighbors=UMAP.get('n_neighbors'),
@@ -288,7 +330,7 @@ def choose_files_for_clusters():
         min_samples=HDBSCAN.get('min_samples'),
         metric=HDBSCAN.get('metric'),                      
         cluster_selection_method=HDBSCAN.get('cluster_selection_method')
-    )
+    ).astype({col: str for col in REQUIRED_COLUMNS})
     
     clusters_df.to_parquet(
         index=False, 

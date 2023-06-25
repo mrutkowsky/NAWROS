@@ -3,6 +3,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification, Auto
 import logging
 from scipy.special import softmax
 import numpy as np
+import torch
 
 logger = logging.getLogger(__file__)
 
@@ -17,29 +18,59 @@ def load_sentiment_model(model_name: str) -> tuple:
     Returns:
         tuple: tokenizer, model, config
     """
+
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
+    if device == 'cuda:0':
+        logger.info('Cuda avaiable for sentiment model')
+    else:
+        logger.warning('Can not load CUDA for sentiment model')
+
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSequenceClassification.from_pretrained(model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name).to(device)
     config = AutoConfig.from_pretrained(model_name)
+
     return tokenizer, model, config
 
 
 def offensive_language(text, swear_words):
+
     text = str(text).lower()
+
     if any(word in text for word in swear_words):
         return True
     else:
         return False
 
 
-def predict_sentiment(data, tokenizer, model, config, swear_words):
-    encoded_input = tokenizer(data, return_tensors='pt', padding=True, truncation=True, max_length=64)
-    output = model(**encoded_input)
-    scores = output[0][0].detach().numpy()
-    scores = softmax(scores)
-    label = config.id2label[np.argmax(scores)]
+def predict_sentiment(
+        data, 
+        tokenizer, 
+        model, 
+        config):
+    
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    labels = []
+    
+    for i, batch in enumerate(data):
 
-    if label != 'negative':
-        if offensive_language(data, swear_words):
-            label = 'negative'
+        encoded_input = tokenizer(
+            batch, 
+            return_tensors='pt', 
+            padding=True, 
+            truncation=True, 
+            max_length=64).to(device)
 
-    return label
+        output = model(**encoded_input)
+
+        sentiment_batch_logits = output.get('logits').detach().cpu().numpy()
+        sentiment_batch_softmaxed = np.apply_along_axis(softmax, arr=sentiment_batch_logits, axis=0)
+
+        batch_labels = [config.id2label[np.argmax(scores)] for scores in sentiment_batch_softmaxed]
+
+        labels.extend(batch_labels)
+
+    return labels
+
+
+
