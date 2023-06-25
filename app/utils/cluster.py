@@ -12,7 +12,7 @@ import faiss
 import os
 import logging
 
-from utils.data_processing import get_embedded_files, read_file
+from utils.data_processing import get_embedded_files, read_file, set_rows_cardinalities
 
 logger = logging.getLogger(__file__)
 
@@ -82,8 +82,11 @@ def get_clusters_for_choosen_files(
         chosen_files: list,
         path_to_cleared_files: str,
         path_to_embeddings_dir: str,
+        path_to_rows_cardinalities_file: str,
         faiss_vectors_dirname: str,
         embedded_files_filename: str,
+        used_as_base_key: str = 'used_as_base',
+        only_classified_key: str = 'only_classified',
         cleared_files_ext: str = '.parquet.gzip',
         labels_column: str = 'labels',
         filename_column: str = 'filename',
@@ -125,6 +128,11 @@ def get_clusters_for_choosen_files(
     embeddings_files = get_embedded_files(
         path_to_embeddings_file=PATH_TO_JSON_EMBEDDED_FILES
     )
+
+    rows_cardinalities_dict = {
+        used_as_base_key: {},
+        only_classified_key: {}
+    }
     
     all_vectors = None
     result_df = None
@@ -147,6 +155,8 @@ def get_clusters_for_choosen_files(
             columns=None)
         
         current_file_df[filename_column] = file_
+
+        rows_cardinalities_dict[used_as_base_key][file_] = len(current_file_df)
         
         result_df = pd.concat([result_df, current_file_df])
         result_df = result_df.reset_index(drop=True)
@@ -191,5 +201,15 @@ def get_clusters_for_choosen_files(
 
     logger.info("Succesfully merged dataframes into result df")
     logger.debug(f'result_df: {result_df}')
+
+    saved_cardinalities = set_rows_cardinalities(
+        path_to_rows_cardinalities_file,
+        updated_cardinalities=rows_cardinalities_dict
+    )
+
+    if isinstance(saved_cardinalities, bool):
+        logger.info('Rows cardinalities of each file which is a part of current_df saved successfully')
+    else:
+        logger.error('Failed to save rows cardinalities for current_df')
 
     return df

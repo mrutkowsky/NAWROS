@@ -56,6 +56,7 @@ STOPWORDS_DIR = DIRECTORIES.get('stop_words')
 EMBEDDED_JSON = FILES.get('embedded_json')
 CURRENT_DF_FILE = FILES.get('current_df')
 FILTERED_DF_FILE = FILES.get('filtered_df')
+ROWS_CARDINALITIES_FILE = FILES.get('rows_cardinalities')
 
 EMPTY_CONTENTS_EXT = EMPTY_CONTENT_SETTINGS.get('empty_content_ext')
 EMPTY_CONTENTS_SUFFIX = EMPTY_CONTENT_SETTINGS.get('empty_content_suffix')
@@ -118,6 +119,12 @@ PATH_TO_CURRENT_DF = os.path.join(
     CURRENT_DF_FILE
 )
 
+PATH_TO_ROWS_CARDINALITIES = os.path.join(
+    DATA_FOLDER,
+    CURRENT_DF_DIR,
+    ROWS_CARDINALITIES_FILE,
+)
+
 PATH_TO_FILTERED_DF = os.path.join(
     DATA_FOLDER,
     FILTERED_DF_DIR,
@@ -176,8 +183,12 @@ def index():
 @app.route('/upload_file', methods=['POST'])
 def upload_file():
         # Check if files were uploaded
-    if 'file' not in request.files:
-        return jsonify({'error': 'No files found in the request.'}), 400
+    if len(request.files.getlist('file')) == 1:
+
+        if request.files.getlist('file')[0].filename == '':
+            return redirect(url_for("index", message=f'No file has been selected for uploading!'))
+    
+    logger.debug(f"Uploaded files: {request.files.getlist('file')}")
 
     uploaded_files = request.files.getlist('file')
     files_uploading_status = {
@@ -242,6 +253,10 @@ def upload_file():
 def delete_file():
 
     filename = request.form.get('to_delete')
+
+    if not filename:
+        return redirect(url_for("index", message=f'No file has been selected for deletion!'))
+
     base_filename = os.path.splitext(filename)[0]
 
     logger.debug(f'Filename: {filename}, base name: {base_filename}')
@@ -280,8 +295,7 @@ def delete_file():
                         logger.error(f'Can not del {filename} from {data_dir} dir! - {e}')
                     else:
                         logger.info(f'Successfully deleted file from {data_dir}')
-
-        
+ 
         deleted_successfully_from_json = del_file_from_embeded(
             filename_to_del=filename,
             path_to_embeddings_file=os.path.join(EMBEDDINGS_DIR, EMBEDDED_JSON)
@@ -299,6 +313,10 @@ def delete_file():
 def choose_files_for_clusters():
 
     files_for_clustering = request.form.getlist('chosen_files')
+
+    if not files_for_clustering:
+        return redirect(url_for("index", message=f'No file has been selected for clustering!'))
+    
     logger.debug(f'Chosen files: {files_for_clustering}')
 
     process_data_from_choosen_files(
@@ -323,6 +341,7 @@ def choose_files_for_clusters():
         chosen_files=files_for_clustering,
         path_to_cleared_files=PATH_TO_CLEARED_FILES,
         path_to_embeddings_dir=EMBEDDINGS_DIR,
+        path_to_rows_cardinalities_file=PATH_TO_ROWS_CARDINALITIES,
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
         embedded_files_filename=EMBEDDED_JSON,
         cleared_files_ext=CLEARED_FILE_EXT,

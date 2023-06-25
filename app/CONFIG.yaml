@@ -14,6 +14,7 @@ DIRECTORIES:
 
 FILES:
   embedded_json: embeddings.json
+  rows_cardinalities: rows_cardinalities.json
   current_df: current_df.parquet.gzip
   filtered_df: filtered_df.parquet.gzip
   polish_swearwords: 'polish_swearwords.txt'

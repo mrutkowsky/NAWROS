@@ -429,3 +429,20 @@ def get_swearwords(
             all_swearwords.extend([stopword.strip("\n") for stopword in lang_stopwords])
 
     return all_swearwords
+
+def get_rows_cardinalities(path_to_cardinalities_file: str) -> dict:
+
+    with open(path_to_cardinalities_file, 'w', encoding='utf-8') as cards_json:
+        return json.load(cards_json)
+
+def set_rows_cardinalities(
+    path_to_cardinalities_file: str,
+    updated_cardinalities) -> str or True:
+
+    try:
+        with open(path_to_cardinalities_file, 'w', encoding='utf-8') as cards_json:
+            json.dump(updated_cardinalities, cards_json)
+    except Exception as e:
+        return str(e)
+    else:
+        return True
