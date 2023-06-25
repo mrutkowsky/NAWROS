@@ -66,6 +66,7 @@ PIPELINE:
 
 ML:
   seed: 42
+  recalculate_clusters_treshold: 0.5
   embeddings:
     model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
   UMAP:
@@ -77,7 +78,8 @@ ML:
   sentiment:
     model_name: 'cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual'
     
-  HDBSCAN:
+  HDBSCAN_SETTINGS:
+    model_name: 'clusterer.pkl'
     min_cluster_size: 15
     min_samples: 15
     metric: euclidean                      

@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, send_file, redirect, url_for, session, make_response
 import logging
+import hdbscan
 from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
@@ -13,14 +14,16 @@ from utils.data_processing import process_data_from_choosen_files, \
     get_stopwords, \
     read_file, \
     del_file_from_embeded, \
-    get_swearwords
+    get_swearwords, \
+    get_rows_cardinalities
 import plotly.express as px
 import json
 import plotly
-from utils.cluster import get_clusters_for_choosen_files
+from utils.cluster import get_clusters_for_choosen_files, load_hdbscan_model, load_embeddings_from_index, dimension_reduction
 from utils.c_tf_idf_module import get_topics_from_texts
 from utils.filtering import write_file, show_columns_for_filtering
 from copy import copy
+from werkzeug import FileStorage
 
 app = Flask(__name__)
 
@@ -78,7 +81,8 @@ SENTIMENT_MODEL_NAME = ML.get('sentiment').get('model_name')
 FILTERING_DOWNLOAD_NAME = FILTERING.get('download_name')
 
 UMAP = ML.get('UMAP')
-HDBSCAN = ML.get('HDBSCAN')
+HDBSCAN_SETTINGS = ML.get('HDBSCAN_SETTINGS')
+RECALCULATE_CLUSTERS_TRESHOLD = ML.get('recalculate_clusters_treshold')
 
 RAPORT_CONFIG = CONFIGURATION.get('RAPORT_SETTINGS')
 RAPORT_COLUMNS = RAPORT_CONFIG.get('columns')
@@ -111,6 +115,11 @@ PATH_TO_RAPORTS_DIR = os.path.join(
 PATH_TO_FAISS_VECTORS_DIR = os.path.join(
     EMBEDDINGS_DIR,
     FAISS_VECTORS_DIR
+)
+
+PATH_TO_CURRENT_DF_DIR = os.path.join(
+    DATA_FOLDER,
+    CURRENT_DF_DIR,
 )
 
 PATH_TO_CURRENT_DF = os.path.join(
@@ -152,45 +161,9 @@ logger = logging.getLogger(__name__)
 
 logger.debug(f'Required columns: {REQUIRED_COLUMNS}')
 
-@app.route("/")
-def index():
+def upload_and_validate_files(
+        uploaded_files: list):
 
-    message = request.args.get("message")
-    success_upload = request.args.get("success_upload")
-    failed_upload = request.args.get("failed_upload")
-
-    if success_upload is not None:
-        success_upload = json.loads(success_upload)
-
-    if failed_upload is not None:
-        failed_upload = json.loads(failed_upload)
-
-    validated_files = os.listdir(
-        PATH_TO_VALID_FILES)
-        
-    validated_files_to_show = [
-        v_file for v_file in validated_files 
-        if os.path.splitext(v_file)[-1].lower() in ALLOWED_EXTENSIONS
-    ]
-
-    return render_template(
-        "index.html", 
-        files=validated_files_to_show,
-        message=message,
-        success_upload=success_upload, 
-        failed_upload=failed_upload)
-
-@app.route('/upload_file', methods=['POST'])
-def upload_file():
-        # Check if files were uploaded
-    if len(request.files.getlist('file')) == 1:
-
-        if request.files.getlist('file')[0].filename == '':
-            return redirect(url_for("index", message=f'No file has been selected for uploading!'))
-    
-    logger.debug(f"Uploaded files: {request.files.getlist('file')}")
-
-    uploaded_files = request.files.getlist('file')
     files_uploading_status = {
         "uploaded_successfully": [],
         "uploading_failed": {}}
@@ -237,12 +210,54 @@ def upload_file():
         else:
             files_uploading_status['uploading_failed'][uploaded_file.filename] = 'Extension is not valid'
 
-    # successfully_uploaded_message = f"Files uploaded succesfully:<ol><li>{'</li><li>'.join(files_uploading_status.get('uploaded_succesfully'))}</li></ol>"
-    # uploading_failed_message = f"Failed to upload files:<ol><li>{'</li><li>'.join([f'{key} - {value}' for key, value in files_uploading_status.get('uploading_failed').items()])}</li></ol>"
-    # final_message = f"{successfully_uploaded_message}<br>{uploading_failed_message}"
-
     success_upload = copy(files_uploading_status['uploaded_successfully'])
     failed_upload = [f"{key} - {value}" for key, value in files_uploading_status.get('uploading_failed').items()]
+
+    return success_upload, failed_upload
+
+@app.route("/")
+def index():
+
+    message = request.args.get("message")
+    success_upload = request.args.get("success_upload")
+    failed_upload = request.args.get("failed_upload")
+
+    if success_upload is not None:
+        success_upload = json.loads(success_upload)
+
+    if failed_upload is not None:
+        failed_upload = json.loads(failed_upload)
+
+    validated_files = os.listdir(
+        PATH_TO_VALID_FILES)
+        
+    validated_files_to_show = [
+        v_file for v_file in validated_files 
+        if os.path.splitext(v_file)[-1].lower() in ALLOWED_EXTENSIONS
+    ]
+
+    return render_template(
+        "index.html", 
+        files=validated_files_to_show,
+        message=message,
+        success_upload=success_upload, 
+        failed_upload=failed_upload)
+
+@app.route('/upload_file', methods=['POST'])
+def upload_file():
+        # Check if files were uploaded
+    if len(request.files.getlist('file')) == 1:
+
+        if request.files.getlist('file')[0].filename == '':
+            return redirect(url_for("index", message=f'No file has been selected for uploading!'))
+    
+    logger.debug(f"Uploaded files: {request.files.getlist('file')}")
+
+    uploaded_files = request.files.getlist('file')
+
+    success_upload, failed_upload = upload_and_validate_files(
+        uploaded_files=uploaded_files
+    )
 
     logger.info(success_upload)
     logger.info(failed_upload)
@@ -341,7 +356,8 @@ def choose_files_for_clusters():
         chosen_files=files_for_clustering,
         path_to_cleared_files=PATH_TO_CLEARED_FILES,
         path_to_embeddings_dir=EMBEDDINGS_DIR,
-        path_to_rows_cardinalities_file=PATH_TO_ROWS_CARDINALITIES,
+        path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
+        rows_cardinalities_file=ROWS_CARDINALITIES_FILE,
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
         embedded_files_filename=EMBEDDED_JSON,
         cleared_files_ext=CLEARED_FILE_EXT,
@@ -349,10 +365,10 @@ def choose_files_for_clusters():
         n_neighbors=UMAP.get('n_neighbors'),
         min_dist=UMAP.get('min_dist'),
         n_components=UMAP.get('n_components'),
-        min_cluster_size=HDBSCAN.get('min_cluster_size'),
-        min_samples=HDBSCAN.get('min_samples'),
-        metric=HDBSCAN.get('metric'),                      
-        cluster_selection_method=HDBSCAN.get('cluster_selection_method')
+        min_cluster_size=HDBSCAN_SETTINGS.get('min_cluster_size'),
+        min_samples=HDBSCAN_SETTINGS.get('min_samples'),
+        metric=HDBSCAN_SETTINGS.get('metric'),                      
+        cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
     ).astype({col: str for col in REQUIRED_COLUMNS})
     
     clusters_df.to_parquet(
@@ -479,9 +495,89 @@ def filter_data_download_report():
     ))
     return response
 
-@app.route('/update_clusters', methods=['POST'])
-def update_clusters():
-    pass
+@app.route('/update_clusters_new_file', methods=['POST'])
+def update_clusters_new_file():
+    
+    uploaded_file = request.files['file']
+    filename = uploaded_file.filename
+
+    if os.path.exists(os.path.join(PATH_TO_VALID_FILES, filename)):
+        return 'File already exists on the disk, extended logic performed.'
+    
+    else:
+
+        success_upload, _ = upload_and_validate_files(
+            uploaded_files=[uploaded_file]
+        )
+
+        if success_upload:
+
+            rows_cardinalities_for_preprocessed = process_data_from_choosen_files(
+                chosen_files=filename,
+                path_to_valid_files=PATH_TO_VALID_FILES,
+                path_to_cleared_files=PATH_TO_CLEARED_FILES,
+                path_to_empty_content_dir=PATH_TO_EMPTY_CONTENTS,
+                path_to_embeddings_dir=EMBEDDINGS_DIR,
+                faiss_vectors_dirname=FAISS_VECTORS_DIR,
+                embedded_files_filename=EMBEDDED_JSON,
+                embeddings_model_name=EMBEDDINGS_MODEL,
+                sentiment_model_name=SENTIMENT_MODEL_NAME,
+                swearwords=SWEAR_WORDS,
+                content_column_name=CONTENT_COLUMN,
+                cleread_file_ext=CLEARED_FILE_EXT,
+                empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
+                empty_content_ext=EMPTY_CONTENTS_EXT,
+                batch_size=BATCH_SIZE,
+                seed=SEED)
+            
+            n_of_rows_for_new_file = rows_cardinalities_for_preprocessed.get(filename)
+
+            rows_cardinalities_current_df = get_rows_cardinalities(
+                path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES
+            )
+
+            try:
+                n_of_rows_for_base = sum(rows_cardinalities_current_df.get('used_as_base').values())
+            except ValueError:
+                logger.error('Can not calculate number of rows used for base clusterization')
+
+            only_classified_dict = rows_cardinalities_current_df.get('only_classified')
+
+            if not only_classified_dict:
+                n_of_only_classified = 0
+            else:
+                n_of_only_classified = sum(only_classified_dict.values())
+
+
+            if n_of_only_classified + n_of_rows_for_new_file \
+                <= n_of_rows_for_base * RECALCULATE_CLUSTERS_TRESHOLD:
+
+                hdbscan_loaded_model = load_hdbscan_model(
+                    path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
+                    model_name=HDBSCAN_SETTINGS.get('model_name')
+                )
+
+                vector_embeddings = load_embeddings_from_index(
+                    os.path.join(PATH_TO_FAISS_VECTORS_DIR, f"{filename.split('.')[0]}.index")
+                )
+
+                clusterable_embeddings = dimension_reduction(
+                    vector_embeddings,
+                    n_neighbors=UMAP.get('n_neighbors'),
+                    min_dist=UMAP.get('min_dist'),
+                    n_components=UMAP.get('n_components'),
+                    random_state=SEED)
+                
+                labels_for_new_file, strenghts = hdbscan.approximate_predict(
+                    hdbscan_loaded_model, clusterable_embeddings)
+                
+                logger.debug(f'Labels for new file:' {labels_for_new_file})
+
+        else:
+            logger.error(f'Can not preprocess file {filename}')
+
+    return 'ok'
+
 
 if __name__ == '__main__':
     app.run(debug=True)

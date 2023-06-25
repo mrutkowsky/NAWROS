@@ -11,6 +11,7 @@ import numpy as np
 import faiss
 import os
 import logging
+import pickle
 
 from utils.data_processing import get_embedded_files, read_file, set_rows_cardinalities
 
@@ -72,17 +73,88 @@ def cluster_sentences(
         min_cluster_size=min_cluster_size,
         min_samples=min_samples,
         metric=metric,                      
-        cluster_selection_method=cluster_selection_method) \
+        cluster_selection_method=cluster_selection_method,
+        prediction_data=True) \
             .fit(clusterable_embeddings)
 
-    return cluster.labels_
+    return cluster
+
+def save_hdbscan_model(
+        model: hdbscan.HDBSCAN,
+        path_to_current_df_dir: str,
+        model_name: str = 'clusterer.pkl'): 
+    
+    with open(os.path.join(path_to_current_df_dir, model_name), 'wb') as file_:
+        pickle.dump(model, file_)
+
+def load_hdbscan_model(
+        path_to_current_df_dir: str,
+        model_name: str = 'clusterer.pkl'): 
+    
+    with open(os.path.join(path_to_current_df_dir, model_name), 'rb') as file_:
+        model = pickle.load(file_)
+
+    return model
+
+def load_embeddings_from_index(path_to_faiss_vector: str):
+    
+    index = faiss.read_index(path_to_faiss_vector)
+        
+    n = index.ntotal
+    vectors = np.zeros((n, index.d), dtype=np.float32)
+    index.reconstruct_n(0, n, vectors)
+
+    return vectors
+
+def load_embeddings_get_result_df(
+        embeddings_files: list,
+        chosen_files: list,
+        path_to_faiss_vectors: str,
+        path_to_cleared_files: str,
+        cleared_files_ext: str = '.parquet.gzip',
+        filename_column: str = 'filename',
+        used_as_base_key: str = 'used_as_base',
+        only_classified_key: str = 'only_classified'):
+    
+    rows_cardinalities_dict = {
+        used_as_base_key: {},
+        only_classified_key: {}
+    }
+    
+    all_vectors = None
+    result_df = None
+
+    for file_ in chosen_files:
+
+        logging.info(f'Path to index {embeddings_files[file_]}')
+        path_to_faiss_vector_file = os.path.join(path_to_faiss_vectors, embeddings_files[file_])
+
+        vectors = load_embeddings_from_index(path_to_faiss_vector_file)
+       
+        all_vectors = np.vstack((all_vectors, vectors)) if all_vectors is not None else vectors
+
+        filename, _ = os.path.splitext(file_)
+
+        current_file_df = read_file(
+            os.path.join(path_to_cleared_files, f'{filename}{cleared_files_ext}'), 
+            columns=None)
+        
+        current_file_df[filename_column] = file_
+
+        rows_cardinalities_dict[used_as_base_key][file_] = len(current_file_df)
+        
+        result_df = pd.concat([result_df, current_file_df])
+        result_df = result_df.reset_index(drop=True)
+
+    return all_vectors, result_df, rows_cardinalities_dict
 
 
 def get_clusters_for_choosen_files(
         chosen_files: list,
         path_to_cleared_files: str,
         path_to_embeddings_dir: str,
-        path_to_rows_cardinalities_file: str,
+        path_to_current_df_dir: str,
+        rows_cardinalities_file: str,
         faiss_vectors_dirname: str,
         embedded_files_filename: str,
         used_as_base_key: str = 'used_as_base',
@@ -90,6 +162,7 @@ def get_clusters_for_choosen_files(
         cleared_files_ext: str = '.parquet.gzip',
         labels_column: str = 'labels',
         filename_column: str = 'filename',
+        clusterer_model_name: str = 'clusterer.pkl',
         random_state: int = 42,
         n_neighbors: int = 15,
         min_dist: float = 0.0,
@@ -129,37 +202,14 @@ def get_clusters_for_choosen_files(
         path_to_embeddings_file=PATH_TO_JSON_EMBEDDED_FILES
     )
 
-    rows_cardinalities_dict = {
-        used_as_base_key: {},
-        only_classified_key: {}
-    }
-    
-    all_vectors = None
-    result_df = None
-
-    for file_ in chosen_files:
-
-        logging.info(f'Path to index {embeddings_files[file_]}')
-        index = faiss.read_index(os.path.join(PATH_TO_FAISS_VECTORS, embeddings_files[file_]))
-        
-        n = index.ntotal
-        vectors = np.zeros((n, index.d), dtype=np.float32)
-        index.reconstruct_n(0, n, vectors)
-
-        all_vectors = np.vstack((all_vectors, vectors)) if all_vectors is not None else vectors
-
-        filename, _ = os.path.splitext(file_)
-
-        current_file_df = read_file(
-            os.path.join(path_to_cleared_files, f'{filename}{cleared_files_ext}'), 
-            columns=None)
-        
-        current_file_df[filename_column] = file_
-
-        rows_cardinalities_dict[used_as_base_key][file_] = len(current_file_df)
-        
-        result_df = pd.concat([result_df, current_file_df])
-        result_df = result_df.reset_index(drop=True)
+    all_vectors, result_df, rows_cardinalities_dict = load_embeddings_get_result_df(
+        embeddings_files=embeddings_files,
+        chosen_files=chosen_files,
+        path_to_faiss_vectors=PATH_TO_FAISS_VECTORS,
+        path_to_cleared_files=path_to_cleared_files,
+        cleared_files_ext=cleared_files_ext,
+        filename_column=filename_column,
+        used_as_base_key=used_as_base_key)
     
     clusterable_embeddings = dimension_reduction(
         all_vectors,
@@ -179,19 +229,25 @@ def get_clusters_for_choosen_files(
     
     logger.info(f"Applied UMAP to reduce dimensions for visualization")
 
-    labels = cluster_sentences(
+    clusterer = cluster_sentences(
         clusterable_embeddings,
         min_cluster_size=min_cluster_size,
         min_samples=min_samples,
         metric=metric,                      
         cluster_selection_method=cluster_selection_method)
+
+    save_hdbscan_model(
+        model=clusterer,
+        path_to_current_df_dir=path_to_current_df_dir,
+        model_name=clusterer_model_name
+    )
     
-    logger.info(f"Clusters calculated successfully, number of clusters: {len(set(labels))}")
+    logger.info(f"Clusters calculated successfully, number of clusters: {len(set(clusterer.labels_))}")
 
     df = pd.DataFrame({
         'x': dimensions_2d[:, 0],
         'y': dimensions_2d[:, 1],
-        labels_column: labels,
+        labels_column: clusterer.labels_,
     })
 
     logger.info("Succesfully created dataframe for topic visuzalization")
@@ -203,7 +259,7 @@ def get_clusters_for_choosen_files(
     logger.debug(f'result_df: {result_df}')
 
     saved_cardinalities = set_rows_cardinalities(
-        path_to_rows_cardinalities_file,
+        path_to_cardinalities_file=os.path.join(path_to_current_df_dir, rows_cardinalities_file),
         updated_cardinalities=rows_cardinalities_dict
     )
 

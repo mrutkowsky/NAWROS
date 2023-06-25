@@ -304,6 +304,8 @@ def process_data_from_choosen_files(
     sent_tokenizer, sent_models, sent_cofnig = load_sentiment_model(sentiment_model_name)
     logger.info(f'Sentiment setup loaded successfully.')
 
+    rows_cardinalities = {}
+
     for file_ in chosen_files:
 
         if file_ in os.listdir(path_to_valid_files):
@@ -407,6 +409,10 @@ def process_data_from_choosen_files(
                 )
 
                 logger.info(f'File with embeddings saved for {file_}')
+
+            rows_cardinalities[file_] = len(df)
+
+    return rows_cardinalities
 
 def get_stopwords(
         path_to_dir_with_stopwords: str) -> list:
