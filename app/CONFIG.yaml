@@ -46,6 +46,7 @@ RAPORT_SETTINGS:
     - Category 
     - Application_Name
     - content
+    - filename
     - sentiment 
     - labels
 

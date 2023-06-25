@@ -460,6 +460,10 @@ def filter_data_download_report():
     ))
     return response
 
+@app.route('/update_clusters', methods=['POST'])
+def update_clusters():
+    pass
+
 if __name__ == '__main__':
     app.run(debug=True)
 

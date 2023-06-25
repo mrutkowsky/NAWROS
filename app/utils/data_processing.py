@@ -85,7 +85,8 @@ def cleanup_data(
         filename: str,
         path_to_empty_content_dir: str,
         empty_contents_suffix: str,
-        empty_content_ext: str) -> pd.DataFrame:
+        empty_content_ext: str,
+        content_column_name: str = 'content') -> pd.DataFrame:
     
     """
     Remove rows with empty contents, save them to a separate file, and preprocess the remaining contents.
@@ -102,21 +103,21 @@ def cleanup_data(
     """
 
     logger.debug(f'Columns: {df.columns}')
-    logger.debug(f"{type(df['content'])}")
+    logger.debug(f"{type(df[content_column_name])}")
 
-    float_contents_indexes = np.where(df['content'].apply(lambda x: not isinstance(x, str)))[0]
+    float_contents_indexes = np.where(df[content_column_name].apply(lambda x: not isinstance(x, str)))[0]
 
     df.drop(index=float_contents_indexes, inplace=True)
 
-    preprocessed_contents = list(map(preprocess_text, df['content'].values))
+    preprocessed_contents = list(map(preprocess_text, df[content_column_name].values))
     preprocessed_contents = [
         " ".join(
             [preprocess_text(sentence.strip()) for sentence in re.split(r'[.!?]', text) if (sentence.strip())]) for text in preprocessed_contents
     ]
 
-    df['content'] = preprocessed_contents
+    df[content_column_name] = preprocessed_contents
 
-    short_contents_indexes = df.loc[df['content'].str.split(" ").str.len() < 3].index
+    short_contents_indexes = df.loc[df[content_column_name].str.split(" ").str.len() < 3].index
 
     save_path = os.path.join(path_to_empty_content_dir,
          f'{filename.split(".")[-2]}{empty_contents_suffix}{empty_content_ext}')
@@ -129,10 +130,6 @@ def cleanup_data(
     df.drop(index=short_contents_indexes, inplace=True)
 
     logger.debug(f'Preprocessed: {preprocessed_contents}')
-
-    
-
-    logger.debug(f"{df['content']}")
 
     return df
 

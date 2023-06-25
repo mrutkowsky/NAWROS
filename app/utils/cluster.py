@@ -86,6 +86,7 @@ def get_clusters_for_choosen_files(
         embedded_files_filename: str,
         cleared_files_ext: str = '.parquet.gzip',
         labels_column: str = 'labels',
+        filename_column: str = 'filename',
         random_state: int = 42,
         n_neighbors: int = 15,
         min_dist: float = 0.0,
@@ -144,6 +145,8 @@ def get_clusters_for_choosen_files(
         current_file_df = read_file(
             os.path.join(path_to_cleared_files, f'{filename}{cleared_files_ext}'), 
             columns=None)
+        
+        current_file_df[filename_column] = file_
         
         result_df = pd.concat([result_df, current_file_df])
         result_df = result_df.reset_index(drop=True)

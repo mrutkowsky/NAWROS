@@ -36,6 +36,8 @@ def load_sentiment_model(model_name: str) -> tuple:
 
 def offensive_language(text, swear_words):
 
+    c = 0
+
     for i in swear_words:
 
         if op.countOf(str(text).lower(), i) == 0:
