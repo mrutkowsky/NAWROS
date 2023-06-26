@@ -50,6 +50,16 @@
       <h4 style="color: rgb(18, 131, 196)">{{ message }}</h4>
     {% endif %}
 
+    <h3>Update clusters</h3>
+    <div class="mt-20">
+      <form method="post" action="/update_clusters_new_file" class="mt-20" enctype="multipart/form-data">
+        <label>Load files:</label>
+          <input type="file" name="file">
+          <br><br>
+          <input type="submit" value="Upload">
+      </form>
+    </div>
+
     <h3>Clustering</h3>
     <div class="mt-20">
       <form method="post" action="/choose_files_for_clusters">
