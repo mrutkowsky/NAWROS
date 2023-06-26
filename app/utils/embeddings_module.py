@@ -3,7 +3,7 @@ import faiss
 from torch.utils.data import DataLoader, Dataset
 from sentence_transformers import SentenceTransformer
 
-def load_model(
+def load_transformer_model(
         model_name: str,
         seed: int = 42,
 
@@ -67,7 +67,7 @@ def get_embeddings(
         None
     """
 
-    index = faiss.IndexFlatL2(vec_size)
+    index = faiss.IndexFlatL2(int(vec_size))
 
     for batch in dataloader:
         index.add(embed_sentence(model, batch))

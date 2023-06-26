@@ -15,15 +15,15 @@ from utils.data_processing import process_data_from_choosen_files, \
     read_file, \
     del_file_from_embeded, \
     get_swearwords, \
-    get_rows_cardinalities
+    get_rows_cardinalities, \
+    set_rows_cardinalities
 import plotly.express as px
 import json
 import plotly
-from utils.cluster import get_clusters_for_choosen_files, load_hdbscan_model, load_embeddings_from_index, dimension_reduction
+from utils.cluster import get_clusters_for_choosen_files, get_cluster_labels_for_new_file, cluster_recalculation_needed
 from utils.c_tf_idf_module import get_topics_from_texts
 from utils.filtering import write_file, show_columns_for_filtering
 from copy import copy
-from werkzeug import FileStorage
 
 app = Flask(__name__)
 
@@ -59,6 +59,7 @@ STOPWORDS_DIR = DIRECTORIES.get('stop_words')
 EMBEDDED_JSON = FILES.get('embedded_json')
 CURRENT_DF_FILE = FILES.get('current_df')
 FILTERED_DF_FILE = FILES.get('filtered_df')
+TOPICS_DF_FILE = FILES.get('topics_df')
 ROWS_CARDINALITIES_FILE = FILES.get('rows_cardinalities')
 
 EMPTY_CONTENTS_EXT = EMPTY_CONTENT_SETTINGS.get('empty_content_ext')
@@ -74,14 +75,18 @@ LOGGER_LEVEL = LOGGER.get('logger_level')
 ALLOWED_EXTENSIONS = INPUT_FILES_SETTINGS.get('allowed_extensions')
 REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 
-EMBEDDINGS_MODEL = ML.get('embeddings').get('model')
+EMBEDDINGS_MODEL = ML.get('embeddings').get('model_name')
 SEED = ML.get('seed')
 SENTIMENT_MODEL_NAME = ML.get('sentiment').get('model_name')
 
 FILTERING_DOWNLOAD_NAME = FILTERING.get('download_name')
 
 UMAP = ML.get('UMAP')
+DIM_REDUCER_MODEL_NAME = UMAP.get('dim_reducer_model_name')
+REDUCER_2D_MODEL_NAME = UMAP.get('reducer_2d_model_name')
+
 HDBSCAN_SETTINGS = ML.get('HDBSCAN_SETTINGS')
+HDBSCAN_MODEL_NAME = HDBSCAN_SETTINGS.get('model_name')
 RECALCULATE_CLUSTERS_TRESHOLD = ML.get('recalculate_clusters_treshold')
 
 RAPORT_CONFIG = CONFIGURATION.get('RAPORT_SETTINGS')
@@ -259,8 +264,8 @@ def upload_file():
         uploaded_files=uploaded_files
     )
 
-    logger.info(success_upload)
-    logger.info(failed_upload)
+    logger.debug(success_upload)
+    logger.debug(failed_upload)
 
     return redirect(url_for("index", success_upload=json.dumps(success_upload), failed_upload=json.dumps(failed_upload)))
 
@@ -308,6 +313,7 @@ def delete_file():
                         os.remove(file_path)
                     except Exception as e:
                         logger.error(f'Can not del {filename} from {data_dir} dir! - {e}')
+                        return redirect(url_for("index", message=f'Can not del {filename} from {data_dir} dir!'))
                     else:
                         logger.info(f'Successfully deleted file from {data_dir}')
  
@@ -319,11 +325,14 @@ def delete_file():
         if deleted_successfully_from_json:
 
             logger.info(f'Successfully deleted {filename} from JSON file')
+
+        else:
+
+            logger.error(f'Failed to delete {filename} from JSON file')
+            return redirect(url_for("index", message=f'Failed to delete {filename} from JSON file.'))
         
         return redirect(url_for("index", message=f'File {filename} deleted successfully.'))
     
-
-
 @app.route('/choose_files_for_clusters', methods=['POST'])
 def choose_files_for_clusters():
 
@@ -378,6 +387,11 @@ def choose_files_for_clusters():
     clusters_topics_df = get_topics_from_texts(
         df=clusters_df,
         stop_words=STOP_WORDS
+    )
+
+    clusters_topics_df.to_csv(
+        os.path.join(PATH_TO_CURRENT_DF_DIR, TOPICS_DF_FILE),
+        index=False
     )
 
     save_raport_to_csv(
@@ -502,7 +516,7 @@ def update_clusters_new_file():
     filename = uploaded_file.filename
 
     if os.path.exists(os.path.join(PATH_TO_VALID_FILES, filename)):
-        return 'File already exists on the disk, extended logic performed.'
+        return redirect(url_for("index", message=f"File {filename} already exists in File Storage, choose another file"))
     
     else:
 
@@ -510,10 +524,12 @@ def update_clusters_new_file():
             uploaded_files=[uploaded_file]
         )
 
+        logger.debug(f'File {filename} has been validated')
+
         if success_upload:
 
-            rows_cardinalities_for_preprocessed = process_data_from_choosen_files(
-                chosen_files=filename,
+            rows_cards_for_preprocessed = process_data_from_choosen_files(
+                chosen_files=[filename],
                 path_to_valid_files=PATH_TO_VALID_FILES,
                 path_to_cleared_files=PATH_TO_CLEARED_FILES,
                 path_to_empty_content_dir=PATH_TO_EMPTY_CONTENTS,
@@ -530,53 +546,99 @@ def update_clusters_new_file():
                 batch_size=BATCH_SIZE,
                 seed=SEED)
             
-            n_of_rows_for_new_file = rows_cardinalities_for_preprocessed.get(filename)
+            n_of_rows_for_new_file = rows_cards_for_preprocessed.get(filename)
 
             rows_cardinalities_current_df = get_rows_cardinalities(
                 path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES
             )
 
-            try:
-                n_of_rows_for_base = sum(rows_cardinalities_current_df.get('used_as_base').values())
-            except ValueError:
-                logger.error('Can not calculate number of rows used for base clusterization')
+            need_to_recalculate = cluster_recalculation_needed(
+                n_of_rows=n_of_rows_for_new_file,
+                rows_cardinalities_current_df=rows_cardinalities_current_df,
+                recalculate_treshold=RECALCULATE_CLUSTERS_TRESHOLD
+            )
 
-            only_classified_dict = rows_cardinalities_current_df.get('only_classified')
+            if not need_to_recalculate:
 
-            if not only_classified_dict:
-                n_of_only_classified = 0
-            else:
-                n_of_only_classified = sum(only_classified_dict.values())
+                logger.info(f'Treshold {RECALCULATE_CLUSTERS_TRESHOLD} has not been exceeded, assigning topics based on current_df clusterization')
 
-
-            if n_of_only_classified + n_of_rows_for_new_file \
-                <= n_of_rows_for_base * RECALCULATE_CLUSTERS_TRESHOLD:
-
-                hdbscan_loaded_model = load_hdbscan_model(
+                get_cluster_labels_for_new_file(
+                    filename=filename,
+                    path_to_current_df=PATH_TO_CURRENT_DF,
                     path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
-                    model_name=HDBSCAN_SETTINGS.get('model_name')
+                    path_to_cleared_files_dir=PATH_TO_CLEARED_FILES,
+                    path_to_faiss_vetors_dir=PATH_TO_FAISS_VECTORS_DIR,
+                    required_columns=REQUIRED_COLUMNS,
+                    clusterer_model_name=HDBSCAN_MODEL_NAME,
+                    umap_model_name=DIM_REDUCER_MODEL_NAME,
+                    reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
+                    cleared_files_ext=CLEARED_FILE_EXT
                 )
 
-                vector_embeddings = load_embeddings_from_index(
-                    os.path.join(PATH_TO_FAISS_VECTORS_DIR, f"{filename.split('.')[0]}.index")
+                rows_cardinalities_current_df['only_classified'][filename] = n_of_rows_for_new_file
+                set_rows_cardinalities(
+                    path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES,
+                    updated_cardinalities=rows_cardinalities_current_df
                 )
 
-                clusterable_embeddings = dimension_reduction(
-                    vector_embeddings,
+                logger.info('Successfully updated rows cardinalities file for current_df')
+
+            else:
+
+                logger.info(f'Treshold {RECALCULATE_CLUSTERS_TRESHOLD} has been exceeded, recalculating clusters for current_df')
+
+                all_current_df_files = [file_ for in_dict in rows_cardinalities_current_df.values() for file_ in in_dict.keys()]
+
+                clusters_df = get_clusters_for_choosen_files(
+                    chosen_files= all_current_df_files + [filename],
+                    path_to_cleared_files=PATH_TO_CLEARED_FILES,
+                    path_to_embeddings_dir=EMBEDDINGS_DIR,
+                    path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
+                    rows_cardinalities_file=ROWS_CARDINALITIES_FILE,
+                    faiss_vectors_dirname=FAISS_VECTORS_DIR,
+                    embedded_files_filename=EMBEDDED_JSON,
+                    cleared_files_ext=CLEARED_FILE_EXT,
+                    random_state=SEED,
                     n_neighbors=UMAP.get('n_neighbors'),
                     min_dist=UMAP.get('min_dist'),
                     n_components=UMAP.get('n_components'),
-                    random_state=SEED)
+                    min_cluster_size=HDBSCAN_SETTINGS.get('min_cluster_size'),
+                    min_samples=HDBSCAN_SETTINGS.get('min_samples'),
+                    metric=HDBSCAN_SETTINGS.get('metric'),                      
+                    cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
+                ).astype({col: str for col in REQUIRED_COLUMNS})
                 
-                labels_for_new_file, strenghts = hdbscan.approximate_predict(
-                    hdbscan_loaded_model, clusterable_embeddings)
-                
-                logger.debug(f'Labels for new file:' {labels_for_new_file})
+                clusters_df.to_parquet(
+                    index=False, 
+                    path=PATH_TO_CURRENT_DF)
 
+                clusters_topics_df = get_topics_from_texts(
+                    df=clusters_df,
+                    stop_words=STOP_WORDS
+                )
+
+                clusters_topics_df.to_csv(
+                    os.path.join(PATH_TO_CURRENT_DF_DIR, TOPICS_DF_FILE),
+                    index=False
+                )
+
+                save_raport_to_csv(
+                    df=clusters_df,
+                    path_to_raports_dir=PATH_TO_RAPORTS_DIR,
+                    clusters_topics=clusters_topics_df,
+                    filename=f'clusterization_raport_{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}.csv')
+
+                # logger.debug(f'Files {files_for_clustering} processed successfully.')
+
+                n_clusters = len(clusters_df['labels'].unique())
+
+                return redirect(url_for("index", message=f"{n_clusters} clusters has been created successfully."))
+         
         else:
             logger.error(f'Can not preprocess file {filename}')
+            return redirect(url_for("index", message=f'Can not upload file {filename} for clusters update!'))
 
-    return 'ok'
+        return redirect(url_for("index", message=f"Cluster labels for {filename} have been successfully assigned."))
 
 
 if __name__ == '__main__':

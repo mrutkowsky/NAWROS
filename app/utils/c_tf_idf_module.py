@@ -241,6 +241,8 @@ def get_topics_from_texts(
         topics_array=topics_array
     )
 
+    topics_df[label_column_name] = np.arange(-1, len(topics_df) - 1)
+
     logging.info('End of executing - topic_df created succesfully')
     
     return topics_df

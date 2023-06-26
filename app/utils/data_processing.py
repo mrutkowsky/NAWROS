@@ -9,7 +9,7 @@ import faiss
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
-from utils.embeddings_module import load_model, get_embeddings
+from utils.embeddings_module import load_transformer_model, get_embeddings
 from utils.etl import preprocess_text
 from utils.sentiment_analysis import load_sentiment_model, predict_sentiment, offensive_language
 
@@ -48,7 +48,7 @@ def save_raport_to_csv(
        None
    """
     df = df.groupby(df[classes_column_name]).size().reset_index(name='counts')
-    df = pd.concat([df, clusters_topics], axis=1) 
+    df = pd.concat([df, clusters_topics.drop(columns=[classes_column_name])], axis=1) 
     save_path = os.path.join(path_to_raports_dir, filename)
     df.to_csv(save_path, index=False)
 
@@ -290,7 +290,20 @@ def process_data_from_choosen_files(
         os.path.splitext(file_)[0]: file_ for file_ in os.listdir(path_to_cleared_files)
     }
 
-    model, vec_size = load_model(
+    only_filenames = [os.path.splitext(file_)[0] for file_ in chosen_files]
+
+    logger.debug(f'Only filenames: {set(only_filenames)}')
+    logger.debug(f'Already embedded: {set(already_embedded.keys())}')
+    logger.debug(f'Already cleared files: {set(cleared_files_names.keys())}')
+
+    if set(chosen_files).issubset(set(already_embedded.keys())) \
+        and set(only_filenames).issubset(set(cleared_files_names.keys())):
+
+        logger.info(f'All selected files from {only_filenames} have been already cleared and embedded')
+
+        return None
+
+    model, vec_size = load_transformer_model(
         model_name=embeddings_model_name,
         seed=seed
     )
@@ -308,9 +321,10 @@ def process_data_from_choosen_files(
 
     for file_ in chosen_files:
 
+        df = None
+
         if file_ in os.listdir(path_to_valid_files):
 
-            df = None
             filename, ext = os.path.splitext(file_)
 
             if filename not in cleared_files_names.keys():
@@ -353,7 +367,7 @@ def process_data_from_choosen_files(
                     offensive_label, 
                     df[sentiment_column_name])
 
-                logger.info(f'Sentiment predicted successfully')
+                logger.info(f'Sentiment predicted successfully for {filename}')
 
                 save_df_to_file(
                     df=df,
@@ -370,18 +384,18 @@ def process_data_from_choosen_files(
 
                 if df is None:
 
-                    logger.debug('df was None')
+                    logger.debug(f'File had been cleared before - loading DataFrame for {file_}')
 
                     cleared_filename = cleared_files_names.get(filename)
 
                     df = read_file(
                         file_path=os.path.join(path_to_cleared_files, cleared_filename),
-                        columns=['content']
+                        columns=[content_column_name]
                     )
 
-                logger.debug(f"Content column: {df['content']}")
+                logger.debug(f"Content column: {df[content_column_name]}")
             
-                dataset = MyDataset(df['content'].to_frame())
+                dataset = MyDataset(df[content_column_name].to_frame())
                 
                 dataloader = DataLoader(
                     dataset, 
@@ -410,6 +424,7 @@ def process_data_from_choosen_files(
 
                 logger.info(f'File with embeddings saved for {file_}')
 
+        if isinstance(df, pd.DataFrame):
             rows_cardinalities[file_] = len(df)
 
     return rows_cardinalities
@@ -438,7 +453,7 @@ def get_swearwords(
 
 def get_rows_cardinalities(path_to_cardinalities_file: str) -> dict:
 
-    with open(path_to_cardinalities_file, 'w', encoding='utf-8') as cards_json:
+    with open(path_to_cardinalities_file, 'r', encoding='utf-8') as cards_json:
         return json.load(cards_json)
 
 def set_rows_cardinalities(
