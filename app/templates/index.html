@@ -2,74 +2,107 @@
   <head>
     <title>NARWOS NLP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/styles.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
   </head>
+  <style>
+      .container {  display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    grid-auto-rows: 1fr;
+    gap: 3px 3px;
+    grid-auto-flow: row;
+    grid-template-areas:
+      "Load-files Delete-files"
+      "Clustering Clustering"
+      ". .";
+  }
+
+  .Load-files { grid-area: Load-files; }
+
+  .Delete-files { grid-area: Delete-files; }
+
+  .Clustering { grid-area: Clustering; }
+
+  </style>
   <body>
-    <h1>NARWOS NLP</h1>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <a class="navbar-brand" href="#">NARWOS NLP</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item active">
+            <a class="nav-link" href="./">Clustering </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/show_clusters">Analysis</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
     <h3>Managing files</h3>
     <div class="container">
-      <div class="left-div">
-        <form action="/upload_file" class="mt-20" method="post" enctype="multipart/form-data">
-          <label>Load files:</label>
-          <input type="file" name="file" multiple>
-          <br><br>
-          <input type="submit" value="Upload">
-          {% if success_upload %}
-            <p style="color: rgb(80, 187, 80)">Files uploaded successfully:</p>
-            <ol>
-            {% for file_ in success_upload %}
-              <li>{{file_}}</li>
-            {% endfor %}
-            </ol>
-          {% endif %}
-          {% if failed_upload %} 
-            <p style="color: rgb(244, 22, 22)">Failed to upload files:</p>
-            <ol>
-            {% for file_ in failed_upload %}
-              <li>{{file_}}</li>
-            {% endfor %}
-            </ol>
-          {% endif %}
-        </form>
+      <div class="Load-files">
+        <div class="mt-20">
+          <form action="/upload_file" class="mt-20" method="post" enctype="multipart/form-data">
+            <label>Load files:</label>
+            <input type="file" name="file" multiple>
+            <br><br>
+            <input type="submit" value="Upload">
+            {% if success_upload %}
+              <p style="color: rgb(80, 187, 80)">Files uploaded successfully:</p>
+              <ol>
+              {% for file_ in success_upload %}
+                <li>{{file_}}</li>
+              {% endfor %}
+              </ol>
+            {% endif %}
+            {% if failed_upload %} 
+              <p style="color: rgb(244, 22, 22)">Failed to upload files:</p>
+              <ol>
+              {% for file_ in failed_upload %}
+                <li>{{file_}}</li>
+              {% endfor %}
+              </ol>
+            {% endif %}
+          </form>
+        </div>
       </div>
-
-      <div class="right-div">
-        <form action="/delete_file" method="post">
-          <label for="to_delete">Delete file:</label>
-          <select id="to_delete" name="to_delete">
-            <option value="" selected disabled hidden>(Choose file)</option>
+      <div class="Delete-files">
+        <div class="mt-20">
+          <form action="/delete_file" method="post">
+            <label for="to_delete">Delete file:</label>
+            <select id="to_delete" name="to_delete">
+              <option value="" selected disabled hidden>(Choose file)</option>
+              {% for file in files %}
+                  <option value="{{ file }}">{{ file }}</option>
+              {% endfor %}
+            </select>
+            <br><br>
+            <input style="background-color: rgb(250, 89, 89)" type="submit" value="Delete">
+          </form>
+        </div>
+      </div>
+      {% if message %}
+        <h4 style="color: rgb(18, 131, 196)">{{ message }}</h4>
+      {% endif %}
+      <div class="Clustering">
+        <h3>Clustering</h3>
+        <div class="mt-20">
+          <form method="post" action="/choose_files_for_clusters">
+            <label for="chosen_files">Choose files for clustering:</label>
             {% for file in files %}
-                <option value="{{ file }}">{{ file }}</option>
+                <input type="checkbox" name="chosen_files" value="{{ file }}"> {{ file }}<br>
             {% endfor %}
-          </select>
-          <br><br>
-          <input style="background-color: rgb(250, 89, 89)" type="submit" value="Delete">
-        </form>
+            <br>
+            <input type="submit" value="Process Selected Files">
+          </form>
+        </div>
       </div>
-    </div>
-    {% if message %}
-      <h4 style="color: rgb(18, 131, 196)">{{ message }}</h4>
-    {% endif %}
+  </div>
 
-    <h3>Clustering</h3>
-    <div class="mt-20">
-      <form method="post" action="/choose_files_for_clusters">
-        <label for="chosen_files">Choose files for clustering:</label>
-        {% for file in files %}
-            <input type="checkbox" name="chosen_files" value="{{ file }}"> {{ file }}<br>
-        {% endfor %}
-        <br>
-        <input type="submit" value="Process Selected Files">
-      </form>
-    </div>
-
-    <div class="mt-20">
-      <form method="post" action="/show_clusters_submit">
-        <label for="show_plot">Show me clusters:</label>
-          <button class="my-button" type="submit" name="show_plot" value="show_plot">Show Plot</button>
-      </form>
-    </div>
-
-    
+    <!--
     <h3>Filtering</h3>
     <div class="mt-20">
       <form method="post" action="/show_filters_submit">
@@ -79,7 +112,7 @@
     </div>
 
 
-    <!-- <div class="mt-20">
+    <div class="mt-20">
       <form action="/choose_files_for_clusters" method="post">
         <label for="konfiguracje">Dostępne konfiguracje:</label>
         <select id="konfiguracje" name="konfiguracje">
@@ -142,5 +175,8 @@
       <input type="submit" value="Wyznacz cechy">
     </form>
   </div> -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
   </body>
 </html>

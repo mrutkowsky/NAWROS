@@ -370,7 +370,7 @@ def show_clusters():
     df = read_file(PATH_TO_CURRENT_DF)
 
     if isinstance(df, pd.DataFrame):
-
+        
         scatter_plot = px.scatter(
             data_frame=df,
             x='x',
@@ -378,8 +378,29 @@ def show_clusters():
             color='labels'
         )
 
+        validated_files = os.listdir(
+        PATH_TO_VALID_FILES)
+        
+        validated_files_to_show = [
+            v_file for v_file in validated_files 
+            if os.path.splitext(v_file)[-1].lower() in ALLOWED_EXTENSIONS
+        ]
+        
         fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
-        return render_template("clusters_viz.html", figure=fig_json)
+        return render_template("cluster_viz_chartjs.html", figure=fig_json, columns=RAPORT_COLUMNS, files=validated_files_to_show)
+        """
+        x_values = df['x'].tolist()
+        y_values = df['y'].tolist()
+
+        data = []
+        for i in range(len(x_values)):
+            point = {'x': x_values[i], 'y': y_values[i]}
+            data.append(point)
+
+        print(data)
+        return render_template("cluster_viz_chartjs.html", json_data=jsonify(data))
+        """
+
     
     return 'Nothing to show here'
 
