@@ -60,6 +60,19 @@
       </form>
     </div>
 
+    <h3>Compare reports</h3>
+      <div class="mt-20">
+      <form method="post" action="/compare_selected_reports" class="mt-20">
+          <label for="field1">Field 1:</label>
+          <input type="text" id="field1" name="field1" required><br><br>
+
+          <label for="field2">Field 2:</label>
+          <input type="text" id="field2" name="field2" required>
+          <br><br>
+          <input type="submit" value="Upload">
+      </form>
+      </div>
+
     <h3>Clustering</h3>
     <div class="mt-20">
       <form method="post" action="/choose_files_for_clusters">

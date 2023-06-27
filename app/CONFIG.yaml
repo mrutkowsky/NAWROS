@@ -3,7 +3,8 @@ DIRECTORIES:
   stop_words: stop_words
   cleared_files: cleared_files
   valid_files: validated_files
-  raports: raports
+  cluster_exec_reports: cluster_exec_reports
+  comparing_reports: comparing_reports
   empty_content: empty_content
   tmp: tmp
   embeddings: embeddings
@@ -38,8 +39,12 @@ INPUT_FILES_SETTINGS:
     - Application_Name
     - content
 
-RAPORT_SETTINGS:
-  columns:
+REPORT_SETTINGS:
+  labels_column: labels
+  cardinalities_column: counts
+  sentiment_column: sentiment
+  filename_column: filename
+  base_columns:
     - Questioned_Date
     - Model_No
     - OS
@@ -48,13 +53,11 @@ RAPORT_SETTINGS:
     - Category 
     - Application_Name
     - content
-    - filename
-    - sentiment 
-    - labels
-
+  cluster_exec_filename_prefix: cluster_exec
+  cluster_exec_filename_ext: .parquet.gzip
 LOGGER:
-  logging_format: '%(asctime)s - %(levelname)s - %(message)s'
-  logger_level: DEBUG
+  logging_format: '[%(asctime)s] - %(levelname)s - %(message)s'
+  logger_level: INFO
 
 EMPTY_CONTENT_SETTINGS:
   empty_content_suffix: _EMPTY_CONTENT

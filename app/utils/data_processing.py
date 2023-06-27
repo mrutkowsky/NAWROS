@@ -26,33 +26,6 @@ class MyDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-
-def save_raport_to_csv(
-        df: pd.DataFrame, 
-        filename: str,
-        path_to_raports_dir: str,
-        clusters_topics: pd.DataFrame,
-        classes_column_name: str = 'labels'):
-    
-    """
-    Saves a report to a CSV file.
-
-    Args:
-       df (pd.DataFrame): The DataFrame containing the report data.
-       filename (str): The filename of the CSV file.
-       path_to_raports_dir (str): The directory path to save the CSV file.
-       clusters_topics (pd.DataFrame): The DataFrame containing cluster topics.
-       classes_column_name (str, optional): The column name for the classes. Defaults to 'labels'.
-
-   Returns:
-       None
-   """
-    df = df.groupby(df[classes_column_name]).size().reset_index(name='counts')
-    df = pd.concat([df, clusters_topics.drop(columns=[classes_column_name])], axis=1) 
-    save_path = os.path.join(path_to_raports_dir, filename)
-    df.to_csv(save_path, index=False)
-
-
 def read_file(
         file_path: str, 
         columns: list = None) -> pd.DataFrame:
@@ -146,8 +119,12 @@ def get_embedded_files(
         dict: The embedded files as a dictionary.
     """
 
-    with open(path_to_embeddings_file, 'r', encoding='utf-8') as embedded_json:
-        return json.load(embedded_json)
+    try:
+        with open(path_to_embeddings_file, 'r', encoding='utf-8') as embedded_json:
+            return json.load(embedded_json)
+    except FileNotFoundError:
+        return {}
+        
 
 def save_file_as_embeded(
         filename: str, 
@@ -214,7 +191,7 @@ def save_df_to_file(
     
     saving_path = os.path.join(path_to_dir, f'{filename}{file_ext}')
     
-    if file_ext == '.gzip.parquet':
+    if file_ext == '.parquet.gzip':
         df.to_parquet(
             saving_path,
             index=False)

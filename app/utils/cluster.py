@@ -12,8 +12,10 @@ import faiss
 import os
 import logging
 import pickle
+from datetime import datetime
 
-from utils.data_processing import get_embedded_files, read_file, set_rows_cardinalities, get_rows_cardinalities
+from utils.data_processing import get_embedded_files, read_file, set_rows_cardinalities, save_df_to_file
+from utils.c_tf_idf_module import get_topics_from_texts
 
 logger = logging.getLogger(__file__)
 
@@ -374,7 +376,7 @@ def get_cluster_labels_for_new_file(
         file_path=path_to_current_df
     )
 
-    concat_new_df_to_current_df(
+    new_current_df = concat_new_df_to_current_df(
         new_file_df=new_file_df.astype({col: str for col in required_columns}),
         current_df=current_df,
         current_df_path=path_to_current_df
@@ -382,7 +384,7 @@ def get_cluster_labels_for_new_file(
 
     logger.info(f'Updated current_df with new rows from {filename}')
 
-    return True
+    return new_current_df
 
 def cluster_recalculation_needed(
     n_of_rows: int,
@@ -414,5 +416,120 @@ def cluster_recalculation_needed(
             return False
         
         return True
+    
+def join_topics_to_df(
+        detailed_df: pd.DataFrame,
+        topics_df: pd.DataFrame,
+        joining_column: str = 'labels') -> pd.DataFrame:
+
+        joined_topics_df = detailed_df.join(
+            topics_df.set_index(joining_column),
+            on=joining_column,
+            how='left'
+        )
+
+        return joined_topics_df
+
+def save_cluster_exec_report(
+        df: pd.DataFrame, 
+        filename: str,
+        path_to_cluster_exec_reports_dir: str,
+        clusters_topics: pd.DataFrame,
+        filename_ext: str = '.gzip.parquet',
+        labels_column_name: str = 'labels',
+        cardinalities_column_name: str = 'counts'):
+    
+    """
+    Saves a report to a CSV file.
+
+    Args:
+       df (pd.DataFrame): The DataFrame containing the report data.
+       filename (str): The filename of the CSV file.
+       path_to_raports_dir (str): The directory path to save the CSV file.
+       clusters_topics (pd.DataFrame): The DataFrame containing cluster topics.
+       classes_column_name (str, optional): The column name for the classes. Defaults to 'labels'.
+
+   Returns:
+       None
+   """
+    df = df.groupby(df[labels_column_name]).size().reset_index(name=cardinalities_column_name)
+    df = pd.concat([df, clusters_topics.drop(columns=[labels_column_name])], axis=1) 
+
+    save_df_to_file(
+        df=df,
+        filename=filename,
+        path_to_dir=path_to_cluster_exec_reports_dir,
+        file_ext=filename_ext
+    )
+
+def cns_after_clusterization(
+        new_current_df: pd.DataFrame,
+        path_to_current_df_dir: str,
+        path_to_cluster_exec_dir: str,
+        stop_words: list = None,
+        only_update: bool = False,
+        topic_df_file_name: str = None,
+        current_df_filename: str = 'current_df',
+        labels_column: str = 'labels',
+        cardinalities_column: str = 'counts',
+        cluster_exec_filename_prefix: str = 'cluster_exec',
+        cluster_exec_filename_ext: str = '.parquet.gzip'):
+
+    TIMESTAMP_FORMAT = "%Y_%m_%d_%H_%M_%S"
+
+
+    if not only_update:
+
+        clusters_topics_df = get_topics_from_texts(
+            df=new_current_df,
+            stop_words=stop_words
+        )
+
+        logger.debug('Extracted topics from DataFrame')
+
+        new_current_df = join_topics_to_df(
+            detailed_df=new_current_df,
+            topics_df=clusters_topics_df,
+            joining_column=labels_column
+        )
+
+        logger.debug('Joined topics to new current_df')
+
+        new_current_df.to_parquet(
+            index=False, 
+            path=os.path.join(path_to_current_df_dir, current_df_filename))
+        
+        logger.debug('Saved current_df on disk')
+
+        clusters_topics_df.to_csv(
+            os.path.join(path_to_current_df_dir, topic_df_file_name),
+            index=False
+        )
+
+        logger.debug('Saved topic df on disk')
+
+    else:
+
+        clusters_topics_df = read_file(
+            file_path=os.path.join(path_to_current_df_dir, topic_df_file_name)
+        )
+
+    clusterization_exec_filename = f"""{cluster_exec_filename_prefix}_{datetime.now().strftime(TIMESTAMP_FORMAT)}"""
+
+    save_cluster_exec_report(
+        df=new_current_df,
+        filename=clusterization_exec_filename,
+        filename_ext=cluster_exec_filename_ext,
+        path_to_cluster_exec_reports_dir=path_to_cluster_exec_dir,
+        clusters_topics=clusters_topics_df,
+        labels_column_name=labels_column,
+        cardinalities_column_name=cardinalities_column
+    )
+
+    logger.info(f'Report from clusterization execution: {clusterization_exec_filename}{cluster_exec_filename_ext} has been successfully saved on disk')
+
+    return None
+
+
 
 
