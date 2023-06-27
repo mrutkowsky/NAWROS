@@ -23,7 +23,6 @@ FILES:
   filtered_df: filtered_df.csv
   topics_df: topics_df.csv
 
-
 INPUT_FILES_SETTINGS:
   allowed_extensions:
     - .csv 
@@ -55,6 +54,7 @@ REPORT_SETTINGS:
     - content
   cluster_exec_filename_prefix: cluster_exec
   cluster_exec_filename_ext: .parquet.gzip
+
 LOGGER:
   logging_format: '[%(asctime)s] - %(levelname)s - %(message)s'
   logger_level: INFO
