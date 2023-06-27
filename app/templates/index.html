@@ -102,7 +102,53 @@
       </div>
   </div>
 
+<<<<<<< HEAD
     <!--
+=======
+    <h3>Update clusters</h3>
+    <div class="mt-20">
+      <form method="post" action="/update_clusters_new_file" class="mt-20" enctype="multipart/form-data">
+        <label>Load files:</label>
+          <input type="file" name="file">
+          <br><br>
+          <input type="submit" value="Upload">
+      </form>
+    </div>
+
+    <h3>Compare reports</h3>
+      <div class="mt-20">
+      <form method="post" action="/compare_selected_reports" class="mt-20">
+          <label for="field1">Field 1:</label>
+          <input type="text" id="field1" name="field1" required><br><br>
+
+          <label for="field2">Field 2:</label>
+          <input type="text" id="field2" name="field2" required>
+          <br><br>
+          <input type="submit" value="Upload">
+      </form>
+      </div>
+
+    <h3>Clustering</h3>
+    <div class="mt-20">
+      <form method="post" action="/choose_files_for_clusters">
+        <label for="chosen_files">Choose files for clustering:</label>
+        {% for file in files %}
+            <input type="checkbox" name="chosen_files" value="{{ file }}"> {{ file }}<br>
+        {% endfor %}
+        <br>
+        <input type="submit" value="Process Selected Files">
+      </form>
+    </div>
+
+    <div class="mt-20">
+      <form method="post" action="/show_clusters_submit">
+        <label for="show_plot">Show me clusters:</label>
+          <button class="my-button" type="submit" name="show_plot" value="show_plot">Show Plot</button>
+      </form>
+    </div>
+
+    
+>>>>>>> micro-app
     <h3>Filtering</h3>
     <div class="mt-20">
       <form method="post" action="/show_filters_submit">

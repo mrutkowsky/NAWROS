@@ -1,16 +1,13 @@
 import os
 import shutil
 import pandas as pd
-from datetime import datetime
-from flask import Flask, request, jsonify, render_template, send_file, redirect, url_for, session, make_response
+from flask import Flask, request, render_template, send_file, redirect, url_for, make_response
 import logging
-import hdbscan
 from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
     read_config
 from utils.data_processing import process_data_from_choosen_files, \
-    save_raport_to_csv, \
     get_stopwords, \
     read_file, \
     del_file_from_embeded, \
@@ -20,9 +17,12 @@ from utils.data_processing import process_data_from_choosen_files, \
 import plotly.express as px
 import json
 import plotly
-from utils.cluster import get_clusters_for_choosen_files, get_cluster_labels_for_new_file, cluster_recalculation_needed
-from utils.c_tf_idf_module import get_topics_from_texts
-from utils.filtering import write_file, show_columns_for_filtering
+from utils.cluster import get_clusters_for_choosen_files, \
+    get_cluster_labels_for_new_file, \
+    cluster_recalculation_needed, \
+    cns_after_clusterization
+from utils.filtering import write_file
+from utils.reports import compare_reports
 from copy import copy
 
 app = Flask(__name__)
@@ -49,7 +49,8 @@ TMP_DIR = DIRECTORIES.get('tmp')
 EMBEDDINGS_DIR = DIRECTORIES.get('embeddings')
 EMPTY_CONTENT_DIR = DIRECTORIES.get('empty_content')
 FAISS_VECTORS_DIR = DIRECTORIES.get('faiss_vectors')
-RAPORTS_DIR = DIRECTORIES.get('raports')
+CLUSTER_EXEC_REPORTS_DIR = DIRECTORIES.get('cluster_exec_reports')
+COMPARING_REPORTS_DIR = DIRECTORIES.get('comparing_reports')
 CURRENT_DF_DIR = DIRECTORIES.get('current_df')
 FILTERED_DF_DIR = DIRECTORIES.get('filtered_df')
 STOPWORDS_DIR = DIRECTORIES.get('stop_words')
@@ -89,8 +90,23 @@ HDBSCAN_SETTINGS = ML.get('HDBSCAN_SETTINGS')
 HDBSCAN_MODEL_NAME = HDBSCAN_SETTINGS.get('model_name')
 RECALCULATE_CLUSTERS_TRESHOLD = ML.get('recalculate_clusters_treshold')
 
-RAPORT_CONFIG = CONFIGURATION.get('RAPORT_SETTINGS')
-RAPORT_COLUMNS = RAPORT_CONFIG.get('columns')
+REPORT_CONFIG = CONFIGURATION.get('REPORT_SETTINGS')
+
+BASE_REPORT_COLUMNS = REPORT_CONFIG.get('base_columns')
+LABELS_COLUMN = REPORT_CONFIG.get('labels_column', 'labels')
+CARDINALITIES_COLUMN = REPORT_CONFIG.get('cardinalities_column', 'counts')
+SENTIMENT_COLUMN = REPORT_CONFIG.get('sentiment_column', 'sentiment')
+FILENAME_COLUMN = REPORT_CONFIG.get('filename_column' 'filename')
+
+ALL_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
+    LABELS_COLUMN, 
+    CARDINALITIES_COLUMN, 
+    SENTIMENT_COLUMN, 
+    FILENAME_COLUMN
+]
+
+CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('cluster_exec_filename_prefix')
+CLUSTER_EXEC_FILENAME_EXT = REPORT_CONFIG.get('cluster_exec_filename_ext')
 
 PATH_TO_VALID_FILES = os.path.join(
     DATA_FOLDER,
@@ -112,9 +128,14 @@ PATH_TO_TMP_DIR = os.path.join(
     TMP_DIR
 )
 
-PATH_TO_RAPORTS_DIR = os.path.join(
+PATH_TO_CLUSTER_EXEC_REPORTS_DIR = os.path.join(
     DATA_FOLDER,
-    RAPORTS_DIR
+    CLUSTER_EXEC_REPORTS_DIR
+)
+
+PATH_TO_COMPARING_REPORTS_DIR = os.path.join(
+    DATA_FOLDER,
+    COMPARING_REPORTS_DIR
 )
 
 PATH_TO_FAISS_VECTORS_DIR = os.path.join(
@@ -210,7 +231,6 @@ def upload_and_validate_files(
                     uploaded_file.filename))
         
                 files_uploading_status['uploading_failed'][uploaded_file.filename] = validated_file_content
-
 
         else:
             files_uploading_status['uploading_failed'][uploaded_file.filename] = 'Extension is not valid'
@@ -361,7 +381,7 @@ def choose_files_for_clusters():
         batch_size=BATCH_SIZE,
         seed=SEED)
 
-    clusters_df = get_clusters_for_choosen_files(
+    new_current_df = get_clusters_for_choosen_files(
         chosen_files=files_for_clustering,
         path_to_cleared_files=PATH_TO_CLEARED_FILES,
         path_to_embeddings_dir=EMBEDDINGS_DIR,
@@ -380,29 +400,22 @@ def choose_files_for_clusters():
         cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
     ).astype({col: str for col in REQUIRED_COLUMNS})
     
-    clusters_df.to_parquet(
-        index=False, 
-        path=PATH_TO_CURRENT_DF)
-
-    clusters_topics_df = get_topics_from_texts(
-        df=clusters_df,
-        stop_words=STOP_WORDS
+    cns_after_clusterization(
+        new_current_df=new_current_df,
+        path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
+        path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
+        topic_df_file_name=TOPICS_DF_FILE,
+        current_df_filename=CURRENT_DF_FILE,
+        stop_words=STOP_WORDS,
+        labels_column=LABELS_COLUMN,
+        cardinalities_column=CARDINALITIES_COLUMN,
+        cluster_exec_filename_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
+        cluster_exec_filename_ext=CLUSTER_EXEC_FILENAME_EXT
     )
-
-    clusters_topics_df.to_csv(
-        os.path.join(PATH_TO_CURRENT_DF_DIR, TOPICS_DF_FILE),
-        index=False
-    )
-
-    save_raport_to_csv(
-        df=clusters_df,
-        path_to_raports_dir=PATH_TO_RAPORTS_DIR,
-        clusters_topics=clusters_topics_df,
-        filename=f'clusterization_raport_{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}.csv')
 
     logger.debug(f'Files {files_for_clustering} processed successfully.')
 
-    n_clusters = len(clusters_df['labels'].unique())
+    n_clusters = len(new_current_df[LABELS_COLUMN].unique())
 
     return redirect(url_for("index", message=f"{n_clusters} clusters has been created successfully."))
 
@@ -428,7 +441,7 @@ def show_clusters():
             data_frame=df,
             x='x',
             y='y',
-            color='labels'
+            color=LABELS_COLUMN
         )
 
         validated_files = os.listdir(
@@ -470,9 +483,9 @@ def show_filter_submit():
 def show_filter():
 
     if request.method == 'GET':
-        if isinstance(RAPORT_COLUMNS, list):
+        if isinstance(ALL_REPORT_COLUMNS, list):
 
-            return render_template('filtering.html', columns=RAPORT_COLUMNS)
+            return render_template('filtering.html', columns=ALL_REPORT_COLUMNS)
         
         return 'Nothing to show here'
     
@@ -481,7 +494,7 @@ def apply_filter():
 
     filters = request.get_json()
 
-    filtered_df = read_file(PATH_TO_CURRENT_DF, columns=RAPORT_COLUMNS)
+    filtered_df = read_file(PATH_TO_CURRENT_DF, columns=ALL_REPORT_COLUMNS)
     filtered_df = filtered_df.astype(str)
 
     logger.info(filtered_df)
@@ -506,11 +519,9 @@ def apply_filter():
     # filtered_df_excluded = show_columns_for_filtering(PATH_TO_CURRENT_DF)
     message = f"{filters} filters has been applied successfully."
 
-    print(message)
-
     return render_template(
         'filtering.html', 
-        columns=RAPORT_COLUMNS, 
+        columns=ALL_REPORT_COLUMNS, 
         message=message)
 
 
@@ -536,130 +547,158 @@ def update_clusters_new_file():
     uploaded_file = request.files['file']
     filename = uploaded_file.filename
 
-    if os.path.exists(os.path.join(PATH_TO_VALID_FILES, filename)):
-        return redirect(url_for("index", message=f"File {filename} already exists in File Storage, choose another file"))
+    # if os.path.exists(os.path.join(PATH_TO_VALID_FILES, filename)):
+    #     return redirect(url_for("index", message=f"File {filename} already exists in File Storage, choose another file"))
     
-    else:
+    # else:
 
-        success_upload, _ = upload_and_validate_files(
-            uploaded_files=[uploaded_file]
+    success_upload, _ = upload_and_validate_files(
+        uploaded_files=[uploaded_file]
+    )
+
+    logger.debug(f'File {filename} has been validated')
+
+    if success_upload:
+
+        rows_cards_for_preprocessed = process_data_from_choosen_files(
+            chosen_files=[filename],
+            path_to_valid_files=PATH_TO_VALID_FILES,
+            path_to_cleared_files=PATH_TO_CLEARED_FILES,
+            path_to_empty_content_dir=PATH_TO_EMPTY_CONTENTS,
+            path_to_embeddings_dir=EMBEDDINGS_DIR,
+            faiss_vectors_dirname=FAISS_VECTORS_DIR,
+            embedded_files_filename=EMBEDDED_JSON,
+            embeddings_model_name=EMBEDDINGS_MODEL,
+            sentiment_model_name=SENTIMENT_MODEL_NAME,
+            swearwords=SWEAR_WORDS,
+            content_column_name=CONTENT_COLUMN,
+            cleread_file_ext=CLEARED_FILE_EXT,
+            empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
+            empty_content_ext=EMPTY_CONTENTS_EXT,
+            batch_size=BATCH_SIZE,
+            seed=SEED)
+        
+        n_of_rows_for_new_file = rows_cards_for_preprocessed.get(filename)
+
+        rows_cardinalities_current_df = get_rows_cardinalities(
+            path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES
         )
 
-        logger.debug(f'File {filename} has been validated')
+        need_to_recalculate = cluster_recalculation_needed(
+            n_of_rows=n_of_rows_for_new_file,
+            rows_cardinalities_current_df=rows_cardinalities_current_df,
+            recalculate_treshold=RECALCULATE_CLUSTERS_TRESHOLD
+        )
 
-        if success_upload:
+        if not need_to_recalculate:
 
-            rows_cards_for_preprocessed = process_data_from_choosen_files(
-                chosen_files=[filename],
-                path_to_valid_files=PATH_TO_VALID_FILES,
+            logger.info(f'Treshold {RECALCULATE_CLUSTERS_TRESHOLD} has not been exceeded, assigning topics based on current_df clusterization')
+
+            new_current_df = get_cluster_labels_for_new_file(
+                filename=filename,
+                path_to_current_df=PATH_TO_CURRENT_DF,
+                path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
+                path_to_cleared_files_dir=PATH_TO_CLEARED_FILES,
+                path_to_faiss_vetors_dir=PATH_TO_FAISS_VECTORS_DIR,
+                required_columns=REQUIRED_COLUMNS,
+                clusterer_model_name=HDBSCAN_MODEL_NAME,
+                umap_model_name=DIM_REDUCER_MODEL_NAME,
+                reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
+                cleared_files_ext=CLEARED_FILE_EXT
+            )
+
+            rows_cardinalities_current_df['only_classified'][filename] = n_of_rows_for_new_file
+            set_rows_cardinalities(
+                path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES,
+                updated_cardinalities=rows_cardinalities_current_df
+            )
+
+            logger.info('Successfully updated rows cardinalities file for current_df')
+
+            cns_after_clusterization(
+                new_current_df=new_current_df,
+                path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
+                path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
+                current_df_filename=CURRENT_DF_FILE,
+                stop_words=STOP_WORDS,
+                labels_column=LABELS_COLUMN,
+                cardinalities_column=CARDINALITIES_COLUMN,
+                cluster_exec_filename_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
+                cluster_exec_filename_ext=CLUSTER_EXEC_FILENAME_EXT,
+                topic_df_file_name=TOPICS_DF_FILE,
+                only_update=True
+            )
+
+        else:
+
+            logger.info(f'Treshold {RECALCULATE_CLUSTERS_TRESHOLD} has been exceeded, recalculating clusters for current_df')
+
+            all_current_df_files = [file_ for in_dict in rows_cardinalities_current_df.values() for file_ in in_dict.keys()]
+
+            new_current_df = get_clusters_for_choosen_files(
+                chosen_files= all_current_df_files + [filename],
                 path_to_cleared_files=PATH_TO_CLEARED_FILES,
-                path_to_empty_content_dir=PATH_TO_EMPTY_CONTENTS,
                 path_to_embeddings_dir=EMBEDDINGS_DIR,
+                path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
+                rows_cardinalities_file=ROWS_CARDINALITIES_FILE,
                 faiss_vectors_dirname=FAISS_VECTORS_DIR,
                 embedded_files_filename=EMBEDDED_JSON,
-                embeddings_model_name=EMBEDDINGS_MODEL,
-                sentiment_model_name=SENTIMENT_MODEL_NAME,
-                swearwords=SWEAR_WORDS,
-                content_column_name=CONTENT_COLUMN,
-                cleread_file_ext=CLEARED_FILE_EXT,
-                empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
-                empty_content_ext=EMPTY_CONTENTS_EXT,
-                batch_size=BATCH_SIZE,
-                seed=SEED)
+                cleared_files_ext=CLEARED_FILE_EXT,
+                random_state=SEED,
+                n_neighbors=UMAP.get('n_neighbors'),
+                min_dist=UMAP.get('min_dist'),
+                n_components=UMAP.get('n_components'),
+                min_cluster_size=HDBSCAN_SETTINGS.get('min_cluster_size'),
+                min_samples=HDBSCAN_SETTINGS.get('min_samples'),
+                metric=HDBSCAN_SETTINGS.get('metric'),                      
+                cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
+            ).astype({col: str for col in REQUIRED_COLUMNS})
             
-            n_of_rows_for_new_file = rows_cards_for_preprocessed.get(filename)
-
-            rows_cardinalities_current_df = get_rows_cardinalities(
-                path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES
+            cns_after_clusterization(
+                new_current_df=new_current_df,
+                path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
+                path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
+                topic_df_file_name=TOPICS_DF_FILE,
+                current_df_filename=CURRENT_DF_FILE,
+                stop_words=STOP_WORDS,
+                labels_column=LABELS_COLUMN,
+                cardinalities_column=CARDINALITIES_COLUMN,
+                cluster_exec_filename_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
+                cluster_exec_filename_ext=CLUSTER_EXEC_FILENAME_EXT
             )
 
-            need_to_recalculate = cluster_recalculation_needed(
-                n_of_rows=n_of_rows_for_new_file,
-                rows_cardinalities_current_df=rows_cardinalities_current_df,
-                recalculate_treshold=RECALCULATE_CLUSTERS_TRESHOLD
-            )
+            n_clusters = len(new_current_df[LABELS_COLUMN].unique())
 
-            if not need_to_recalculate:
+            return redirect(url_for("index", message=f"{n_clusters} clusters has been created successfully."))
+        
+    else:
+        logger.error(f'Can not preprocess file {filename}')
+        return redirect(url_for("index", message=f'Can not upload file {filename} for clusters update!'))
 
-                logger.info(f'Treshold {RECALCULATE_CLUSTERS_TRESHOLD} has not been exceeded, assigning topics based on current_df clusterization')
+    return redirect(url_for("index", message=f"Cluster labels for {filename} have been successfully assigned."))
+    
+@app.route('/compare_selected_reports', methods=['POST'])
+def compare_selected_reports():
 
-                get_cluster_labels_for_new_file(
-                    filename=filename,
-                    path_to_current_df=PATH_TO_CURRENT_DF,
-                    path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
-                    path_to_cleared_files_dir=PATH_TO_CLEARED_FILES,
-                    path_to_faiss_vetors_dir=PATH_TO_FAISS_VECTORS_DIR,
-                    required_columns=REQUIRED_COLUMNS,
-                    clusterer_model_name=HDBSCAN_MODEL_NAME,
-                    umap_model_name=DIM_REDUCER_MODEL_NAME,
-                    reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
-                    cleared_files_ext=CLEARED_FILE_EXT
-                )
+    filename1 = request.form.get('field1')
+    filename2 = request.form.get('field2')
 
-                rows_cardinalities_current_df['only_classified'][filename] = n_of_rows_for_new_file
-                set_rows_cardinalities(
-                    path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES,
-                    updated_cardinalities=rows_cardinalities_current_df
-                )
+    comparison_result_df = compare_reports(
+        first_report_name=filename1,
+        second_report_name=filename2,
+        path_to_reports_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR
+    )
 
-                logger.info('Successfully updated rows cardinalities file for current_df')
+    logger.debug(comparison_result_df)
 
-            else:
+    comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}_comparison.csv"
 
-                logger.info(f'Treshold {RECALCULATE_CLUSTERS_TRESHOLD} has been exceeded, recalculating clusters for current_df')
+    comparison_result_df.to_csv(
+        path_or_buf=os.path.join(PATH_TO_COMPARING_REPORTS_DIR, comparison_report_filename),
+        index=False
+    )
 
-                all_current_df_files = [file_ for in_dict in rows_cardinalities_current_df.values() for file_ in in_dict.keys()]
-
-                clusters_df = get_clusters_for_choosen_files(
-                    chosen_files= all_current_df_files + [filename],
-                    path_to_cleared_files=PATH_TO_CLEARED_FILES,
-                    path_to_embeddings_dir=EMBEDDINGS_DIR,
-                    path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
-                    rows_cardinalities_file=ROWS_CARDINALITIES_FILE,
-                    faiss_vectors_dirname=FAISS_VECTORS_DIR,
-                    embedded_files_filename=EMBEDDED_JSON,
-                    cleared_files_ext=CLEARED_FILE_EXT,
-                    random_state=SEED,
-                    n_neighbors=UMAP.get('n_neighbors'),
-                    min_dist=UMAP.get('min_dist'),
-                    n_components=UMAP.get('n_components'),
-                    min_cluster_size=HDBSCAN_SETTINGS.get('min_cluster_size'),
-                    min_samples=HDBSCAN_SETTINGS.get('min_samples'),
-                    metric=HDBSCAN_SETTINGS.get('metric'),                      
-                    cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
-                ).astype({col: str for col in REQUIRED_COLUMNS})
-                
-                clusters_df.to_parquet(
-                    index=False, 
-                    path=PATH_TO_CURRENT_DF)
-
-                clusters_topics_df = get_topics_from_texts(
-                    df=clusters_df,
-                    stop_words=STOP_WORDS
-                )
-
-                clusters_topics_df.to_csv(
-                    os.path.join(PATH_TO_CURRENT_DF_DIR, TOPICS_DF_FILE),
-                    index=False
-                )
-
-                save_raport_to_csv(
-                    df=clusters_df,
-                    path_to_raports_dir=PATH_TO_RAPORTS_DIR,
-                    clusters_topics=clusters_topics_df,
-                    filename=f'clusterization_raport_{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}.csv')
-
-                # logger.debug(f'Files {files_for_clustering} processed successfully.')
-
-                n_clusters = len(clusters_df['labels'].unique())
-
-                return redirect(url_for("index", message=f"{n_clusters} clusters has been created successfully."))
-         
-        else:
-            logger.error(f'Can not preprocess file {filename}')
-            return redirect(url_for("index", message=f'Can not upload file {filename} for clusters update!'))
-
-        return redirect(url_for("index", message=f"Cluster labels for {filename} have been successfully assigned."))
+    return 'ok'
 
 
 if __name__ == '__main__':
