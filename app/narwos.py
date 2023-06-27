@@ -4,15 +4,23 @@ import pandas as pd
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, send_file, redirect, url_for, session, make_response
 import logging
+import hdbscan
 from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
     read_config
-from utils.data_processing import process_data_from_choosen_files, save_raport_to_csv, get_stopwords, read_file, del_file_from_embeded
+from utils.data_processing import process_data_from_choosen_files, \
+    save_raport_to_csv, \
+    get_stopwords, \
+    read_file, \
+    del_file_from_embeded, \
+    get_swearwords, \
+    get_rows_cardinalities, \
+    set_rows_cardinalities
 import plotly.express as px
 import json
 import plotly
-from utils.cluster import get_clusters_for_choosen_files
+from utils.cluster import get_clusters_for_choosen_files, get_cluster_labels_for_new_file, cluster_recalculation_needed
 from utils.c_tf_idf_module import get_topics_from_texts
 from utils.filtering import write_file, show_columns_for_filtering
 from copy import copy
@@ -51,6 +59,8 @@ STOPWORDS_DIR = DIRECTORIES.get('stop_words')
 EMBEDDED_JSON = FILES.get('embedded_json')
 CURRENT_DF_FILE = FILES.get('current_df')
 FILTERED_DF_FILE = FILES.get('filtered_df')
+TOPICS_DF_FILE = FILES.get('topics_df')
+ROWS_CARDINALITIES_FILE = FILES.get('rows_cardinalities')
 
 EMPTY_CONTENTS_EXT = EMPTY_CONTENT_SETTINGS.get('empty_content_ext')
 EMPTY_CONTENTS_SUFFIX = EMPTY_CONTENT_SETTINGS.get('empty_content_suffix')
@@ -65,14 +75,19 @@ LOGGER_LEVEL = LOGGER.get('logger_level')
 ALLOWED_EXTENSIONS = INPUT_FILES_SETTINGS.get('allowed_extensions')
 REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 
-EMBEDDINGS_MODEL = ML.get('embeddings').get('model')
+EMBEDDINGS_MODEL = ML.get('embeddings').get('model_name')
 SEED = ML.get('seed')
 SENTIMENT_MODEL_NAME = ML.get('sentiment').get('model_name')
 
 FILTERING_DOWNLOAD_NAME = FILTERING.get('download_name')
 
 UMAP = ML.get('UMAP')
-HDBSCAN = ML.get('HDBSCAN')
+DIM_REDUCER_MODEL_NAME = UMAP.get('dim_reducer_model_name')
+REDUCER_2D_MODEL_NAME = UMAP.get('reducer_2d_model_name')
+
+HDBSCAN_SETTINGS = ML.get('HDBSCAN_SETTINGS')
+HDBSCAN_MODEL_NAME = HDBSCAN_SETTINGS.get('model_name')
+RECALCULATE_CLUSTERS_TRESHOLD = ML.get('recalculate_clusters_treshold')
 
 RAPORT_CONFIG = CONFIGURATION.get('RAPORT_SETTINGS')
 RAPORT_COLUMNS = RAPORT_CONFIG.get('columns')
@@ -107,10 +122,21 @@ PATH_TO_FAISS_VECTORS_DIR = os.path.join(
     FAISS_VECTORS_DIR
 )
 
+PATH_TO_CURRENT_DF_DIR = os.path.join(
+    DATA_FOLDER,
+    CURRENT_DF_DIR,
+)
+
 PATH_TO_CURRENT_DF = os.path.join(
     DATA_FOLDER,
     CURRENT_DF_DIR,
     CURRENT_DF_FILE
+)
+
+PATH_TO_ROWS_CARDINALITIES = os.path.join(
+    DATA_FOLDER,
+    CURRENT_DF_DIR,
+    ROWS_CARDINALITIES_FILE,
 )
 
 PATH_TO_FILTERED_DF = os.path.join(
@@ -119,17 +145,18 @@ PATH_TO_FILTERED_DF = os.path.join(
     FILTERED_DF_FILE
 )
 
-PATH_PL_SWEARWORDS = os.path.join(
+PATH_TO_SWEARWORDS_DIR = os.path.join(
     DATA_FOLDER,
     SWEARWORDS_DIR,
-    FILES.get('polish_swearwords')
 )
 
-PATH_EN_SWEARWORDS = os.path.join(
+PATH_TO_STOPWORDS_DIR = os.path.join(
     DATA_FOLDER,
-    SWEARWORDS_DIR,
-    FILES.get('english_swearwords')
+    STOPWORDS_DIR,
 )
+
+STOP_WORDS = get_stopwords(PATH_TO_STOPWORDS_DIR)
+SWEAR_WORDS = get_swearwords(PATH_TO_SWEARWORDS_DIR)
 
 logging.basicConfig(
     level=LOGGER_LEVEL,
@@ -139,41 +166,9 @@ logger = logging.getLogger(__name__)
 
 logger.debug(f'Required columns: {REQUIRED_COLUMNS}')
 
-@app.route("/")
-def index():
+def upload_and_validate_files(
+        uploaded_files: list):
 
-    message = request.args.get("message")
-    success_upload = request.args.get("success_upload")
-    failed_upload = request.args.get("failed_upload")
-
-    if success_upload is not None:
-        success_upload = json.loads(success_upload)
-
-    if failed_upload is not None:
-        failed_upload = json.loads(failed_upload)
-
-    validated_files = os.listdir(
-        PATH_TO_VALID_FILES)
-        
-    validated_files_to_show = [
-        v_file for v_file in validated_files 
-        if os.path.splitext(v_file)[-1].lower() in ALLOWED_EXTENSIONS
-    ]
-
-    return render_template(
-        "index.html", 
-        files=validated_files_to_show,
-        message=message,
-        success_upload=success_upload, 
-        failed_upload=failed_upload)
-
-@app.route('/upload_file', methods=['POST'])
-def upload_file():
-        # Check if files were uploaded
-    if 'file' not in request.files:
-        return jsonify({'error': 'No files found in the request.'}), 400
-
-    uploaded_files = request.files.getlist('file')
     files_uploading_status = {
         "uploaded_successfully": [],
         "uploading_failed": {}}
@@ -220,15 +215,57 @@ def upload_file():
         else:
             files_uploading_status['uploading_failed'][uploaded_file.filename] = 'Extension is not valid'
 
-    # successfully_uploaded_message = f"Files uploaded succesfully:<ol><li>{'</li><li>'.join(files_uploading_status.get('uploaded_succesfully'))}</li></ol>"
-    # uploading_failed_message = f"Failed to upload files:<ol><li>{'</li><li>'.join([f'{key} - {value}' for key, value in files_uploading_status.get('uploading_failed').items()])}</li></ol>"
-    # final_message = f"{successfully_uploaded_message}<br>{uploading_failed_message}"
-
     success_upload = copy(files_uploading_status['uploaded_successfully'])
     failed_upload = [f"{key} - {value}" for key, value in files_uploading_status.get('uploading_failed').items()]
 
-    logger.info(success_upload)
-    logger.info(failed_upload)
+    return success_upload, failed_upload
+
+@app.route("/")
+def index():
+
+    message = request.args.get("message")
+    success_upload = request.args.get("success_upload")
+    failed_upload = request.args.get("failed_upload")
+
+    if success_upload is not None:
+        success_upload = json.loads(success_upload)
+
+    if failed_upload is not None:
+        failed_upload = json.loads(failed_upload)
+
+    validated_files = os.listdir(
+        PATH_TO_VALID_FILES)
+        
+    validated_files_to_show = [
+        v_file for v_file in validated_files 
+        if os.path.splitext(v_file)[-1].lower() in ALLOWED_EXTENSIONS
+    ]
+
+    return render_template(
+        "index.html", 
+        files=validated_files_to_show,
+        message=message,
+        success_upload=success_upload, 
+        failed_upload=failed_upload)
+
+@app.route('/upload_file', methods=['POST'])
+def upload_file():
+        # Check if files were uploaded
+    if len(request.files.getlist('file')) == 1:
+
+        if request.files.getlist('file')[0].filename == '':
+            return redirect(url_for("index", message=f'No file has been selected for uploading!'))
+    
+    logger.debug(f"Uploaded files: {request.files.getlist('file')}")
+
+    uploaded_files = request.files.getlist('file')
+
+    success_upload, failed_upload = upload_and_validate_files(
+        uploaded_files=uploaded_files
+    )
+
+    logger.debug(success_upload)
+    logger.debug(failed_upload)
 
     return redirect(url_for("index", success_upload=json.dumps(success_upload), failed_upload=json.dumps(failed_upload)))
 
@@ -236,6 +273,10 @@ def upload_file():
 def delete_file():
 
     filename = request.form.get('to_delete')
+
+    if not filename:
+        return redirect(url_for("index", message=f'No file has been selected for deletion!'))
+
     base_filename = os.path.splitext(filename)[0]
 
     logger.debug(f'Filename: {filename}, base name: {base_filename}')
@@ -272,10 +313,10 @@ def delete_file():
                         os.remove(file_path)
                     except Exception as e:
                         logger.error(f'Can not del {filename} from {data_dir} dir! - {e}')
+                        return redirect(url_for("index", message=f'Can not del {filename} from {data_dir} dir!'))
                     else:
                         logger.info(f'Successfully deleted file from {data_dir}')
-
-        
+ 
         deleted_successfully_from_json = del_file_from_embeded(
             filename_to_del=filename,
             path_to_embeddings_file=os.path.join(EMBEDDINGS_DIR, EMBEDDED_JSON)
@@ -284,17 +325,22 @@ def delete_file():
         if deleted_successfully_from_json:
 
             logger.info(f'Successfully deleted {filename} from JSON file')
+
+        else:
+
+            logger.error(f'Failed to delete {filename} from JSON file')
+            return redirect(url_for("index", message=f'Failed to delete {filename} from JSON file.'))
         
         return redirect(url_for("index", message=f'File {filename} deleted successfully.'))
     
-
-
 @app.route('/choose_files_for_clusters', methods=['POST'])
 def choose_files_for_clusters():
 
     files_for_clustering = request.form.getlist('chosen_files')
-    swearwords = open(PATH_EN_SWEARWORDS, 'r').read().split('\n') + \
-        open(PATH_PL_SWEARWORDS, 'r').read().split('\n')
+
+    if not files_for_clustering:
+        return redirect(url_for("index", message=f'No file has been selected for clustering!'))
+    
     logger.debug(f'Chosen files: {files_for_clustering}')
 
     process_data_from_choosen_files(
@@ -307,7 +353,7 @@ def choose_files_for_clusters():
         embedded_files_filename=EMBEDDED_JSON,
         embeddings_model_name=EMBEDDINGS_MODEL,
         sentiment_model_name=SENTIMENT_MODEL_NAME,
-        swearwords=swearwords,
+        swearwords=SWEAR_WORDS,
         content_column_name=CONTENT_COLUMN,
         cleread_file_ext=CLEARED_FILE_EXT,
         empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
@@ -319,6 +365,8 @@ def choose_files_for_clusters():
         chosen_files=files_for_clustering,
         path_to_cleared_files=PATH_TO_CLEARED_FILES,
         path_to_embeddings_dir=EMBEDDINGS_DIR,
+        path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
+        rows_cardinalities_file=ROWS_CARDINALITIES_FILE,
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
         embedded_files_filename=EMBEDDED_JSON,
         cleared_files_ext=CLEARED_FILE_EXT,
@@ -326,10 +374,10 @@ def choose_files_for_clusters():
         n_neighbors=UMAP.get('n_neighbors'),
         min_dist=UMAP.get('min_dist'),
         n_components=UMAP.get('n_components'),
-        min_cluster_size=HDBSCAN.get('min_cluster_size'),
-        min_samples=HDBSCAN.get('min_samples'),
-        metric=HDBSCAN.get('metric'),                      
-        cluster_selection_method=HDBSCAN.get('cluster_selection_method')
+        min_cluster_size=HDBSCAN_SETTINGS.get('min_cluster_size'),
+        min_samples=HDBSCAN_SETTINGS.get('min_samples'),
+        metric=HDBSCAN_SETTINGS.get('metric'),                      
+        cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
     ).astype({col: str for col in REQUIRED_COLUMNS})
     
     clusters_df.to_parquet(
@@ -338,7 +386,12 @@ def choose_files_for_clusters():
 
     clusters_topics_df = get_topics_from_texts(
         df=clusters_df,
-        stop_words=get_stopwords(STOPWORDS_DIR)
+        stop_words=STOP_WORDS
+    )
+
+    clusters_topics_df.to_csv(
+        os.path.join(PATH_TO_CURRENT_DF_DIR, TOPICS_DF_FILE),
+        index=False
     )
 
     save_raport_to_csv(
@@ -476,6 +529,138 @@ def filter_data_download_report():
         download_name = FILTERING_DOWNLOAD_NAME
     ))
     return response
+
+@app.route('/update_clusters_new_file', methods=['POST'])
+def update_clusters_new_file():
+    
+    uploaded_file = request.files['file']
+    filename = uploaded_file.filename
+
+    if os.path.exists(os.path.join(PATH_TO_VALID_FILES, filename)):
+        return redirect(url_for("index", message=f"File {filename} already exists in File Storage, choose another file"))
+    
+    else:
+
+        success_upload, _ = upload_and_validate_files(
+            uploaded_files=[uploaded_file]
+        )
+
+        logger.debug(f'File {filename} has been validated')
+
+        if success_upload:
+
+            rows_cards_for_preprocessed = process_data_from_choosen_files(
+                chosen_files=[filename],
+                path_to_valid_files=PATH_TO_VALID_FILES,
+                path_to_cleared_files=PATH_TO_CLEARED_FILES,
+                path_to_empty_content_dir=PATH_TO_EMPTY_CONTENTS,
+                path_to_embeddings_dir=EMBEDDINGS_DIR,
+                faiss_vectors_dirname=FAISS_VECTORS_DIR,
+                embedded_files_filename=EMBEDDED_JSON,
+                embeddings_model_name=EMBEDDINGS_MODEL,
+                sentiment_model_name=SENTIMENT_MODEL_NAME,
+                swearwords=SWEAR_WORDS,
+                content_column_name=CONTENT_COLUMN,
+                cleread_file_ext=CLEARED_FILE_EXT,
+                empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
+                empty_content_ext=EMPTY_CONTENTS_EXT,
+                batch_size=BATCH_SIZE,
+                seed=SEED)
+            
+            n_of_rows_for_new_file = rows_cards_for_preprocessed.get(filename)
+
+            rows_cardinalities_current_df = get_rows_cardinalities(
+                path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES
+            )
+
+            need_to_recalculate = cluster_recalculation_needed(
+                n_of_rows=n_of_rows_for_new_file,
+                rows_cardinalities_current_df=rows_cardinalities_current_df,
+                recalculate_treshold=RECALCULATE_CLUSTERS_TRESHOLD
+            )
+
+            if not need_to_recalculate:
+
+                logger.info(f'Treshold {RECALCULATE_CLUSTERS_TRESHOLD} has not been exceeded, assigning topics based on current_df clusterization')
+
+                get_cluster_labels_for_new_file(
+                    filename=filename,
+                    path_to_current_df=PATH_TO_CURRENT_DF,
+                    path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
+                    path_to_cleared_files_dir=PATH_TO_CLEARED_FILES,
+                    path_to_faiss_vetors_dir=PATH_TO_FAISS_VECTORS_DIR,
+                    required_columns=REQUIRED_COLUMNS,
+                    clusterer_model_name=HDBSCAN_MODEL_NAME,
+                    umap_model_name=DIM_REDUCER_MODEL_NAME,
+                    reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
+                    cleared_files_ext=CLEARED_FILE_EXT
+                )
+
+                rows_cardinalities_current_df['only_classified'][filename] = n_of_rows_for_new_file
+                set_rows_cardinalities(
+                    path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES,
+                    updated_cardinalities=rows_cardinalities_current_df
+                )
+
+                logger.info('Successfully updated rows cardinalities file for current_df')
+
+            else:
+
+                logger.info(f'Treshold {RECALCULATE_CLUSTERS_TRESHOLD} has been exceeded, recalculating clusters for current_df')
+
+                all_current_df_files = [file_ for in_dict in rows_cardinalities_current_df.values() for file_ in in_dict.keys()]
+
+                clusters_df = get_clusters_for_choosen_files(
+                    chosen_files= all_current_df_files + [filename],
+                    path_to_cleared_files=PATH_TO_CLEARED_FILES,
+                    path_to_embeddings_dir=EMBEDDINGS_DIR,
+                    path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
+                    rows_cardinalities_file=ROWS_CARDINALITIES_FILE,
+                    faiss_vectors_dirname=FAISS_VECTORS_DIR,
+                    embedded_files_filename=EMBEDDED_JSON,
+                    cleared_files_ext=CLEARED_FILE_EXT,
+                    random_state=SEED,
+                    n_neighbors=UMAP.get('n_neighbors'),
+                    min_dist=UMAP.get('min_dist'),
+                    n_components=UMAP.get('n_components'),
+                    min_cluster_size=HDBSCAN_SETTINGS.get('min_cluster_size'),
+                    min_samples=HDBSCAN_SETTINGS.get('min_samples'),
+                    metric=HDBSCAN_SETTINGS.get('metric'),                      
+                    cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
+                ).astype({col: str for col in REQUIRED_COLUMNS})
+                
+                clusters_df.to_parquet(
+                    index=False, 
+                    path=PATH_TO_CURRENT_DF)
+
+                clusters_topics_df = get_topics_from_texts(
+                    df=clusters_df,
+                    stop_words=STOP_WORDS
+                )
+
+                clusters_topics_df.to_csv(
+                    os.path.join(PATH_TO_CURRENT_DF_DIR, TOPICS_DF_FILE),
+                    index=False
+                )
+
+                save_raport_to_csv(
+                    df=clusters_df,
+                    path_to_raports_dir=PATH_TO_RAPORTS_DIR,
+                    clusters_topics=clusters_topics_df,
+                    filename=f'clusterization_raport_{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}.csv')
+
+                # logger.debug(f'Files {files_for_clustering} processed successfully.')
+
+                n_clusters = len(clusters_df['labels'].unique())
+
+                return redirect(url_for("index", message=f"{n_clusters} clusters has been created successfully."))
+         
+        else:
+            logger.error(f'Can not preprocess file {filename}')
+            return redirect(url_for("index", message=f'Can not upload file {filename} for clusters update!'))
+
+        return redirect(url_for("index", message=f"Cluster labels for {filename} have been successfully assigned."))
+
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -11,8 +11,9 @@ import numpy as np
 import faiss
 import os
 import logging
+import pickle
 
-from utils.data_processing import get_embedded_files, read_file
+from utils.data_processing import get_embedded_files, read_file, set_rows_cardinalities, get_rows_cardinalities
 
 logger = logging.getLogger(__file__)
 
@@ -37,14 +38,16 @@ def dimension_reduction(
         np.ndarray: The UMAP embedding of the sentence embeddings.
     """
     
-    clusterable_embeddings = UMAP.UMAP(
+    dim_reducer = UMAP.UMAP(
         n_neighbors=n_neighbors,
         min_dist=min_dist,
         n_components=n_components,
         random_state=random_state,
-        metric='cosine').fit_transform(sentence_embeddings)
+        metric='cosine').fit(sentence_embeddings)
+    
+    clusterable_embeddings = dim_reducer.transform(sentence_embeddings)
 
-    return clusterable_embeddings
+    return dim_reducer, clusterable_embeddings
 
 
 def cluster_sentences(
@@ -72,20 +75,113 @@ def cluster_sentences(
         min_cluster_size=min_cluster_size,
         min_samples=min_samples,
         metric=metric,                      
-        cluster_selection_method=cluster_selection_method) \
+        cluster_selection_method=cluster_selection_method,
+        prediction_data=True) \
             .fit(clusterable_embeddings)
 
-    return cluster.labels_
+    return cluster
+
+def save_model(
+        model,
+        path_to_current_df_dir: str,
+        model_name: str = 'clusterer.pkl'): 
+    
+    with open(os.path.join(path_to_current_df_dir, model_name), 'wb') as file_:
+        pickle.dump(model, file_)
+
+def load_model(
+        path_to_current_df_dir: str,
+        model_name: str = 'clusterer.pkl'): 
+    
+    with open(os.path.join(path_to_current_df_dir, model_name), 'rb') as file_:
+        model = pickle.load(file_)
+
+    return model
+
+def load_embeddings_from_index(path_to_faiss_vector: str):
+    
+    index = faiss.read_index(path_to_faiss_vector)
+        
+    n = index.ntotal
+    vectors = np.zeros((n, index.d), dtype=np.float32)
+    index.reconstruct_n(0, n, vectors)
+
+    return vectors
+
+def concat_new_df_to_current_df(
+    new_file_df: pd.DataFrame,
+    current_df: pd.DataFrame,
+    current_df_path: str) -> pd.DataFrame:
+
+    new_current_df = pd.concat([current_df, new_file_df])
+    new_current_df = new_current_df.reset_index(drop=True)
+
+    new_current_df.to_parquet(
+        path=current_df_path,
+        index=False
+    )
+
+    return new_current_df
+
+def load_embeddings_get_result_df(
+        embeddings_files: list,
+        chosen_files: list,
+        path_to_faiss_vectors: str,
+        path_to_cleared_files: str,
+        cleared_files_ext: str = '.parquet.gzip',
+        filename_column: str = 'filename',
+        used_as_base_key: str = 'used_as_base',
+        only_classified_key: str = 'only_classified'):
+    
+    rows_cardinalities_dict = {
+        used_as_base_key: {},
+        only_classified_key: {}
+    }
+    
+    all_vectors = None
+    result_df = None
+
+    for file_ in chosen_files:
+
+        logging.info(f'Path to index {embeddings_files[file_]}')
+        path_to_faiss_vector_file = os.path.join(path_to_faiss_vectors, embeddings_files[file_])
+
+        vectors = load_embeddings_from_index(path_to_faiss_vector_file)
+       
+        all_vectors = np.vstack((all_vectors, vectors)) if all_vectors is not None else vectors
+
+        filename, _ = os.path.splitext(file_)
+
+        current_file_df = read_file(
+            os.path.join(path_to_cleared_files, f'{filename}{cleared_files_ext}'), 
+            columns=None)
+        
+        current_file_df[filename_column] = file_
+
+        rows_cardinalities_dict[used_as_base_key][file_] = len(current_file_df)
+        
+        result_df = pd.concat([result_df, current_file_df])
+        result_df = result_df.reset_index(drop=True)
+
+    return all_vectors, result_df, rows_cardinalities_dict
 
 
 def get_clusters_for_choosen_files(
         chosen_files: list,
         path_to_cleared_files: str,
         path_to_embeddings_dir: str,
+        path_to_current_df_dir: str,
+        rows_cardinalities_file: str,
         faiss_vectors_dirname: str,
         embedded_files_filename: str,
+        used_as_base_key: str = 'used_as_base',
+        only_classified_key: str = 'only_classified',
         cleared_files_ext: str = '.parquet.gzip',
         labels_column: str = 'labels',
+        filename_column: str = 'filename',
+        clusterer_model_name: str = 'clusterer.pkl',
+        umap_model_name: str = 'umap_reducer.pkl',
+        reducer_2d_model_name: str = 'dim_reducer_2d.pkl',
         random_state: int = 42,
         n_neighbors: int = 15,
         min_dist: float = 0.0,
@@ -124,61 +220,65 @@ def get_clusters_for_choosen_files(
     embeddings_files = get_embedded_files(
         path_to_embeddings_file=PATH_TO_JSON_EMBEDDED_FILES
     )
+
+    all_vectors, result_df, rows_cardinalities_dict = load_embeddings_get_result_df(
+        embeddings_files=embeddings_files,
+        chosen_files=chosen_files,
+        path_to_faiss_vectors=PATH_TO_FAISS_VECTORS,
+        path_to_cleared_files=path_to_cleared_files,
+        cleared_files_ext=cleared_files_ext,
+        filename_column=filename_column,
+        used_as_base_key=used_as_base_key)
     
-    all_vectors = None
-    result_df = None
-
-    for file_ in chosen_files:
-
-        logging.info(f'Path to index {embeddings_files[file_]}')
-        index = faiss.read_index(os.path.join(PATH_TO_FAISS_VECTORS, embeddings_files[file_]))
-        
-        n = index.ntotal
-        vectors = np.zeros((n, index.d), dtype=np.float32)
-        index.reconstruct_n(0, n, vectors)
-
-        all_vectors = np.vstack((all_vectors, vectors)) if all_vectors is not None else vectors
-
-        filename, _ = os.path.splitext(file_)
-
-        current_file_df = read_file(
-            os.path.join(path_to_cleared_files, f'{filename}{cleared_files_ext}'), 
-            columns=None)
-        
-        result_df = pd.concat([result_df, current_file_df])
-        result_df = result_df.reset_index(drop=True)
-    
-    clusterable_embeddings = dimension_reduction(
+    umap_dim_reducer, clusterable_embeddings = dimension_reduction(
         all_vectors,
         n_neighbors=n_neighbors,
         min_dist=min_dist,
         n_components=n_components,
         random_state=random_state)
     
+    save_model(
+        model=umap_dim_reducer,
+        path_to_current_df_dir=path_to_current_df_dir,
+        model_name=umap_model_name
+    )
+    
     logger.info(f"Applied UMAP to reduce dimensions of embeddings to {n_components}")
     
-    dimensions_2d = dimension_reduction(
+    dim_reducer_2d, dimensions_2d = dimension_reduction(
         all_vectors, 
         n_neighbors=n_neighbors,
         min_dist=min_dist,
         n_components=2,
         random_state=random_state)
     
+    save_model(
+        model=dim_reducer_2d,
+        path_to_current_df_dir=path_to_current_df_dir,
+        model_name=reducer_2d_model_name
+    )
+    
     logger.info(f"Applied UMAP to reduce dimensions for visualization")
 
-    labels = cluster_sentences(
+    clusterer = cluster_sentences(
         clusterable_embeddings,
         min_cluster_size=min_cluster_size,
         min_samples=min_samples,
         metric=metric,                      
         cluster_selection_method=cluster_selection_method)
+
+    save_model(
+        model=clusterer,
+        path_to_current_df_dir=path_to_current_df_dir,
+        model_name=clusterer_model_name
+    )
     
-    logger.info(f"Clusters calculated successfully, number of clusters: {len(set(labels))}")
+    logger.info(f"Clusters calculated successfully, number of clusters: {len(set(clusterer.labels_))}")
 
     df = pd.DataFrame({
         'x': dimensions_2d[:, 0],
         'y': dimensions_2d[:, 1],
-        labels_column: labels,
+        labels_column: clusterer.labels_,
     })
 
     logger.info("Succesfully created dataframe for topic visuzalization")
@@ -189,4 +289,130 @@ def get_clusters_for_choosen_files(
     logger.info("Succesfully merged dataframes into result df")
     logger.debug(f'result_df: {result_df}')
 
+    saved_cardinalities = set_rows_cardinalities(
+        path_to_cardinalities_file=os.path.join(path_to_current_df_dir, rows_cardinalities_file),
+        updated_cardinalities=rows_cardinalities_dict
+    )
+
+    if isinstance(saved_cardinalities, bool):
+        logger.info('Rows cardinalities of each file which is a part of current_df saved successfully')
+    else:
+        logger.error('Failed to save rows cardinalities for current_df')
+
     return df
+
+def get_cluster_labels_for_new_file(
+        filename: str,
+        path_to_current_df: str,
+        path_to_current_df_dir: str,
+        path_to_cleared_files_dir: str,
+        path_to_faiss_vetors_dir: str,
+        required_columns: list,
+        clusterer_model_name: str = 'clusterer.pkl',
+        umap_model_name: str = 'umap_reducer.pkl',
+        reducer_2d_model_name: str = 'dim_reducer_2d.pkl',
+        cleared_files_ext: str = '.parquet.gzip',
+        index_ext: str = '.index',
+        filename_column: str = 'filename',
+        label_column: str = 'labels'):
+
+    hdbscan_loaded_model = load_model(
+        path_to_current_df_dir=path_to_current_df_dir,
+        model_name=clusterer_model_name
+    )
+
+    logger.debug(f'Loaded HDBSCAN model {clusterer_model_name}')
+
+    umap_reducer = load_model(
+        path_to_current_df_dir=path_to_current_df_dir,
+        model_name=umap_model_name
+    )
+
+    logger.debug(f'Loaded UMAP model {umap_model_name}')
+
+    reducer_2d = load_model(
+        path_to_current_df_dir=path_to_current_df_dir,
+        model_name=reducer_2d_model_name
+    )
+
+    logger.debug(f'Loaded UMAP model for 2D reduction {reducer_2d_model_name}')
+
+    vector_embeddings = load_embeddings_from_index(
+        os.path.join(path_to_faiss_vetors_dir, f"{os.path.splitext(filename)[0]}{index_ext}")
+    )
+
+    logger.debug(f'Successuffly laoded embeddings for {filename}')
+
+    clusterable_embeddings = umap_reducer.transform(vector_embeddings)
+    logger.info(f"Applied UMAP model for getting clusterable_embeddings")
+
+    dimensions_2d = reducer_2d.transform(vector_embeddings)
+    logger.info(f"Applied UMAP model for getting 2D coridinates for vizualization")
+
+    labels_for_new_file, strenghts = hdbscan.approximate_predict(
+        hdbscan_loaded_model, clusterable_embeddings)
+    
+    logger.info(f'Successfully calculated labels for new file {filename}')
+    
+    new_file_df = read_file(
+        os.path.join(path_to_cleared_files_dir, f'{os.path.splitext(filename)[0]}{cleared_files_ext}'), 
+        columns=None)
+        
+    new_file_df[filename_column] = filename
+
+    cords_and_labels_df = pd.DataFrame({
+        'x': dimensions_2d[:, 0],
+        'y': dimensions_2d[:, 1],
+        label_column: labels_for_new_file,
+    })
+
+    new_file_df = pd.concat([new_file_df, cords_and_labels_df], axis=1)
+
+    logger.info(f'Prepared df {filename} for concatenation with current_df')
+
+    current_df = read_file(
+        file_path=path_to_current_df
+    )
+
+    concat_new_df_to_current_df(
+        new_file_df=new_file_df.astype({col: str for col in required_columns}),
+        current_df=current_df,
+        current_df_path=path_to_current_df
+    )
+
+    logger.info(f'Updated current_df with new rows from {filename}')
+
+    return True
+
+def cluster_recalculation_needed(
+    n_of_rows: int,
+    rows_cardinalities_current_df: dict,
+    recalculate_treshold: float,
+    used_as_base_key: str = 'used_as_base',
+    only_classified_key: str = 'only_classified') -> bool:
+
+    try:
+        n_of_rows_for_base = sum(rows_cardinalities_current_df.get(used_as_base_key).values())
+    except ValueError:
+        logger.error('Can not calculate number of rows used for base clusterization')
+        return None
+    else:
+
+        only_classified_dict = rows_cardinalities_current_df.get(only_classified_key)
+
+        if not only_classified_dict:
+            n_of_only_classified = 0
+        else:
+            n_of_only_classified = sum(only_classified_dict.values())
+
+        logger.debug(f'Sum: {n_of_only_classified + n_of_rows}')
+        logger.debug(f'Threshold: {n_of_rows_for_base * recalculate_treshold}')
+
+        if n_of_only_classified + n_of_rows \
+            <= n_of_rows_for_base * recalculate_treshold:
+
+            return False
+        
+        return True
+
+

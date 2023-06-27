@@ -14,11 +14,13 @@ DIRECTORIES:
 
 FILES:
   embedded_json: embeddings.json
+  rows_cardinalities: rows_cardinalities.json
   current_df: current_df.parquet.gzip
   filtered_df: filtered_df.parquet.gzip
   polish_swearwords: 'polish_swearwords.txt'
   english_swearwords: 'english_swearwords.txt'
   filtered_df: filtered_df.csv
+  topics_df: topics_df.csv
 
 
 INPUT_FILES_SETTINGS:
@@ -46,6 +48,7 @@ RAPORT_SETTINGS:
     - Category 
     - Application_Name
     - content
+    - filename
     - sentiment 
     - labels
 
@@ -64,9 +67,12 @@ PIPELINE:
 
 ML:
   seed: 42
+  recalculate_clusters_treshold: 0.2
   embeddings:
-    model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+    model_name: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
   UMAP:
+    dim_reducer_model_name: 'umap_reducer.pkl'
+    reducer_2d_model_name: 'dim_reducer_2d.pkl'
     n_neighbors: 15
     min_dist: 0.0
     n_components: 5
@@ -75,14 +81,12 @@ ML:
   sentiment:
     model_name: 'cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual'
     
-  HDBSCAN:
+  HDBSCAN_SETTINGS:
+    model_name: 'clusterer.pkl'
     min_cluster_size: 15
     min_samples: 15
     metric: euclidean                      
     cluster_selection_method: eom
- 
-  sentiment:
-    model_name: 'cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual'
 
 FILTERING:
   download_name: 'filtered_data.xlsx'
