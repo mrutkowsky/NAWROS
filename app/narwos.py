@@ -465,6 +465,7 @@ def show_clusters():
         
         raports_to_show = [
             raport for raport in raports 
+            if raport != '.gitkeep'
         ]
         print(raports_to_show)
         
