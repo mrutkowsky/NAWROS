@@ -112,8 +112,8 @@
                 </form>
                 <form style="margin-top: 20px;" action="/update_clusters_new_file"  method="post" enctype="multipart/form-data">
                     <p>Choose exisitng file for clustering</p>
-                    <select class="file">
-                        {% for column in columns %}
+                    <select class="file_name" name="file_name">
+                        {% for file in files %}
                             <option value="{{ file }}">{{ file }}</option>
                         {% endfor %}
                     </select>
@@ -129,16 +129,16 @@
         </form>
         <div class="Compare-reports">
             <div class="mt-20" style="margin-top: 20px;">
-                <form method="post" action="/compare_reports">
+                <form method="post" action="/compare_selected_reports">
                     <label for="chosen_files">Choose reports to compare:</label>
-                        <select class="report-1">
-                            {% for report in reports %}
-                                <option value="{{ report }}">{{ report }}</option>
+                        <select name="raport-1" id="raport-1">
+                            {% for raport in raports %}
+                                <option value="{{ raport }}">{{ raport }}</option>
                             {% endfor %}
                         </select>
-                        <select class="report-2">
-                            {% for report in reports %}
-                                <option value="{{ report }}">{{ report }}</option>
+                        <select name="raport-2"  id="raport-2">
+                            {% for raport in raports %}
+                                <option value="{{ raport }}">{{ raport }}</option>
                             {% endfor %}
                         </select>
                         <br>

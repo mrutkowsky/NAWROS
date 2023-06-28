@@ -12,6 +12,7 @@ DIRECTORIES:
   current_df: current_df
   filtered_df: filtered_df
   swearwords_dir: swear_words
+  raports: raports
 
 FILES:
   embedded_json: embeddings.json
@@ -54,6 +55,7 @@ REPORT_SETTINGS:
     - content
   cluster_exec_filename_prefix: cluster_exec
   cluster_exec_filename_ext: .parquet.gzip
+  download_name: comparing_raports.csv
 
 LOGGER:
   logging_format: '[%(asctime)s] - %(levelname)s - %(message)s'

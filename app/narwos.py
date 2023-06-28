@@ -56,6 +56,7 @@ FILTERED_DF_DIR = DIRECTORIES.get('filtered_df')
 STOPWORDS_DIR = DIRECTORIES.get('stop_words')
 SWEARWORDS_DIR = DIRECTORIES.get('swearwords_dir')
 STOPWORDS_DIR = DIRECTORIES.get('stop_words')
+RAPORTS_DIR = DIRECTORIES.get('raports')
 
 EMBEDDED_JSON = FILES.get('embedded_json')
 CURRENT_DF_FILE = FILES.get('current_df')
@@ -97,6 +98,7 @@ LABELS_COLUMN = REPORT_CONFIG.get('labels_column', 'labels')
 CARDINALITIES_COLUMN = REPORT_CONFIG.get('cardinalities_column', 'counts')
 SENTIMENT_COLUMN = REPORT_CONFIG.get('sentiment_column', 'sentiment')
 FILENAME_COLUMN = REPORT_CONFIG.get('filename_column' 'filename')
+COMPARING_RAPORT_DOWNLOAD_NAME = REPORT_CONFIG.get('download_name')
 
 ALL_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
     LABELS_COLUMN, 
@@ -174,6 +176,11 @@ PATH_TO_SWEARWORDS_DIR = os.path.join(
 PATH_TO_STOPWORDS_DIR = os.path.join(
     DATA_FOLDER,
     STOPWORDS_DIR,
+)
+
+PATH_TO_RAPORTS_DIR = os.path.join(
+    DATA_FOLDER,
+    RAPORTS_DIR,
 )
 
 STOP_WORDS = get_stopwords(PATH_TO_STOPWORDS_DIR)
@@ -452,13 +459,22 @@ def show_clusters():
             v_file for v_file in validated_files 
             if os.path.splitext(v_file)[-1].lower() in ALLOWED_EXTENSIONS
         ]
+
+        raports = os.listdir(
+        PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
+        
+        raports_to_show = [
+            raport for raport in raports 
+        ]
+        print(raports_to_show)
         
         fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
         return render_template("cluster_viz_chartjs.html", 
                                 figure=fig_json, 
                                 columns=ALL_REPORT_COLUMNS, 
                                 files=validated_files_to_show,
-                                message=message)
+                                message=message,
+                                raports=raports_to_show)
         """
         x_values = df['x'].tolist()
         y_values = df['y'].tolist()
@@ -550,6 +566,7 @@ def filter_data_download_report():
 def update_clusters_new_file():
     
     uploaded_file = request.files['file']
+    
     filename = uploaded_file.filename
 
     # if os.path.exists(os.path.join(PATH_TO_VALID_FILES, filename)):
@@ -685,8 +702,10 @@ def update_clusters_new_file():
 @app.route('/compare_selected_reports', methods=['POST'])
 def compare_selected_reports():
 
-    filename1 = request.form.get('field1')
-    filename2 = request.form.get('field2')
+    filename1 = request.form.get('raport-1')
+    filename2 = request.form.get('raport-2')
+
+    logger.debug(filename1, filename2)
 
     comparison_result_df = compare_reports(
         first_report_name=filename1,
@@ -703,8 +722,15 @@ def compare_selected_reports():
         index=False
     )
 
-    return 'ok'
-
+    file_type = 'csv'
+    output = write_file(comparison_result_df, file_type)
+    response = make_response(send_file(
+        output,
+        mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment = True,
+        download_name = COMPARING_RAPORT_DOWNLOAD_NAME
+    ))
+    return response
 
 if __name__ == '__main__':
     app.run(debug=False)
