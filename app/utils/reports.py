@@ -201,3 +201,19 @@ def compare_reports(
         columns=result_columns)
 
     return result_df
+
+def find_latest_two_reports(path_to_reports_dir: str):
+    report_files = []
+
+    timestamp_pattern = r"_\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}"
+
+    files = os.listdir(path_to_reports_dir)
+
+    for file in files:
+        match = re.search(timestamp_pattern, file)
+        if match:
+            report_files.append(file)
+
+    report_files.sort(reverse=True)
+
+    return report_files[:2]

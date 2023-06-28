@@ -22,7 +22,7 @@ from utils.cluster import get_clusters_for_choosen_files, \
     cluster_recalculation_needed, \
     cns_after_clusterization
 from utils.filtering import write_file
-from utils.reports import compare_reports
+from utils.reports import compare_reports, find_latest_two_reports
 from copy import copy
 
 app = Flask(__name__)
@@ -707,6 +707,36 @@ def compare_selected_reports():
     filename2 = request.form.get('raport-2')
 
     logger.debug(filename1, filename2)
+
+    comparison_result_df = compare_reports(
+        first_report_name=filename1,
+        second_report_name=filename2,
+        path_to_reports_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR
+    )
+
+    logger.debug(comparison_result_df)
+
+    comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}_comparison.csv"
+
+    comparison_result_df.to_csv(
+        path_or_buf=os.path.join(PATH_TO_COMPARING_REPORTS_DIR, comparison_report_filename),
+        index=False
+    )
+
+    file_type = 'csv'
+    output = write_file(comparison_result_df, file_type)
+    response = make_response(send_file(
+        output,
+        mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment = True,
+        download_name = COMPARING_RAPORT_DOWNLOAD_NAME
+    ))
+    return response
+
+@app.route('/compare_with_last_report', methods=['POST'])
+def compare_with_last_report():
+    
+    filename1, filename2 = find_latest_two_reports(PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
 
     comparison_result_df = compare_reports(
         first_report_name=filename1,
