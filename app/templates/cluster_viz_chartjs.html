@@ -88,7 +88,7 @@
         <div class="Compare">
             <h3>Qucik clustering</h3>
             <div class="Qucik-clustering">
-                <form action="/upload_file_for_quick_cluster"  method="post" enctype="multipart/form-data">
+                <form action="/update_clusters_new_file"  method="post" enctype="multipart/form-data">
                     <label>Load new file:</label>
                         <input type="file" name="file" multiple>
                         <br><br>
@@ -110,9 +110,9 @@
                             </ol>
                         {% endif %}
                 </form>
-                <form style="margin-top: 20px;" action="/existing_file_for_quick_clustering"  method="post" enctype="multipart/form-data">
+                <form style="margin-top: 20px;" action="/update_clusters_new_file"  method="post" enctype="multipart/form-data">
                     <p>Choose exisitng file for clustering</p>
-                    <select class="existing_file_for_quick_clustering">
+                    <select class="file">
                         {% for column in columns %}
                             <option value="{{ file }}">{{ file }}</option>
                         {% endfor %}
@@ -120,6 +120,9 @@
                     <input type="submit" value="Cluster with existing file">
                 </form>
             </div>
+        {% if message %}
+            <h4 style="color: rgb(18, 131, 196)">{{ message }}</h4>
+        {% endif %}
         <h3 style="margin-top: 20px;">Compare reports</h3>
         <form method="post" action="/compare_reports_last">
             <input type="submit" style="text-align: center;" value="Compare report with last">

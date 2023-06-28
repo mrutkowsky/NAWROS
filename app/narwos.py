@@ -432,6 +432,7 @@ def show_clusters_submit():
 
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
+    message = request.args.get("message")
 
     df = read_file(PATH_TO_CURRENT_DF)
 
@@ -453,7 +454,11 @@ def show_clusters():
         ]
         
         fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
-        return render_template("cluster_viz_chartjs.html", figure=fig_json, columns=RAPORT_COLUMNS, files=validated_files_to_show)
+        return render_template("cluster_viz_chartjs.html", 
+                                figure=fig_json, 
+                                columns=ALL_REPORT_COLUMNS, 
+                                files=validated_files_to_show,
+                                message=message)
         """
         x_values = df['x'].tolist()
         y_values = df['y'].tolist()
@@ -669,13 +674,13 @@ def update_clusters_new_file():
 
             n_clusters = len(new_current_df[LABELS_COLUMN].unique())
 
-            return redirect(url_for("index", message=f"{n_clusters} clusters has been created successfully."))
+            return redirect(url_for("show_clusters", message=f"{n_clusters} clusters has been created successfully."))
         
     else:
         logger.error(f'Can not preprocess file {filename}')
-        return redirect(url_for("index", message=f'Can not upload file {filename} for clusters update!'))
+        return redirect(url_for("show_clusters", message=f'Can not upload file {filename} for clusters update!'))
 
-    return redirect(url_for("index", message=f"Cluster labels for {filename} have been successfully assigned."))
+    return redirect(url_for("show_clusters", message=f"Cluster labels for {filename} have been successfully assigned."))
     
 @app.route('/compare_selected_reports', methods=['POST'])
 def compare_selected_reports():
@@ -702,7 +707,7 @@ def compare_selected_reports():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
 
 
 
