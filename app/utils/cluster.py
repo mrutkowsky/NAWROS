@@ -470,8 +470,10 @@ def cns_after_clusterization(
         only_update: bool = False,
         topic_df_file_name: str = None,
         current_df_filename: str = 'current_df',
+        content_column_name: str = 'content',
         labels_column: str = 'labels',
         cardinalities_column: str = 'counts',
+        no_topic_token: str = '-',
         cluster_exec_filename_prefix: str = 'cluster_exec',
         cluster_exec_filename_ext: str = '.parquet.gzip'):
 
@@ -482,7 +484,10 @@ def cns_after_clusterization(
 
         clusters_topics_df = get_topics_from_texts(
             df=new_current_df,
-            stop_words=stop_words
+            stop_words=stop_words,
+            content_column_name=content_column_name,
+            label_column_name=labels_column,
+            no_topic_token=no_topic_token
         )
 
         logger.debug('Extracted topics from DataFrame')

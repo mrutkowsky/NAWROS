@@ -125,12 +125,49 @@
         {% endif %}
         <h3 style="margin-top: 20px;">Compare reports</h3>
         <form method="post" action="/compare_with_last_report">
+            
+            <label for="file-format">File Format:</label><br>
+
+            <input type="radio" id="csv" name="file-format" value="csv">
+            <label for="csv">CSV</label>
+
+            <input type="radio" id="excel" name="file-format" value="excel">
+            <label for="excel">Excel</label>
+
+            <input type="radio" id="html" name="file-format" value="html">
+            <label for="html">HTML</label>
+
+            <input type="radio" id="pdf" name="file-format" value="pdf">
+            <label for="pdf">PDF</label>
+
+            <input type="radio" id="powerpoint" name="file-format" value="powerpoint">
+            <label for="powerpoint">PowerPoint</label>
+
             <input type="submit" style="text-align: center;" value="Compare report with last">
         </form>
         <div class="Compare-reports">
             <div class="mt-20" style="margin-top: 20px;">
                 <form method="post" action="/compare_selected_reports">
-                    <label for="chosen_files">Choose reports to compare:</label>
+                        <label for="file-format">File Format:</label><br>
+
+                        <input type="radio" id="csv" name="file-format" value="csv">
+                        <label for="csv">CSV</label>
+
+                        <input type="radio" id="excel" name="file-format" value="excel">
+                        <label for="excel">Excel</label>
+
+                        <input type="radio" id="html" name="file-format" value="html">
+                        <label for="html">HTML</label>
+
+                        <input type="radio" id="pdf" name="file-format" value="pdf">
+                        <label for="pdf">PDF</label>
+
+                        <input type="radio" id="powerpoint" name="file-format" value="powerpoint">
+                        <label for="powerpoint">PowerPoint</label>
+                        
+                        <br><br>
+
+                        <label for="chosen_files">Choose reports to compare:</label>
                         <select name="raport-1" id="raport-1">
                             {% for raport in raports %}
                                 <option value="{{ raport }}">{{ raport }}</option>

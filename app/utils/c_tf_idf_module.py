@@ -116,7 +116,8 @@ def perform_ctfidf(
         joined_texts: list or pd.Series,
         clusters_labels: list or pd.Series,
         df_number_of_rows: int,
-        stop_words: list = None) -> np.array:
+        stop_words: list = None,
+        no_topic_token: str = '-') -> np.array:
     
     """Perform c-TF-IDF transformation on joined texts.
 
@@ -149,18 +150,25 @@ def perform_ctfidf(
         stop_words = []
     
     words_per_class = []
-    
+
     for label in clusters_labels:
 
         current = []
 
-        for index in ctfidf[label + 1].argsort()[::-1]:
+        tf_idf_scores = sorted(ctfidf[label + 1], reverse=True)
+        best_topics_idx = ctfidf[label + 1].argsort()[::-1]
+
+        for score, idx in zip(tf_idf_scores, best_topics_idx):
+
+            if score <= 0:
+                while len(current) != 5:
+                    current.append(no_topic_token)
 
             if len(current) == 5:
-                break
+                 break
 
-            if words[index] not in stop_words:
-                current.append(words[index])
+            if score > 0 and words[idx] not in stop_words:
+                current.append(words[idx])
             else:
                 continue
 
@@ -200,7 +208,8 @@ def get_topics_from_texts(
         df: pd.DataFrame,
         stop_words: list = None,
         content_column_name: str = 'content',
-        label_column_name: str = 'labels') -> tuple[list]:
+        label_column_name: str = 'labels',
+        no_topic_token: str = '-') -> tuple[list]:
     
     """Get topics from texts using c-TF-IDF.
 
@@ -233,7 +242,8 @@ def get_topics_from_texts(
         joined_texts=docs_per_class[content_column_name],
         clusters_labels=docs_per_class[label_column_name],
         df_number_of_rows=n_of_rows,
-        stop_words=stop_words)
+        stop_words=stop_words,
+        no_topic_token=no_topic_token)
     
     logging.info('Properly exctracted topics from clusters')
     

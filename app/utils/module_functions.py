@@ -2,6 +2,9 @@ import pandas as pd
 import os
 import yaml
 import logging
+import io
+from flask import make_response
+import json
 
 logger = logging.getLogger(__file__)
 
@@ -30,7 +33,7 @@ def compare_columns(
 def validate_file(
         file_path, 
         required_columns,
-        delimeter: str = r'[;,]'):
+        delimeter: str = ';'):
     
     """
     Validate a file by checking if it has the required columns.
@@ -57,8 +60,8 @@ def validate_file(
             return "Invalid file format or structure."
         else:
 
-            if file_df.empty:
-                return "Empty dataframe."
+            if file_df.iloc[0].isnull().any():
+                return "Empty dataframe or provided file has missing data in the first line of file."
             
             logger.debug(f"Loaded filename df {file_df}")
 
@@ -76,17 +79,14 @@ def validate_file(
             file_df = pd.read_csv(
                 file_path, 
                 nrows=1,
-                sep=delimeter,
-                engine='python')
+                sep=delimeter)
              
         except (pd.errors.ParserError, pd.errors.EmptyDataError):
             return "Invalid file format or structure."
         else:
 
-            logger.debug(f"Loaded filename df {file_df}")
-
-            if file_df.empty:
-                return "Empty dataframe."
+            if file_df.iloc[0].isnull().any():
+                return "Empty dataframe or provided file has missing data in the first line of file."
 
             column_dismatch = compare_columns(
                 file_columns=file_df.columns,
@@ -140,3 +140,23 @@ def read_config(
         config = yaml.load(yaml_file, Loader=yaml.SafeLoader)
 
     return config
+
+def return_valid_response_file(
+        filename: str,
+        report_format: str,
+        mimetype: str,
+        ext: str):
+
+    resp = make_response()
+    resp.headers["Content-Disposition"] = \
+        f"attachment; filename={filename}.{ext}"
+    resp.headers["Content-type"] = mimetype
+
+    return resp
+
+def get_report_ext(
+    path_to_arf_dir: str,
+    filename: str):
+
+    with open(os.path.join(path_to_arf_dir, filename), 'r', encoding='utf-8') as arf_json:
+        return json.load(arf_json)

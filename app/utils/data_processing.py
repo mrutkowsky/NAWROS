@@ -28,8 +28,7 @@ class MyDataset(Dataset):
 
 def read_file(
         file_path: str, 
-        columns: list = None,
-        allowed_sep: str = r'[;,]') -> pd.DataFrame:
+        columns: list = None) -> pd.DataFrame:
     
     """
     Read a file and return its content as a DataFrame.
@@ -49,9 +48,7 @@ def read_file(
     else:
         df = pd.read_csv(
             file_path, 
-            usecols=columns, 
-            delimiter=allowed_sep, 
-            engine='python')
+            usecols=columns)
 
     logger.debug(f'df: {df}')
 
@@ -201,7 +198,7 @@ def save_df_to_file(
             saving_path,
             index=False)
         
-    elif file_ext == '.excel':
+    elif file_ext == '.xlsx':
         df.to_excel(
             saving_path,
             index=False
@@ -209,6 +206,15 @@ def save_df_to_file(
 
     elif file_ext == '.csv':
         df.to_csv(
+            saving_path,
+            index=False
+        )
+
+    elif file_ext == '.html':
+
+        formatters = None
+
+        df.to_html(
             saving_path,
             index=False
         )

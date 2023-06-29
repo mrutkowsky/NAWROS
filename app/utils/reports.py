@@ -86,6 +86,8 @@ def compare_reports(
         path_to_reports_dir: str,
         only_for_existence: bool = False,
         topics_number: int = 5,
+        must_match_topics_numbers: int = 3,
+        no_topic_token: str = '-',
         topic_preffix_name: str = 'Word',
         cardinality_column: str = 'counts',
         old_report_column_prefix: str = 'Old',
@@ -160,17 +162,19 @@ def compare_reports(
 
     for _, row2 in report2.iterrows():
 
-        group2 = set(row2[topic_columns])  
+        group2 = set(row2[topic_columns]).difference(no_topic_token)  
         cardinality2 = row2[cardinality_column]
 
         new_group_flag = True
 
         for _, row1 in report1.iterrows():
 
-            group1 = set(row1[topic_columns])  
+            group1 = set(row1[topic_columns]).difference(no_topic_token)  
             cardinality1 = row1[cardinality_column]
 
-            if len(group2.intersection(group1)) >= 3:
+            if (len(group2.intersection(group1)) >= must_match_topics_numbers) \
+                or (group2.issubset(group1)) \
+                or (group1.issubset(group2)):
 
                 growth = cardinality2 - cardinality1
                 growth_str = f'+{growth}' if growth >= 0 else str(growth)
@@ -209,10 +213,10 @@ def find_latest_two_reports(path_to_reports_dir: str):
 
     files = os.listdir(path_to_reports_dir)
 
-    for file in files:
-        match = re.search(timestamp_pattern, file)
+    for file_ in files:
+        match = re.search(timestamp_pattern, file_)
         if match:
-            report_files.append(file)
+            report_files.append(file_)
 
     report_files.sort(reverse=True)
 

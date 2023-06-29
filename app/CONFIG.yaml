@@ -12,7 +12,7 @@ DIRECTORIES:
   current_df: current_df
   filtered_df: filtered_df
   swearwords_dir: swear_words
-  raports: raports
+  allowed_reports_formats: allowed_reports_formats
 
 FILES:
   embedded_json: embeddings.json
@@ -23,6 +23,7 @@ FILES:
   english_swearwords: 'english_swearwords.txt'
   filtered_df: filtered_df.csv
   topics_df: topics_df.csv
+  ext_mappings: mimetypes_formats.json
 
 INPUT_FILES_SETTINGS:
   allowed_extensions:
@@ -53,6 +54,9 @@ REPORT_SETTINGS:
     - Category 
     - Application_Name
     - content
+
+  no_topic_token: '-'
+  comparing_report_suffix: _comparison
   cluster_exec_filename_prefix: cluster_exec
   cluster_exec_filename_ext: .parquet.gzip
   download_name: comparing_raports.csv

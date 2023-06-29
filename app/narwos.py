@@ -6,14 +6,16 @@ import logging
 from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
-    read_config
+    read_config, \
+    get_report_ext
 from utils.data_processing import process_data_from_choosen_files, \
     get_stopwords, \
     read_file, \
     del_file_from_embeded, \
     get_swearwords, \
     get_rows_cardinalities, \
-    set_rows_cardinalities
+    set_rows_cardinalities, \
+    save_df_to_file
 import plotly.express as px
 import json
 import plotly
@@ -21,7 +23,6 @@ from utils.cluster import get_clusters_for_choosen_files, \
     get_cluster_labels_for_new_file, \
     cluster_recalculation_needed, \
     cns_after_clusterization
-from utils.filtering import write_file
 from utils.reports import compare_reports, find_latest_two_reports
 from copy import copy
 
@@ -57,12 +58,14 @@ STOPWORDS_DIR = DIRECTORIES.get('stop_words')
 SWEARWORDS_DIR = DIRECTORIES.get('swearwords_dir')
 STOPWORDS_DIR = DIRECTORIES.get('stop_words')
 RAPORTS_DIR = DIRECTORIES.get('raports')
+ALLOWED_REPORT_EXT_DIR = DIRECTORIES.get('allowed_reports_formats')
 
 EMBEDDED_JSON = FILES.get('embedded_json')
 CURRENT_DF_FILE = FILES.get('current_df')
 FILTERED_DF_FILE = FILES.get('filtered_df')
 TOPICS_DF_FILE = FILES.get('topics_df')
 ROWS_CARDINALITIES_FILE = FILES.get('rows_cardinalities')
+EXT_MAPPINGS_FILE = FILES.get('ext_mappings')
 
 EMPTY_CONTENTS_EXT = EMPTY_CONTENT_SETTINGS.get('empty_content_ext')
 EMPTY_CONTENTS_SUFFIX = EMPTY_CONTENT_SETTINGS.get('empty_content_suffix')
@@ -99,6 +102,8 @@ CARDINALITIES_COLUMN = REPORT_CONFIG.get('cardinalities_column', 'counts')
 SENTIMENT_COLUMN = REPORT_CONFIG.get('sentiment_column', 'sentiment')
 FILENAME_COLUMN = REPORT_CONFIG.get('filename_column' 'filename')
 COMPARING_RAPORT_DOWNLOAD_NAME = REPORT_CONFIG.get('download_name')
+NO_TOPIC_TOKEN = REPORT_CONFIG.get('no_topic_token')
+COMPARING_REPORT_SUFFIX = REPORT_CONFIG.get('comparing_report_suffix')
 
 ALL_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
     LABELS_COLUMN, 
@@ -109,6 +114,11 @@ ALL_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
 
 CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('cluster_exec_filename_prefix')
 CLUSTER_EXEC_FILENAME_EXT = REPORT_CONFIG.get('cluster_exec_filename_ext')
+
+REPORT_FORMATS_MAPPING = get_report_ext(
+    ALLOWED_REPORT_EXT_DIR,
+    EXT_MAPPINGS_FILE
+)
 
 PATH_TO_VALID_FILES = os.path.join(
     DATA_FOLDER,
@@ -176,11 +186,6 @@ PATH_TO_SWEARWORDS_DIR = os.path.join(
 PATH_TO_STOPWORDS_DIR = os.path.join(
     DATA_FOLDER,
     STOPWORDS_DIR,
-)
-
-PATH_TO_RAPORTS_DIR = os.path.join(
-    DATA_FOLDER,
-    RAPORTS_DIR,
 )
 
 STOP_WORDS = get_stopwords(PATH_TO_STOPWORDS_DIR)
@@ -344,24 +349,26 @@ def delete_file():
                         return redirect(url_for("index", message=f'Can not del {filename} from {data_dir} dir!'))
                     else:
                         logger.info(f'Successfully deleted file from {data_dir}')
+
+                        if data_dir == PATH_TO_FAISS_VECTORS_DIR:
  
-        deleted_successfully_from_json = del_file_from_embeded(
-            filename_to_del=filename,
-            path_to_embeddings_file=os.path.join(EMBEDDINGS_DIR, EMBEDDED_JSON)
-        )
+                            deleted_successfully_from_json = del_file_from_embeded(
+                                filename_to_del=filename,
+                                path_to_embeddings_file=os.path.join(EMBEDDINGS_DIR, EMBEDDED_JSON)
+                            )
 
-        if deleted_successfully_from_json:
+                            if deleted_successfully_from_json:
 
-            logger.info(f'Successfully deleted {filename} from JSON file')
+                                logger.info(f'Successfully deleted {filename} from JSON file')
 
-        else:
+                            else:
 
-            logger.error(f'Failed to delete {filename} from JSON file')
-            return redirect(url_for("index", message=f'Failed to delete {filename} from JSON file.'))
+                                logger.error(f'Failed to delete {filename} from JSON file')
+                                return redirect(url_for("index", message=f'Failed to delete {filename} from JSON file.'))
         
         return redirect(url_for("index", message=f'File {filename} deleted successfully.'))
     
-@app.route('/choose_files_for_clusters', methods=['POST'])
+@app.route('/choose_files_for_clusters', methods=['POST', 'GET'])
 def choose_files_for_clusters():
 
     files_for_clustering = request.form.getlist('chosen_files')
@@ -418,7 +425,9 @@ def choose_files_for_clusters():
         labels_column=LABELS_COLUMN,
         cardinalities_column=CARDINALITIES_COLUMN,
         cluster_exec_filename_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
-        cluster_exec_filename_ext=CLUSTER_EXEC_FILENAME_EXT
+        cluster_exec_filename_ext=CLUSTER_EXEC_FILENAME_EXT,
+        content_column_name=CONTENT_COLUMN,
+        no_topic_token=NO_TOPIC_TOKEN
     )
 
     logger.debug(f'Files {files_for_clustering} processed successfully.')
@@ -426,8 +435,7 @@ def choose_files_for_clusters():
     n_clusters = len(new_current_df[LABELS_COLUMN].unique())
 
     return redirect(url_for("index", message=f"{n_clusters} clusters has been created successfully."))
-
-
+    
 @app.route('/show_clusters_submit', methods=['POST'])
 def show_clusters_submit():
 
@@ -562,6 +570,7 @@ def filter_data_download_report():
         as_attachment = True,
         download_name = FILTERING_DOWNLOAD_NAME
     ))
+
     return response
 
 @app.route('/update_clusters_new_file', methods=['POST'])
@@ -688,7 +697,9 @@ def update_clusters_new_file():
                 labels_column=LABELS_COLUMN,
                 cardinalities_column=CARDINALITIES_COLUMN,
                 cluster_exec_filename_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
-                cluster_exec_filename_ext=CLUSTER_EXEC_FILENAME_EXT
+                cluster_exec_filename_ext=CLUSTER_EXEC_FILENAME_EXT,
+                content_column_name=CONTENT_COLUMN,
+                no_topic_token=NO_TOPIC_TOKEN
             )
 
             n_clusters = len(new_current_df[LABELS_COLUMN].unique())
@@ -706,6 +717,11 @@ def compare_selected_reports():
 
     filename1 = request.form.get('raport-1')
     filename2 = request.form.get('raport-2')
+    report_format_form = request.form.get('file-format')
+
+    ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, "csv")
+    report_ext = ext_settings.get('ext', '.csv')
+    report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
     logger.debug(filename1, filename2)
 
@@ -717,27 +733,35 @@ def compare_selected_reports():
 
     logger.debug(comparison_result_df)
 
-    comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}_comparison.csv"
+    comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
 
-    comparison_result_df.to_csv(
-        path_or_buf=os.path.join(PATH_TO_COMPARING_REPORTS_DIR, comparison_report_filename),
-        index=False
+    save_df_to_file(
+        df=comparison_result_df,
+        filename=comparison_report_filename,
+        path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
+        file_ext=report_ext
     )
 
-    file_type = 'csv'
-    output = write_file(comparison_result_df, file_type)
+    path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR, f"{comparison_report_filename}{report_ext}")
+
     response = make_response(send_file(
-        output,
-        mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        path_to_new_report,
+        mimetype = report_mimetype,
         as_attachment = True,
-        download_name = COMPARING_RAPORT_DOWNLOAD_NAME
+        download_name = f"{comparison_report_filename}{report_ext}"
     ))
+
     return response
 
 @app.route('/compare_with_last_report', methods=['POST'])
 def compare_with_last_report():
     
     filename1, filename2 = find_latest_two_reports(PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
+    report_format_form = request.form.get('file-format')
+
+    ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, "csv")
+    report_ext = ext_settings.get('ext', '.csv')
+    report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
     comparison_result_df = compare_reports(
         first_report_name=filename1,
@@ -747,21 +771,24 @@ def compare_with_last_report():
 
     logger.debug(comparison_result_df)
 
-    comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}_comparison.csv"
+    comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
 
-    comparison_result_df.to_csv(
-        path_or_buf=os.path.join(PATH_TO_COMPARING_REPORTS_DIR, comparison_report_filename),
-        index=False
+    save_df_to_file(
+        df=comparison_result_df,
+        filename=comparison_report_filename,
+        path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
+        file_ext=report_ext
     )
 
-    file_type = 'csv'
-    output = write_file(comparison_result_df, file_type)
+    path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR, f"{comparison_report_filename}{report_ext}")
+
     response = make_response(send_file(
-        output,
-        mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        path_to_new_report,
+        mimetype = report_mimetype,
         as_attachment = True,
-        download_name = COMPARING_RAPORT_DOWNLOAD_NAME
+        download_name = f"{comparison_report_filename}{report_ext}"
     ))
+
     return response
 
 if __name__ == '__main__':
