@@ -1,6 +1,9 @@
 import pandas as pd
 import os
 import yaml
+import logging
+
+logger = logging.getLogger(__file__)
 
 def compare_columns(
     file_columns: str,
@@ -17,10 +20,12 @@ def compare_columns(
         set: A set of column names that are missing in the file.
     """
 
-    column_dismatch = set(map(str.lower, required_columns)).difference(
-        set(map(str.lower, file_columns))) 
+    required_columns_set = set(map(str.lower, required_columns))
+    file_columns_set = set(map(str.lower, file_columns))
+
+    column_compatibility = required_columns_set.issubset(file_columns_set) 
     
-    return column_dismatch
+    return None if column_compatibility else required_columns_set.difference(file_columns_set)
 
 def validate_file(
         file_path, 
@@ -46,13 +51,16 @@ def validate_file(
         try:
             file_df = pd.read_excel(
                 file_path, 
-                nrows=1)
-        except (pd.errors.ParserError, pd.errors.EmptyDataError):
+                nrows=1,
+                usecols=required_columns)
+        except (pd.errors.ParserError, pd.errors.EmptyDataError, ValueError):
             return "Invalid file format or structure."
         else:
 
             if file_df.empty:
                 return "Empty dataframe."
+            
+            logger.debug(f"Loaded filename df {file_df}")
 
             column_dismatch = compare_columns(
                 file_columns=file_df.columns,
@@ -65,14 +73,17 @@ def validate_file(
     else:
 
         try:
-            file_df= pd.read_csv(
+            file_df = pd.read_csv(
                 file_path, 
                 nrows=1,
-                sep=delimeter)
+                sep=delimeter,
+                engine='python')
              
         except (pd.errors.ParserError, pd.errors.EmptyDataError):
             return "Invalid file format or structure."
         else:
+
+            logger.debug(f"Loaded filename df {file_df}")
 
             if file_df.empty:
                 return "Empty dataframe."

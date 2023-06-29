@@ -213,6 +213,7 @@ def upload_and_validate_files(
             file_path = os.path.join(
                 PATH_TO_TMP_DIR, 
                 uploaded_file.filename)
+            
             uploaded_file.save(file_path)
 
             validated_file_content = validate_file(
@@ -764,7 +765,7 @@ def compare_with_last_report():
     return response
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)
 
 
 

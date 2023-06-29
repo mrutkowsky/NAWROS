@@ -5,24 +5,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
   </head>
   <style>
-      .container {  display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr;
-    grid-auto-rows: 1fr;
-    gap: 3px 3px;
-    grid-auto-flow: row;
-    grid-template-areas:
-      "Load-files Delete-files"
-      "Clustering Clustering"
-      ". .";
-  }
-
-  .Load-files { grid-area: Load-files; }
-
-  .Delete-files { grid-area: Delete-files; }
-
-  .Clustering { grid-area: Clustering; }
-
   </style>
   <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
@@ -92,6 +74,7 @@
         <div class="mt-20">
           <form method="post" action="/choose_files_for_clusters">
             <label for="chosen_files">Choose files for clustering:</label>
+            <br>
             {% for file in files %}
                 <input type="checkbox" name="chosen_files" value="{{ file }}"> {{ file }}<br>
             {% endfor %}
@@ -100,81 +83,6 @@
           </form>
         </div>
       </div>
-  </div>
-
-    <!--
-    <h3>Filtering</h3>
-    <div class="mt-20">
-      <form method="post" action="/show_filters_submit">
-        <label for="show_plot">Let me filter results!</label>
-          <button class="my-button" type="submit" name="show_filter" value="show_filter">Show filter</button>
-      </form>
-    </div>
-
-
-    <div class="mt-20">
-      <form action="/choose_files_for_clusters" method="post">
-        <label for="konfiguracje">Dostępne konfiguracje:</label>
-        <select id="konfiguracje" name="konfiguracje">
-          {% for konf in konfiguracje %}
-            <option value="{{ konf }}" {% if konf == "DEFAULT.yaml" %}selected{% endif %}>{{ konf }}</option>
-          {% endfor %}
-        </select>
-        <br><br>
-        <input type="submit" value="Wybierz konfiguracje">
-        {% if komunikat %}
-          {% if komunikat.startswith("(choose)") %}
-            <h4 style="color: green">{{komunikat.split("(choose)")[1]}}</h4>
-          {% endif %}
-        {% endif %}
-      </form>
-    </div>
-
-    <h3>Wyznacz cechy</h3>
-    <div class="wyznacz-cechy mt-20">
-      <form action="/get-features" method="get">
-        <label for="id_obiektu">Id obiektu:</label>
-        <input type="text" id="id_obiektu" name="id_obiektu" required>
-        <br><br>
-        <label for="typ_obiektu">Typ obiektu:</label>
-        <input type="text" id="typ_obiektu" name="typ_obiektu" required>
-        <br><br>
-        <label for="id_wniosku">Id wniosku:</label>
-        <input type="text" id="id_wniosku" name="id_wniosku">
-        <br><br>
-        <label for="stan_na">Stan na:</label>
-        <input type="text" id="stan_na" placeholder="yyyy-mm-dd" name="stan_na" required>
-        <br><br>
-        <input type="submit" value="Wyznacz cechy">
-        {% if komunikat %}
-          {% if komunikat.startswith("(get-features)") %}
-            <h4>{{komunikat.split("(get-features)")[1]}}</h4>
-          {% endif %}
-        {% endif %}
-      </form>
-      <!-- <form action="/choose-params-dz" method="post">
-        <h3>Wyznacz cechy dziecka</h3>
-        <label for="pesel_dziecka">PESEL Dziecka:</label>
-        <input type="text" id="pesel_dziecka" name="pesel_dziecka" required>
-        <br><br>
-        <label for="stan_na">Stan na:</label>
-        <input type="text" id="stan_na" placeholder="yyyy-mm-dd" name="stan_na" required>
-        <br><br>
-        <input type="submit" value="Wyznacz cechy">
-      </form> -->
-
-  <!-- <div class="mt-20">
-    <form action="/choose-params-wn" method="post">
-      <h3>Wyznacz cechy wniosku</h3>
-      <label for="id_ubezpieczonego">ID wniosku:</label>
-      <input type="text" id="id_wniosku" name="id_wniosku" required>
-      <br><br>
-      <label for="stan_na">Stan na:</label>
-      <input type="text" id="stan_na" placeholder="yyyy-mm-dd" name="stan_na" required>
-      <br><br>
-      <input type="submit" value="Wyznacz cechy">
-    </form>
-  </div> -->
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>

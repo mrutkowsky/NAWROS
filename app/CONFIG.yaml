@@ -27,7 +27,7 @@ FILES:
 INPUT_FILES_SETTINGS:
   allowed_extensions:
     - .csv 
-    - .txt'
+    - .txt
     - .xlsx
   required_columns: 
     - Questioned_Date
@@ -59,7 +59,7 @@ REPORT_SETTINGS:
 
 LOGGER:
   logging_format: '[%(asctime)s] - %(levelname)s - %(message)s'
-  logger_level: INFO
+  logger_level: DEBUG
 
 EMPTY_CONTENT_SETTINGS:
   empty_content_suffix: _EMPTY_CONTENT

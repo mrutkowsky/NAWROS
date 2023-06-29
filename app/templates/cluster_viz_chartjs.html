@@ -152,6 +152,7 @@
             <div >
                 <form1 method="post" action="/choose_files_for_filtering">
                     <label for="chosen_files">Choose files for filtering:</label>
+                    <br>
                         {% for file in files %}
                             <input type="checkbox" name="chosen_files" value="{{ file }}"> {{ file }}<br>
                         {% endfor %}

@@ -28,7 +28,8 @@ class MyDataset(Dataset):
 
 def read_file(
         file_path: str, 
-        columns: list = None) -> pd.DataFrame:
+        columns: list = None,
+        allowed_sep: str = r'[;,]') -> pd.DataFrame:
     
     """
     Read a file and return its content as a DataFrame.
@@ -46,7 +47,11 @@ def read_file(
     elif file_path.endswith('.parquet.gzip'):
         df = pd.read_parquet(file_path, columns=columns)
     else:
-        df = pd.read_csv(file_path, usecols=columns)
+        df = pd.read_csv(
+            file_path, 
+            usecols=columns, 
+            delimiter=allowed_sep, 
+            engine='python')
 
     logger.debug(f'df: {df}')
 
