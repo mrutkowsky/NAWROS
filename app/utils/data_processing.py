@@ -6,12 +6,18 @@ import logging
 import numpy as np
 import pandas as pd
 import faiss
+import torch
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
+import sys
+import spacy
+import lemminflect
+from collections import Counter
 
 from utils.embeddings_module import load_transformer_model, get_embeddings
 from utils.etl import preprocess_text
 from utils.sentiment_analysis import load_sentiment_model, predict_sentiment, offensive_language
+from utils.translation import load_lang_detector, load_translation_model, detect_lang, translate_text
 
 logger = logging.getLogger(__file__)
 
@@ -221,6 +227,26 @@ def save_df_to_file(
     
     else:
         return 'Unallowed file extension'
+    
+def create_dataloader(
+    df: pd.DataFrame,
+    target_column: str or list,
+    batch_size: int,
+    shuffle: bool = False):
+
+    base_data = df[target_column].to_frame() \
+        if isinstance(target_column, str) \
+        else df[target_column]
+    
+    dataset = MyDataset(base_data)
+    
+    dataloader = DataLoader(
+        dataset, 
+        batch_size=batch_size, 
+        shuffle=shuffle
+    )
+
+    return dataloader
 
 def process_data_from_choosen_files(
         chosen_files: list,
@@ -232,9 +258,13 @@ def process_data_from_choosen_files(
         embedded_files_filename: str,
         embeddings_model_name: str,
         sentiment_model_name: str,
+        lang_detection_model_name: str,
+        translation_model_name: str,
         swearwords: list,
+        currently_serviced_langs: str = 'pl',
         content_column_name: str = 'content',
         sentiment_column_name: str = 'sentiment',
+        detected_language_column_name: str = 'detected_language',
         offensive_label: str = 'offensive',
         faiss_vector_ext: str = '.index',
         cleread_file_ext: str = '.gzip.parquet',
@@ -290,19 +320,41 @@ def process_data_from_choosen_files(
         logger.info(f'All selected files from {only_filenames} have been already cleared and embedded')
 
         return None
+    
+    DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-    model, vec_size = load_transformer_model(
+    embeddings_model, vec_size = load_transformer_model(
         model_name=embeddings_model_name,
         seed=seed
     )
 
-    logger.info(f'Model {embeddings_model_name} loaded successfully')
-    
+    logger.info(f'Embeddings model {embeddings_model_name} loaded successfully')
+
+    lang_detect_dict = load_lang_detector(
+        model_name=lang_detection_model_name,
+        device=DEVICE
+    )
+
+    lang_detection_model = lang_detect_dict.get('model')
+    lang_detection_tokenizer = lang_detect_dict.get('tokenizer')
+
+    logger.info(f'Language detection model {lang_detection_model_name} loaded successfully')
+
+    translation_model_dict = load_translation_model(
+        model_name=translation_model_name,
+        device=DEVICE
+    )
+
+    translation_model = translation_model_dict.get('model')
+    translation_tokenizer = translation_model_dict.get('tokenizer')
+
+    logger.info(f'Translation model {lang_detection_model_name} loaded successfully')
+
     logger.info(
         f"""Loading data from chosen files:{chosen_files}""")
     
     # loading sentiment model setup
-    sent_tokenizer, sent_models, sent_cofnig = load_sentiment_model(sentiment_model_name)
+    sent_tokenizer, sent_models, sent_cofnig = load_sentiment_model(sentiment_model_name, device=DEVICE)
     logger.info(f'Sentiment setup loaded successfully.')
 
     rows_cardinalities = {}
@@ -334,19 +386,55 @@ def process_data_from_choosen_files(
                 logger.info(f'Cleaned {file_}')
                 logger.info(f'Predicting sentiment for {file_}')
 
-                dataset = MyDataset(df[content_column_name].to_frame())
-                
-                dataloader = DataLoader(
-                    dataset, 
-                    batch_size=batch_size, 
+                dataloader = create_dataloader(
+                    df=df,
+                    target_column=content_column_name,
+                    batch_size=batch_size,
                     shuffle=False
                 )
+
+                lang_detection_labels = detect_lang(
+                    dataloader=dataloader,
+                    detection_model=lang_detection_model,
+                    tokenizer=lang_detection_tokenizer,
+                    device=DEVICE
+                )
+
+                logger.info(f'Successfully detected languages for {filename}')
+
+                df[detected_language_column_name] = lang_detection_labels
+
+                to_translate_dataloader = create_dataloader(
+                    df.loc[df[detected_language_column_name] == currently_serviced_langs],
+                    target_column=content_column_name,
+                    batch_size=8,
+                    shuffle=False
+                )
+
+                translated_tickets = translate_text(
+                    dataloader=to_translate_dataloader,
+                    trans_model=translation_model,
+                    trans_tokenizer=translation_tokenizer,
+                    device=DEVICE
+                )
+
+                logger.info(f'Successfully translated non-english tickets for {filename}')
+
+                try:
+                    df.loc[df[detected_language_column_name] == currently_serviced_langs, 
+                           content_column_name] = translated_tickets
+                except Exception:
+                    logger.error(f'Failed to assign translated tickets for {filename}')
+                    sys.exit(0)
+                else:
+                    logger.info(f'Successfully assigned translated tickets for {filename}')
 
                 sentiment_labels = predict_sentiment(
                     data=dataloader,
                     tokenizer=sent_tokenizer, 
                     model=sent_models, 
-                    config=sent_cofnig
+                    config=sent_cofnig,
+                    device=DEVICE
                 ) 
 
                 df[sentiment_column_name] = sentiment_labels
@@ -398,7 +486,7 @@ def process_data_from_choosen_files(
 
                 get_embeddings(
                     dataloader=dataloader,
-                    model=model,
+                    model=embeddings_model,
                     save_path=save_path,
                     vec_size=vec_size)
                 
@@ -455,3 +543,55 @@ def set_rows_cardinalities(
         return str(e)
     else:
         return True
+    
+def remove_stopwords(text, stopwords):
+    
+    words = re.findall(r'\b\w+\b', text.lower())
+
+    filtered_words = [word for word in words if word not in stopwords]
+
+    filtered_text = ' '.join(filtered_words)
+
+    return filtered_text
+
+def remove_single_occurrence_words(text, min_n_of_occurence: int = 3):
+    # Split the text into words
+    words = text.split()
+
+    # Count the occurrences of each word
+    word_counts = Counter(words)
+
+    # Filter out words that appear only once
+    filtered_words = [
+        word for word in words if word_counts[word] >= min_n_of_occurence]
+
+    # Join the remaining words back into a string
+    filtered_text = ' '.join(filtered_words)
+
+    return filtered_text
+
+def preprocess_pipeline(
+    text: str,
+    stopwords: list,
+    min_n_of_occurence: int = 3): 
+
+    nlp = spacy.load('en_core_web_sm')
+
+    removed_before_lem = remove_stopwords(
+        text,
+        stopwords=stopwords
+    )
+
+    lemmatized = " ".join([word._.lemma() for word in nlp(removed_before_lem)])
+
+    removed_after_lemm = remove_stopwords(
+        lemmatized,
+        stopwords=stopwords
+    )
+
+    fully_preprocessed = remove_single_occurrence_words(
+        text=removed_after_lemm,
+        min_n_of_occurence=min_n_of_occurence)
+
+    return fully_preprocessed
+

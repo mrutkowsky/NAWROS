@@ -1,1 +1,1 @@
-{"used_as_base": {"VOC_for_NLP_first_data.xlsx": 1681, "VOC_for_NLP_PL_Update.xlsx": 607, "VOC_for_NLP_UK_Update.xlsx": 1111, "VOC_for_NLP_UK_Update_01-15.03.2023.xlsx": 1442, "VOC_for_NLP_UK_Update_01.01-28.02.2023.xlsx": 5161, "VOC_for_NLP_UK_Update_10-30.05.2023_rest.xlsx": 1384}, "only_classified": {"VOC_for_NLP_UK_Update_10-30.05_only_200.xlsx": 150}}
+{"used_as_base": {"VOC_for_NLP_first_data.xlsx": 1681}, "only_classified": {"test90.xlsx": 80}}

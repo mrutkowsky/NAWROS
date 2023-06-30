@@ -9,7 +9,9 @@ import operator as op
 logger = logging.getLogger(__file__)
 
 
-def load_sentiment_model(model_name: str) -> tuple:
+def load_sentiment_model(
+        model_name: str,
+        device: str = 'cpu') -> tuple:
     """
     Initialize tokenizer, model and config from pretrained model.
 
@@ -19,13 +21,6 @@ def load_sentiment_model(model_name: str) -> tuple:
     Returns:
         tuple: tokenizer, model, config
     """
-
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
-
-    if device == 'cuda:0':
-        logger.info('Cuda avaiable for sentiment model')
-    else:
-        logger.warning('Can not load CUDA for sentiment model')
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSequenceClassification.from_pretrained(model_name).to(device)
@@ -47,9 +42,9 @@ def predict_sentiment(
         data, 
         tokenizer, 
         model, 
-        config):
+        config,
+        device: str = 'cpu'):
     
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
     labels = []
     
     for i, batch in enumerate(data):

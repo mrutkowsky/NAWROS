@@ -11,6 +11,11 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.utils.validation import FLOAT_DTYPES, check_is_fitted
 
+from utils.data_processing import preprocess_pipeline
+
+import spacy
+import lemminflect
+
 logger = logging.getLogger(__file__)
 
 class CTFIDFVectorizer(TfidfTransformer):
@@ -85,10 +90,10 @@ class CTFIDFVectorizer(TfidfTransformer):
             X = normalize(X, axis=1, norm='l1', copy=False)
 
         return X
-
-
+    
 def prepare_df_for_ctfidf(
         df: pd.DataFrame,
+        stopwords: list,
         content_column_name: str = 'content',
         label_column_name: str = 'labels') -> pd.DataFrame:
     """Prepare a DataFrame for c-TF-IDF transformation by grouping documents per class.
@@ -109,6 +114,9 @@ def prepare_df_for_ctfidf(
     docs_per_class = df.groupby(
         by=label_column_name, 
         as_index=False).agg({content_column_name: ' '.join})
+    
+    docs_per_class[content_column_name] = \
+        docs_per_class[content_column_name].apply(lambda x: preprocess_pipeline(x, stopwords=stopwords))
 
     return docs_per_class
 
@@ -232,6 +240,7 @@ def get_topics_from_texts(
     n_of_rows = len(df)
     docs_per_class = prepare_df_for_ctfidf(
         df=df,
+        stopwords=stop_words,
         content_column_name=content_column_name,
         label_column_name=label_column_name
     )

@@ -11,3 +11,5 @@
 *.pyc
 *.index
 app/embeddings/embeddings.json
+/app/data/comparing_reports/
+data-sample

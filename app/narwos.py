@@ -94,6 +94,11 @@ HDBSCAN_SETTINGS = ML.get('HDBSCAN_SETTINGS')
 HDBSCAN_MODEL_NAME = HDBSCAN_SETTINGS.get('model_name')
 RECALCULATE_CLUSTERS_TRESHOLD = ML.get('recalculate_clusters_treshold')
 
+LANG_DETECTION_MODEL = ML.get('lang_detection_model')
+
+TRANSLATION_MODELS = ML.get('translation_models')
+PL_TO_ENG_TRANS = TRANSLATION_MODELS.get('PL_TO_ENG')
+
 REPORT_CONFIG = CONFIGURATION.get('REPORT_SETTINGS')
 
 BASE_REPORT_COLUMNS = REPORT_CONFIG.get('base_columns')
@@ -387,6 +392,8 @@ def choose_files_for_clusters():
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
         embedded_files_filename=EMBEDDED_JSON,
         embeddings_model_name=EMBEDDINGS_MODEL,
+        lang_detection_model_name=LANG_DETECTION_MODEL,
+        translation_model_name=PL_TO_ENG_TRANS,
         sentiment_model_name=SENTIMENT_MODEL_NAME,
         swearwords=SWEAR_WORDS,
         content_column_name=CONTENT_COLUMN,
@@ -602,6 +609,8 @@ def update_clusters_new_file():
             faiss_vectors_dirname=FAISS_VECTORS_DIR,
             embedded_files_filename=EMBEDDED_JSON,
             embeddings_model_name=EMBEDDINGS_MODEL,
+            lang_detection_model_name=LANG_DETECTION_MODEL,
+            translation_model_name=PL_TO_ENG_TRANS,
             sentiment_model_name=SENTIMENT_MODEL_NAME,
             swearwords=SWEAR_WORDS,
             content_column_name=CONTENT_COLUMN,

@@ -71,7 +71,7 @@ EMPTY_CONTENT_SETTINGS:
 
 PIPELINE:
   content_column: content
-  batch_size: 32
+  batch_size: 16
   cleared_file_ext: .csv
 
 ML:
@@ -96,6 +96,11 @@ ML:
     min_samples: 15
     metric: euclidean                      
     cluster_selection_method: eom
+
+  translation_models:
+    PL_TO_ENG: Helsinki-NLP/opus-mt-pl-en
+
+  lang_detection_model: papluca/xlm-roberta-base-language-detection
 
 FILTERING:
   download_name: 'filtered_data.xlsx'
