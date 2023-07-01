@@ -1,0 +1,16 @@
+/app/utils/__pycache__
+*.xlsx
+*.csv
+*.gzip.parquet
+*.parquet.gzip
+/mpnet_finetuned
+*.h5
+*.ipynb
+/tests
+/to_use
+*.pyc
+*.index
+app/embeddings/embeddings.json
+/app/data/comparing_reports/
+data-sample
+*.pkl

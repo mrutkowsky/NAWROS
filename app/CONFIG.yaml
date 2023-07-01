@@ -1,0 +1,106 @@
+DIRECTORIES:
+  data: data
+  stop_words: stop_words
+  cleared_files: cleared_files
+  valid_files: validated_files
+  cluster_exec_reports: cluster_exec_reports
+  comparing_reports: comparing_reports
+  empty_content: empty_content
+  tmp: tmp
+  embeddings: embeddings
+  faiss_vectors: faiss_vectors
+  current_df: current_df
+  filtered_df: filtered_df
+  swearwords_dir: swear_words
+  allowed_reports_formats: allowed_reports_formats
+
+FILES:
+  embedded_json: embeddings.json
+  rows_cardinalities: rows_cardinalities.json
+  current_df: current_df.parquet.gzip
+  filtered_df: filtered_df.parquet.gzip
+  polish_swearwords: 'polish_swearwords.txt'
+  english_swearwords: 'english_swearwords.txt'
+  filtered_df: filtered_df.csv
+  topics_df: topics_df.csv
+  ext_mappings: mimetypes_formats.json
+
+INPUT_FILES_SETTINGS:
+  allowed_extensions:
+    - .csv 
+    - .txt
+    - .xlsx
+  required_columns: 
+    - Questioned_Date
+    - Model_No
+    - OS
+    - SW_Version 
+    - CSC
+    - Category 
+    - Application_Name
+    - content
+
+REPORT_SETTINGS:
+  labels_column: labels
+  cardinalities_column: counts
+  sentiment_column: sentiment
+  filename_column: filename
+  base_columns:
+    - Questioned_Date
+    - Model_No
+    - OS
+    - SW_Version 
+    - CSC
+    - Category 
+    - Application_Name
+    - content
+
+  no_topic_token: '-'
+  comparing_report_suffix: _comparison
+  cluster_exec_filename_prefix: cluster_exec
+  cluster_exec_filename_ext: .parquet.gzip
+  download_name: comparing_raports.csv
+
+LOGGER:
+  logging_format: '[%(asctime)s] - %(levelname)s - %(message)s'
+  logger_level: DEBUG
+
+EMPTY_CONTENT_SETTINGS:
+  empty_content_suffix: _EMPTY_CONTENT
+  empty_content_ext: .csv
+
+PIPELINE:
+  content_column: content
+  batch_size: 16
+  cleared_file_ext: .csv
+
+ML:
+  seed: 42
+  recalculate_clusters_treshold: 0.1
+  embeddings:
+    model_name: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+  UMAP:
+    dim_reducer_model_name: 'umap_reducer.pkl'
+    reducer_2d_model_name: 'dim_reducer_2d.pkl'
+    n_neighbors: 15
+    min_dist: 0.0
+    n_components: 5
+  topics:
+    - 2
+  sentiment:
+    model_name: 'cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual'
+    
+  HDBSCAN_SETTINGS:
+    model_name: 'clusterer.pkl'
+    min_cluster_size: 15
+    min_samples: 15
+    metric: euclidean                      
+    cluster_selection_method: eom
+
+  translation_models:
+    PL_TO_ENG: Helsinki-NLP/opus-mt-pl-en
+
+  lang_detection_model: papluca/xlm-roberta-base-language-detection
+
+FILTERING:
+  download_name: 'filtered_data.xlsx'

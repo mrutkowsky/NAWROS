@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scatter Plot</title>
+    <!-- Include Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/styles.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.11.2/css/all.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap">
+    <style>
+        .supper_button {
+            margin-right: 10px;
+            margin-top: 20px;
+            width: 200px;
+            height: 40px;
+            font-size: 14px;
+        }
+
+        input[type="submit"], button.delete {
+            margin-right: 10px;
+            margin-top: 20px;
+            width: 200px;
+            height: 40px;
+            font-size: 14px;
+            background-color: rgb(250, 89, 89);
+            padding: 10px 10px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .container {  display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        grid-auto-rows: 1fr;
+        gap: 3px 3px;
+        grid-auto-flow: row;
+        grid-template-areas:
+            "Compare Filter"
+            "Report Report";
+        }
+
+        /*.Plot { grid-area: Plot; }*/
+
+        .Compare { grid-area: Compare; }
+
+        .Filter { grid-area: Filter; }
+
+        .Report { grid-area: Report; }
+
+        input[type="submit"], button.my-button {
+        padding: 10px 10px;
+        background-color: rgb(68, 208, 255);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 18px;
+        cursor: pointer;
+        width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">NARWOS NLP</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="./">Home</a>
+                </li>
+                <li class="nav-item active">
+                    <a class="nav-link" href="/show_clusters">Analysis <span class="sr-only">(current)</span></a>
+                </li>
+            </ul>
+        </div>
+    </nav>    
+    <div id="scatter" style="align-items: center;"></div> <!-- Add this div element with the ID 'scatter' -->
+    <div class="Plot">
+    <!--<canvas id="myChart"></canvas>-->
+    </div>
+    <div class="container">
+        <div class="Compare">
+            <h3>Update clusters</h3>
+            <div class="Qucik-clustering">
+                <form action="/update_clusters_new_file"  method="post" enctype="multipart/form-data">
+                    <label>Load new file:</label>
+                        <input type="file" name="file" multiple>
+                        <br>
+                        <input type="submit" value="Cluster with new file">
+                        {% if success_upload %}
+                            <p style="color: rgb(80, 187, 80)">Files uploaded successfully:</p>
+                            <ol>
+                            {% for file_ in success_upload %}
+                            <li>{{file_}}</li>
+                            {% endfor %}
+                            </ol>
+                        {% endif %}
+                        {% if failed_upload %} 
+                            <p style="color: rgb(244, 22, 22)">Failed to upload files:</p>
+                            <ol>
+                            {% for file_ in failed_upload %}
+                            <li>{{file_}}</li>
+                            {% endfor %}
+                            </ol>
+                        {% endif %}
+                </form>
+                <form style="margin-top: 20px;" action="/update_clusters_new_file"  method="post" enctype="multipart/form-data">
+                    <p>Choose exisitng file for clustering</p>
+                    <select class="file_name" name="file_name">
+                        {% for file in files %}
+                            <option value="{{ file }}">{{ file }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="submit" value="Cluster with existing file">
+                </form>
+            </div>
+        {% if message %}
+            <h4 style="color: rgb(18, 131, 196)">{{ message }}</h4>
+        {% endif %}
+        <h3 style="margin-top: 20px;">Compare reports</h3>
+        <form method="post" action="/compare_with_last_report">
+            
+            <label for="file-format">File Format:</label><br>
+
+            <input type="radio" id="csv" name="file-format" value="csv">
+            <label for="csv">CSV</label>
+
+            <input type="radio" id="excel" name="file-format" value="excel">
+            <label for="excel">Excel</label>
+
+            <input type="radio" id="html" name="file-format" value="html">
+            <label for="html">HTML</label>
+
+            <input type="radio" id="pdf" name="file-format" value="pdf">
+            <label for="pdf">PDF</label>
+
+            <input type="radio" id="powerpoint" name="file-format" value="powerpoint">
+            <label for="powerpoint">PowerPoint</label>
+
+            <input type="submit" style="text-align: center;" value="Compare report with last">
+        </form>
+        <div class="Compare-reports">
+            <div class="mt-20" style="margin-top: 20px;">
+                <form method="post" action="/compare_selected_reports">
+                        <label for="file-format">File Format:</label><br>
+
+                        <input type="radio" id="csv" name="file-format" value="csv">
+                        <label for="csv">CSV</label>
+
+                        <input type="radio" id="excel" name="file-format" value="excel">
+                        <label for="excel">Excel</label>
+
+                        <input type="radio" id="html" name="file-format" value="html">
+                        <label for="html">HTML</label>
+
+                        <input type="radio" id="pdf" name="file-format" value="pdf">
+                        <label for="pdf">PDF</label>
+
+                        <input type="radio" id="powerpoint" name="file-format" value="powerpoint">
+                        <label for="powerpoint">PowerPoint</label>
+                        
+                        <br><br>
+
+                        <label for="chosen_files">Choose reports to compare:</label>
+                        <select name="raport-1" id="raport-1">
+                            {% for raport in raports %}
+                                <option value="{{ raport }}">{{ raport }}</option>
+                            {% endfor %}
+                        </select>
+                        <select name="raport-2"  id="raport-2">
+                            {% for raport in raports %}
+                                <option value="{{ raport }}">{{ raport }}</option>
+                            {% endfor %}
+                        </select>
+                        <br>
+                    <input type="submit" value="Compare reports">
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="Filter">
+        <h3>Filter results</h3>
+            <div >
+                <form1 method="post" action="/choose_files_for_filtering">
+                    <label for="chosen_files">Choose files for filtering:</label>
+                    <br>
+                        {% for file in files %}
+                            <input type="checkbox" name="chosen_files" value="{{ file }}"> {{ file }}<br>
+                        {% endfor %}
+                    <br>
+                </form1>
+            </div>
+            <div>
+                <p style="text-align: left;">Filter by date</p>
+                <label for="filter-from-date">From</label>
+                <input style="width: 30%;" type="text" class="filter-from-date">
+                <label for="filter-from-date">to</label>
+                <input style="width: 30%;" type="text" class="filter-to-date">
+            </div>
+            <div id="filter-container">
+                <div>
+                    <p style="text-align: left; margin-top: 20px ;">Filter by other atributes</p>
+                    <label for="column">Select a column:</label>
+                    <select class="filter-column">
+                        {% for column in columns %}
+                            <option value="{{ column }}">{{ column }}</option>
+                        {% endfor %}
+                    </select>
+                    <label style="margin-top: 10px;" for="value">Enter a value:</label>
+                    <input type="text" class="filter-value">
+                    <button class="delete" onclick="deleteFilter(this)">Delete</button>
+                </div>
+            </div>
+        <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="addFilter()">Add Filter</button>
+        <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="applyFilters()">Apply Filters</button>
+    </div>
+    <div class="Report">
+        <div style="margin-top: 10px;">
+            <label for="value">Choose report type</label>
+            <select id="reportTypeInput">
+                <option value="excel">Excel</option>
+                <option value="csv">CSV</option>
+            </select>
+        </div>
+        <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="downloadFilteredData()">Download detailed report</button>
+        <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="downloadSummaryData()">Download summary report</button>
+    </div>
+    </div>
+<script>
+    var filters = [];
+
+    function addFilter() {
+        var filterContainer = document.getElementById("filter-container");
+        
+        var filterDiv = document.createElement("div");
+        filterDiv.innerHTML = `
+            <label for="column">Select a column:</label>
+            <select class="filter-column">
+                {% for column in columns %}
+                <option value="{{ column }}">{{ column }}</option>
+                {% endfor %}
+            </select>
+            <label for="value">Enter a value:</label>
+            <input type="text" class="filter-value">
+            <button class="delete" onclick="deleteFilter(this)">Delete</button>
+        `;
+        
+        filterContainer.appendChild(filterDiv);
+    }
+
+    function deleteFilter(button) {
+        var filterDiv = button.parentNode;
+        filterDiv.parentNode.removeChild(filterDiv);
+    }
+
+    function applyFilters() {
+        filters = [];
+        var filterColumns = document.getElementsByClassName("filter-column");
+        var filterValues = document.getElementsByClassName("filter-value");
+        //var reportType = document.getElementById("reportTypeInput").value;
+        
+        for (var i = 0; i < filterColumns.length; i++) {
+            var column = filterColumns[i].value;
+            var value = filterValues[i].value;
+            
+            filters.push({ column: column, value: value });
+        }
+        
+        console.log("Filters:", filters); // Print filters to the console
+        
+        // Make a POST request to the Flask route with the filters
+        fetch("/apply_filter", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(filters)
+        })
+        .then(response => response.blob())
+        .then(data => {
+            filteredData = data;
+        })
+        .catch(error => {
+            console.error("Error:", error);
+        });
+    }
+    function downloadFilteredData(reportType) {
+        if (filteredData) {
+            var url = "filter_download_report";
+            var reportType = document.getElementById("reportTypeInput").value;
+            var data = {
+                reportType: reportType,
+            };
+
+            if (reportType == 'excel') {
+                var extensionType = 'xlsx'
+            } else {
+                var extensionType = 'csv'
+            };
+            var linkDownlaod = "filtered_data."+ extensionType;
+            console.log(reportType);
+
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                var url = URL.createObjectURL(blob);
+                var link = document.createElement("a");
+                link.href = url;
+                link.download = linkDownlaod;
+                link.click();
+                URL.revokeObjectURL(url);
+            })
+            .catch(error => {
+                console.error("Error:", error);
+            });
+        }
+    }
+    </script>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
+    <script type='text/javascript'>
+        var figure = {{ figure | safe }};
+        Plotly.plot('scatter', figure.data, figure.layout);
+    </script>
+</body>
+</html>
