@@ -33,7 +33,7 @@
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav">
           <li class="nav-item active">
-            <a class="nav-link" href="./">Clustering </a>
+            <a class="nav-link" href="./">Home</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="/show_clusters">Analysis</a>
@@ -41,6 +41,7 @@
         </ul>
       </div>
     </nav>
+    <br><br>
     <h3>Managing files</h3>
     <div class="container">
       <div class="Load-files">
@@ -81,12 +82,12 @@
             </select>
             <br><br>
             <input style="background-color: rgb(250, 89, 89)" type="submit" value="Delete">
+            {% if delete_message %}
+              <p style="color: rgb(80, 187, 80)">{{ delete_message }}</h4>
+            {% endif %}
           </form>
         </div>
       </div>
-      {% if message %}
-        <h4 style="color: rgb(18, 131, 196)">{{ message }}</h4>
-      {% endif %}
       <div class="Clustering">
         <h3>Clustering</h3>
         <div class="mt-20">
@@ -98,6 +99,9 @@
             {% endfor %}
             <br>
             <input type="submit" value="Process Selected Files">
+            {% if cluster_message %}
+              <p style="color: rgb(80, 187, 80)">{{ cluster_message }}</h4>
+            {% endif %}
           </form>
         </div>
       </div>

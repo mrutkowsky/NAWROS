@@ -261,9 +261,10 @@ def upload_and_validate_files(
 @app.route("/")
 def index():
 
-    message = request.args.get("message")
+    cluster_message = request.args.get("cluster_message")
     success_upload = request.args.get("success_upload")
     failed_upload = request.args.get("failed_upload")
+    delete_message = request.args.get("delete_message")
 
     if success_upload is not None:
         success_upload = json.loads(success_upload)
@@ -282,7 +283,8 @@ def index():
     return render_template(
         "index.html", 
         files=validated_files_to_show,
-        message=message,
+        delete_message=delete_message,
+        cluster_message=cluster_message,
         success_upload=success_upload, 
         failed_upload=failed_upload)
 
@@ -351,7 +353,7 @@ def delete_file():
                         os.remove(file_path)
                     except Exception as e:
                         logger.error(f'Can not del {filename} from {data_dir} dir! - {e}')
-                        return redirect(url_for("index", message=f'Can not del {filename} from {data_dir} dir!'))
+                        return redirect(url_for("index", delete_message=f'Can not del {filename} from {data_dir} dir!'))
                     else:
                         logger.info(f'Successfully deleted file from {data_dir}')
 
@@ -369,9 +371,9 @@ def delete_file():
                             else:
 
                                 logger.error(f'Failed to delete {filename} from JSON file')
-                                return redirect(url_for("index", message=f'Failed to delete {filename} from JSON file.'))
+                                return redirect(url_for("index", delete_message=f'Failed to delete {filename} from JSON file.'))
         
-        return redirect(url_for("index", message=f'File {filename} deleted successfully.'))
+        return redirect(url_for("index", delete_message=f'File {filename} deleted successfully.'))
     
 @app.route('/choose_files_for_clusters', methods=['POST', 'GET'])
 def choose_files_for_clusters():
@@ -441,7 +443,7 @@ def choose_files_for_clusters():
 
     n_clusters = len(new_current_df[LABELS_COLUMN].unique())
 
-    return redirect(url_for("index", message=f"{n_clusters} clusters has been created successfully."))
+    return redirect(url_for("index", cluster_message=f"{n_clusters} clusters have been created successfully."))
     
 @app.route('/show_clusters_submit', methods=['POST'])
 def show_clusters_submit():

@@ -72,7 +72,7 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link" href="./">Clustering </a>
+                    <a class="nav-link" href="./">Home</a>
                 </li>
                 <li class="nav-item active">
                     <a class="nav-link" href="/show_clusters">Analysis <span class="sr-only">(current)</span></a>
@@ -86,12 +86,12 @@
     </div>
     <div class="container">
         <div class="Compare">
-            <h3>Qucik clustering</h3>
+            <h3>Update clusters</h3>
             <div class="Qucik-clustering">
                 <form action="/update_clusters_new_file"  method="post" enctype="multipart/form-data">
                     <label>Load new file:</label>
                         <input type="file" name="file" multiple>
-                        <br><br>
+                        <br>
                         <input type="submit" value="Cluster with new file">
                         {% if success_upload %}
                             <p style="color: rgb(80, 187, 80)">Files uploaded successfully:</p>

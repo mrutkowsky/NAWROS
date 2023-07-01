@@ -76,7 +76,7 @@ PIPELINE:
 
 ML:
   seed: 42
-  recalculate_clusters_treshold: 0.2
+  recalculate_clusters_treshold: 0.1
   embeddings:
     model_name: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
   UMAP:
