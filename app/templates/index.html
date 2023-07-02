@@ -45,6 +45,9 @@
             <input type="file" name="file" multiple>
             <br><br>
             <input type="submit" value="Upload">
+            {% if upload_message %}
+            <p style="color: rgb(80, 187, 80)">{{ upload_message }}</h4>
+            {% endif %}
             {% if success_upload %}
               <p style="color: rgb(80, 187, 80)">Files uploaded successfully:</p>
               <ol>

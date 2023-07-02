@@ -265,7 +265,8 @@ def index():
     success_upload = request.args.get("success_upload")
     failed_upload = request.args.get("failed_upload")
     delete_message = request.args.get("delete_message")
-
+    upload_message = request.args.get("upload_message")
+ 
     if success_upload is not None:
         success_upload = json.loads(success_upload)
 
@@ -283,6 +284,7 @@ def index():
     return render_template(
         "index.html", 
         files=validated_files_to_show,
+        upload_message=upload_message,
         delete_message=delete_message,
         cluster_message=cluster_message,
         success_upload=success_upload, 
@@ -294,7 +296,7 @@ def upload_file():
     if len(request.files.getlist('file')) == 1:
 
         if request.files.getlist('file')[0].filename == '':
-            return redirect(url_for("index", message=f'No file has been selected for uploading!'))
+            return redirect(url_for("index", upload_message=f'No file has been selected for uploading!'))
     
     logger.debug(f"Uploaded files: {request.files.getlist('file')}")
 
@@ -315,7 +317,7 @@ def delete_file():
     filename = request.form.get('to_delete')
 
     if not filename:
-        return redirect(url_for("index", message=f'No file has been selected for deletion!'))
+        return redirect(url_for("index", delete_message=f'No file has been selected for deletion!'))
 
     base_filename = os.path.splitext(filename)[0]
 
@@ -381,7 +383,7 @@ def choose_files_for_clusters():
     files_for_clustering = request.form.getlist('chosen_files')
 
     if not files_for_clustering:
-        return redirect(url_for("index", message=f'No file has been selected for clustering!'))
+        return redirect(url_for("index", cluster_message=f'No file has been selected for clustering!'))
     
     logger.debug(f'Chosen files: {files_for_clustering}')
 
