@@ -13,6 +13,8 @@ import sys
 import spacy
 import lemminflect
 from collections import Counter
+from datetime import datetime
+import io
 
 from utils.embeddings_module import load_transformer_model, get_embeddings
 from utils.etl import preprocess_text
@@ -182,7 +184,7 @@ def save_df_to_file(
         df: pd.DataFrame,
         filename: str,
         path_to_dir: str,
-        file_ext: str = '.csv') -> None:
+        file_ext: str = '.csv') -> str:
     
     """
     Save a DataFrame to a file.
@@ -227,6 +229,8 @@ def save_df_to_file(
     
     else:
         return 'Unallowed file extension'
+    
+    return saving_path, f'{filename}{file_ext}'
     
 def create_dataloader(
     df: pd.DataFrame,
@@ -612,4 +616,38 @@ def get_n_of_rows_df(
     )
 
     return len(df)
+
+def get_report_name_with_timestamp(
+    filename_prefix: str,
+    timestamp_format: str = r"%Y_%m_%d_%H_%M_%S"): 
+
+    timestamp_filename = f"""{filename_prefix}_{datetime.now().strftime(timestamp_format)}"""
+
+    return timestamp_filename
+
+def create_response_report(
+        df: pd.DataFrame,
+        file_format: str = 'csv'):
+
+    buffer = io.BytesIO()
+
+    if file_format == 'csv':
+
+        df.to_csv(buffer, index=False)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    elif file_format == 'excel':
+
+        df.to_excel(buffer, index=False)
+        buffer.seek(0)
+        return buffer.getvalue(),
+    
+    elif file_format == 'html':
+
+        df_html = df.to_html(index=False)
+        return df_html.encode()
+    
+    else:
+        return None
 

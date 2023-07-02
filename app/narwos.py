@@ -17,14 +17,17 @@ from utils.data_processing import process_data_from_choosen_files, \
     set_rows_cardinalities, \
     save_df_to_file, \
     get_n_of_rows_df, \
-    find_filename_in_dir
+    find_filename_in_dir, \
+    get_report_name_with_timestamp, \
+    create_response_report
 import plotly.express as px
 import json
 import plotly
 from utils.cluster import get_clusters_for_choosen_files, \
     get_cluster_labels_for_new_file, \
     cluster_recalculation_needed, \
-    cns_after_clusterization
+    cns_after_clusterization, \
+    save_cluster_exec_report
 from utils.reports import compare_reports, find_latest_two_reports
 from copy import copy
 
@@ -66,7 +69,9 @@ FILTERED_DF_DIR = DIRECTORIES.get('filtered_df')
 STOPWORDS_DIR = DIRECTORIES.get('stop_words')
 SWEARWORDS_DIR = DIRECTORIES.get('swearwords_dir')
 STOPWORDS_DIR = DIRECTORIES.get('stop_words')
-RAPORTS_DIR = DIRECTORIES.get('raports')
+DETAILED_CLUSTER_EXEC_REPORTS = DIRECTORIES.get('detailed_cluster_exec_reports')
+DETAILED_FILTERED_REPORTS = DIRECTORIES.get('detailed_filtered_reports')
+
 ALLOWED_REPORT_EXT_DIR = DIRECTORIES.get('allowed_reports_formats')
 
 EMBEDDED_JSON = FILES.get('embedded_json')
@@ -93,8 +98,6 @@ EMBEDDINGS_MODEL = ML.get('embeddings').get('model_name')
 SEED = ML.get('seed')
 SENTIMENT_MODEL_NAME = ML.get('sentiment').get('model_name')
 
-FILTERING_DOWNLOAD_NAME = FILTERING.get('download_name')
-
 UMAP = ML.get('UMAP')
 DIM_REDUCER_MODEL_NAME = UMAP.get('dim_reducer_model_name')
 REDUCER_2D_MODEL_NAME = UMAP.get('reducer_2d_model_name')
@@ -114,20 +117,24 @@ BASE_REPORT_COLUMNS = REPORT_CONFIG.get('base_columns')
 LABELS_COLUMN = REPORT_CONFIG.get('labels_column', 'labels')
 CARDINALITIES_COLUMN = REPORT_CONFIG.get('cardinalities_column', 'counts')
 SENTIMENT_COLUMN = REPORT_CONFIG.get('sentiment_column', 'sentiment')
-FILENAME_COLUMN = REPORT_CONFIG.get('filename_column' 'filename')
+FILENAME_COLUMN = REPORT_CONFIG.get('filename_column', 'filename')
 COMPARING_RAPORT_DOWNLOAD_NAME = REPORT_CONFIG.get('download_name')
 NO_TOPIC_TOKEN = REPORT_CONFIG.get('no_topic_token')
 COMPARING_REPORT_SUFFIX = REPORT_CONFIG.get('comparing_report_suffix')
 
-ALL_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
+ALL_DETAILED_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
     LABELS_COLUMN, 
-    CARDINALITIES_COLUMN, 
     SENTIMENT_COLUMN, 
     FILENAME_COLUMN
 ]
 
 CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('cluster_exec_filename_prefix')
 CLUSTER_EXEC_FILENAME_EXT = REPORT_CONFIG.get('cluster_exec_filename_ext')
+
+DETAILED_CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('detailed_cluster_exec_filename_prefix')
+
+FILTERED_REPORT_PREFIX = REPORT_CONFIG.get('filtered_filename_prefix')
+FILTERED_FILENAME_EXT = REPORT_CONFIG.get('filtered_filename_ext')
 
 REPORT_FORMATS_MAPPING = get_report_ext(
     ALLOWED_REPORT_EXT_DIR,
@@ -190,6 +197,16 @@ PATH_TO_FILTERED_DF = os.path.join(
     DATA_FOLDER,
     FILTERED_DF_DIR,
     FILTERED_DF_FILE
+)
+
+PATH_TO_DETAILED_FILTERED_REPORTS = os.path.join(
+    DATA_FOLDER,
+    DETAILED_FILTERED_REPORTS
+)
+
+PATH_TO_DETAILED_CLUSTER_EXEC_REPORTS = os.path.join(
+    DATA_FOLDER,
+    DETAILED_CLUSTER_EXEC_REPORTS
 )
 
 PATH_TO_SWEARWORDS_DIR = os.path.join(
@@ -489,23 +506,10 @@ def show_clusters():
         fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
         return render_template("cluster_viz_chartjs.html", 
                                 figure=fig_json, 
-                                columns=ALL_REPORT_COLUMNS, 
+                                columns=ALL_DETAILED_REPORT_COLUMNS, 
                                 files=validated_files_to_show,
                                 message=message,
                                 raports=raports_to_show)
-        """
-        x_values = df['x'].tolist()
-        y_values = df['y'].tolist()
-
-        data = []
-        for i in range(len(x_values)):
-            point = {'x': x_values[i], 'y': y_values[i]}
-            data.append(point)
-
-        print(data)
-        return render_template("cluster_viz_chartjs.html", json_data=jsonify(data))
-        """
-
     
     return 'Nothing to show here'
 
@@ -513,19 +517,21 @@ def show_clusters():
 def show_filter():
 
     if request.method == 'GET':
-        if isinstance(ALL_REPORT_COLUMNS, list):
+        if isinstance(ALL_DETAILED_REPORT_COLUMNS, list):
 
-            return render_template('filtering.html', columns=ALL_REPORT_COLUMNS)
+            return render_template('filtering.html', columns=ALL_DETAILED_REPORT_COLUMNS)
         
         return 'Nothing to show here'
     
 @app.route('/apply_filter', methods=['POST'])
 def apply_filter():
 
+    logger.debug(f'Report columns: {ALL_DETAILED_REPORT_COLUMNS}')
+
     filters = request.get_json()
 
-    filtered_df = read_file(PATH_TO_CURRENT_DF, columns=ALL_REPORT_COLUMNS)
-    filtered_df = filtered_df.astype(str)
+    filtered_df = read_file(PATH_TO_CURRENT_DF, columns=ALL_DETAILED_REPORT_COLUMNS)
+    # filtered_df = filtered_df.astype(str)
 
     logger.info(filtered_df)
 
@@ -542,32 +548,116 @@ def apply_filter():
 
     logger.info(filtered_df)
 
-    filtered_df.to_csv(
+    filtered_df.to_parquet(
         index=False, 
-        path_or_buf=PATH_TO_FILTERED_DF)
-    
+        path=PATH_TO_FILTERED_DF)
     # filtered_df_excluded = show_columns_for_filtering(PATH_TO_CURRENT_DF)
     message = f"{filters} filters has been applied successfully."
 
     return render_template(
         'filtering.html', 
-        columns=ALL_REPORT_COLUMNS, 
+        columns=ALL_DETAILED_REPORT_COLUMNS, 
         message=message)
 
+@app.route('/get_exec_filtered_report', methods=['POST'])
+def get_exec_filtered_report():
 
-@app.route('/filter_download_report', methods=['POST'])
-def filter_data_download_report():
+    report_type = request.form.get('filtered_exec_report_type')
 
-    report_type = request.get_json()
-    filtered_df = read_file(PATH_TO_FILTERED_DF)
-    file_type = report_type['reportType']
-    # Prepare the CSV file for download
-    output = write_file(filtered_df, file_type)
+    ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
+    report_ext = ext_settings.get('ext', '.csv')
+    report_mimetype = ext_settings.get('mimetype', 'text/csv')
+
+    filtered_df = read_file(
+        file_path=PATH_TO_FILTERED_DF
+    )
+
+    filtered_exec_report_name = get_report_name_with_timestamp(
+        filename_prefix=FILTERED_REPORT_PREFIX
+    )
+
+    summary_df, _, _ = save_cluster_exec_report(
+        df=filtered_df,
+        filename=filtered_exec_report_name,
+        path_to_cluster_exec_reports_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
+        clusters_topics=read_file(file_path=os.path.join(PATH_TO_CURRENT_DF_DIR, TOPICS_DF_FILE)),
+        filename_ext=FILTERED_FILENAME_EXT,
+        labels_column_name=LABELS_COLUMN,
+        cardinalities_column_name=CARDINALITIES_COLUMN
+    )
+
+    resp_report = create_response_report(
+        df=summary_df,
+        file_format=report_type
+    )
+
     response = make_response(send_file(
-        output,
-        mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        resp_report,
+        mimetype = report_mimetype,
         as_attachment = True,
-        download_name = FILTERING_DOWNLOAD_NAME
+        download_name = f"{filtered_exec_report_name}{report_ext}"
+    ))
+
+    return response
+
+@app.route('/get_detailed_filtered_report', methods=['POST'])
+def get_detailed_filtered_report():
+
+    report_type = request.form.get('detailed_filtered_report_type')
+
+    ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
+    report_ext = ext_settings.get('ext', '.csv')
+    report_mimetype = ext_settings.get('mimetype', 'text/csv')
+
+    filtered_df_filename = get_report_name_with_timestamp(
+        filename_prefix=FILTERED_REPORT_PREFIX
+    )
+
+    filtered_df = read_file(
+        file_path=PATH_TO_FILTERED_DF
+    )
+
+    resp_report = create_response_report(
+        df=filtered_df,
+        file_format=report_type
+    )
+
+    response = make_response(send_file(
+        resp_report,
+        mimetype = report_mimetype,
+        as_attachment = True,
+        download_name = f"{filtered_df_filename}{report_ext}"
+    ))
+
+    return response
+
+@app.route('/get_detailed_cluster_exec_report', methods=['POST'])
+def get_detailed_cluster_exec_report():
+
+    report_type = request.form.get('detailed_cluster_exec_report_type')
+
+    ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
+    report_ext = ext_settings.get('ext', '.csv')
+    report_mimetype = ext_settings.get('mimetype', 'text/csv')
+
+    detailed_cluster_exec_report_filename = get_report_name_with_timestamp(
+        filename_prefix=f"{DETAILED_CLUSTER_EXEC_FILENAME_PREFIX}_{FILTERED_REPORT_PREFIX}"
+    )
+
+    current_df = read_file(
+        file_path=PATH_TO_CURRENT_DF
+    )
+
+    resp_report = create_response_report(
+        df=current_df,
+        file_format=report_type
+    )
+
+    response = make_response(send_file(
+        resp_report,
+        mimetype = report_mimetype,
+        as_attachment = True,
+        download_name = f"{detailed_cluster_exec_report_filename}{report_ext}"
     ))
 
     return response
@@ -653,7 +743,7 @@ def update_clusters_new_file():
 
                 logger.info('Successfully updated rows cardinalities file for current_df')
 
-                cns_after_clusterization(
+                path_to_exec_report, destination_filename = cns_after_clusterization(
                     new_current_df=new_current_df,
                     path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
                     path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
@@ -667,7 +757,18 @@ def update_clusters_new_file():
                     only_update=True
                 )
 
-                return redirect(url_for("show_clusters", message=f"Cluster labels for {filename} have been successfully assigned."))
+                # response = make_response(send_file(
+                #     path_to_exec_report, 
+                #     mimetype="application/octet-stream", 
+                #     as_attachment=True, 
+                #     download_name=destination_filename))
+
+                # Perform the redirect
+                # redirect_url = 
+                # response.headers['Location'] = redirect_url
+                # response.status_code = 302
+
+                return url_for("show_clusters", message=f"Cluster labels for {destination_filename} have been successfully assigned.")
 
             else:
 
@@ -694,7 +795,7 @@ def update_clusters_new_file():
                     cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
                 ).astype({col: str for col in REQUIRED_COLUMNS})
                 
-                cns_after_clusterization(
+                path_to_exec_report, destination_filename = cns_after_clusterization(
                     new_current_df=new_current_df,
                     path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
                     path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
@@ -708,6 +809,15 @@ def update_clusters_new_file():
                     content_column_name=CONTENT_COLUMN,
                     no_topic_token=NO_TOPIC_TOKEN
                 )
+
+                # response = make_response(send_file(
+                #     path_to_exec_report,
+                #     mimetype = "application/octet-stream",
+                #     as_attachment = True,
+                #     download_name = destination_filename
+                # ))
+
+                # return response
 
                 n_clusters = len(new_current_df[LABELS_COLUMN].unique())
 
