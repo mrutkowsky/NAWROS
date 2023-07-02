@@ -42,7 +42,7 @@
         <div class="mt-20">
           <form action="/upload_file" class="mt-20" method="post" enctype="multipart/form-data">
             <label>Load files:</label>
-            <input type="file" name="file" multiple>
+            <input type="file" name="file" multiple required>
             <br><br>
             <input type="submit" value="Upload">
             {% if upload_message %}
@@ -74,7 +74,7 @@
         <div class="mt-20">
           <form action="/delete_file" method="post">
             <label for="to_delete">Delete file:</label>
-            <select id="to_delete" name="to_delete">
+            <select id="to_delete" name="to_delete" required>
               <option value="" selected disabled hidden>(Choose file)</option>
               {% for file in files %}
                   <option value="{{ file }}">{{ file }}</option>
