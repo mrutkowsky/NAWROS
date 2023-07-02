@@ -90,7 +90,7 @@
             <div class="Qucik-clustering">
                 <form action="/update_clusters_new_file"  method="post" enctype="multipart/form-data">
                     <label>Load new file:</label>
-                        <input type="file" name="file" multiple>
+                        <input type="file" name="file">
                         <br>
                         <input type="submit" value="Cluster with new file">
                         {% if success_upload %}
@@ -112,7 +112,8 @@
                 </form>
                 <form style="margin-top: 20px;" action="/update_clusters_existing_file"  method="post">
                     <p>Choose exisitng file for clustering</p>
-                    <select class="ex_file_update" name="ex_file_update">
+                    <select class="ex_file_update" name="ex_file_update" required>
+                        <option value="" selected disabled hidden>(select file)</option>
                         {% for file in files %}
                             <option value="{{ file }}">{{ file }}</option>
                         {% endfor %}
@@ -168,12 +169,14 @@
                         <br><br>
 
                         <label for="chosen_files">Choose reports to compare:</label>
-                        <select name="raport-1" id="raport-1">
+                        <select name="raport-1" id="raport-1" required>
+                            <option value="" selected disabled hidden>(select file)</option>
                             {% for raport in raports %}
                                 <option value="{{ raport }}">{{ raport }}</option>
                             {% endfor %}
                         </select>
-                        <select name="raport-2"  id="raport-2">
+                        <select name="raport-2"  id="raport-2" required>
+                            <option value="" selected disabled hidden>(select file)</option>
                             {% for raport in raports %}
                                 <option value="{{ raport }}">{{ raport }}</option>
                             {% endfor %}

@@ -33,6 +33,10 @@ app = Flask(__name__)
 USED_AS_BASE_KEY = "used_as_base"
 ONLY_CLASSIFIED_KEY = "only_classified"
 
+DEFAULT_REPORT_FORMAT_SETTINGS = {
+    "ext": ".csv", "mimetype": "text/csv"
+}
+
 app.config['CONFIG_FILE'] = 'CONFIG.yaml'
 
 CONFIGURATION = read_config(
@@ -449,16 +453,6 @@ def choose_files_for_clusters():
     n_clusters = len(new_current_df[LABELS_COLUMN].unique())
 
     return redirect(url_for("index", cluster_message=f"{n_clusters} clusters have been created successfully."))
-    
-@app.route('/show_clusters_submit', methods=['POST'])
-def show_clusters_submit():
-
-    show_plot = request.form.get('show_plot')
-
-    if show_plot:
-        return redirect(url_for('show_clusters', show_plot=show_plot))
-    else:
-        return redirect(url_for("index", message=f"Cannot show the clusters!"))
 
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
@@ -514,15 +508,6 @@ def show_clusters():
 
     
     return 'Nothing to show here'
-
-@app.route('/show_filters_submit', methods=['POST'])
-def show_filter_submit():
-
-    show_filter = request.form.get('show_filter')
-    if show_filter:
-        return redirect(url_for('show_filter', show_filter=show_filter))
-    else:
-        return redirect(url_for("index", message=f"Cannot show the filtering!"))
 
 @app.route('/show_filter', methods=['GET'])
 def show_filter():
@@ -591,11 +576,15 @@ def filter_data_download_report():
 def update_clusters_new_file():
     
     uploaded_file = request.files['file']
-    
     filename = uploaded_file.filename
 
+    if filename == '':
+        return redirect(url_for("show_clusters", message=f'No file has been selected for uploading!'))
+
+    logger.debug(f"Uploaded file: {filename}")
+
     if os.path.exists(os.path.join(PATH_TO_VALID_FILES, filename)):
-        return redirect(url_for("index", message=f"File {filename} already exists in File Storage, update clusters with this file using 'from existing' or choose another file"))
+        return redirect(url_for("show_clusters", message=f"File {filename} already exists in File Storage, update clusters with this file using 'Cluster with existing file' or choose another file"))
     
     else:
 
@@ -870,7 +859,10 @@ def compare_selected_reports():
     filename2 = request.form.get('raport-2')
     report_format_form = request.form.get('file-format')
 
-    ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, "csv")
+    if any(not file_ for file_ in [filename1, filename2]):
+        return redirect(url_for("show_clusters", message=f"Chosing both files is required"))
+
+    ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
@@ -910,7 +902,7 @@ def compare_with_last_report():
     filename1, filename2 = find_latest_two_reports(PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
     report_format_form = request.form.get('file-format')
 
-    ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, "csv")
+    ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
