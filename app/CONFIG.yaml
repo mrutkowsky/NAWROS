@@ -78,7 +78,7 @@ ML:
   seed: 42
   recalculate_clusters_treshold: 0.1
   embeddings:
-    model_name: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+    model_name: sentence-transformers/all-mpnet-base-v2
   UMAP:
     dim_reducer_model_name: 'umap_reducer.pkl'
     reducer_2d_model_name: 'dim_reducer_2d.pkl'

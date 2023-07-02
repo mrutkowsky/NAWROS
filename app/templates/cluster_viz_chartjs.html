@@ -110,9 +110,9 @@
                             </ol>
                         {% endif %}
                 </form>
-                <form style="margin-top: 20px;" action="/update_clusters_new_file"  method="post" enctype="multipart/form-data">
+                <form style="margin-top: 20px;" action="/update_clusters_existing_file"  method="post">
                     <p>Choose exisitng file for clustering</p>
-                    <select class="file_name" name="file_name">
+                    <select class="ex_file_update" name="ex_file_update">
                         {% for file in files %}
                             <option value="{{ file }}">{{ file }}</option>
                         {% endfor %}

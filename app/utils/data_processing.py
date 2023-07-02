@@ -248,6 +248,15 @@ def create_dataloader(
 
     return dataloader
 
+def find_filename_in_dir(
+    path_to_dir: str) -> dict:
+
+    lookup_dir = {
+        os.path.splitext(file_)[0]: file_ for file_ in os.listdir(path_to_dir)
+    }
+
+    return lookup_dir
+
 def process_data_from_choosen_files(
         chosen_files: list,
         path_to_valid_files: str,
@@ -304,9 +313,7 @@ def process_data_from_choosen_files(
        PATH_TO_JSON_EMBEDDED_FILES 
     )
 
-    cleared_files_names = {
-        os.path.splitext(file_)[0]: file_ for file_ in os.listdir(path_to_cleared_files)
-    }
+    cleared_files_names = find_filename_in_dir(path_to_cleared_files)
 
     only_filenames = [os.path.splitext(file_)[0] for file_ in chosen_files]
 
@@ -594,4 +601,15 @@ def preprocess_pipeline(
         min_n_of_occurence=min_n_of_occurence)
 
     return fully_preprocessed
+
+def get_n_of_rows_df(
+    file_path: str,
+    loaded_column: str = 'OS') -> int:
+
+    df = read_file(
+        file_path=file_path,
+        columns=[loaded_column]
+    )
+
+    return len(df)
 
