@@ -482,6 +482,8 @@ def choose_files_for_clusters():
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
     message = request.args.get("message")
+    update_clusters_new_file_message = request.args.get("update_clusters_new_file_message")
+    update_clusters_existing_file_message = request.args.get("update_clusters_existing_file_message")
 
     df = read_file(PATH_TO_CURRENT_DF)
 
@@ -517,6 +519,8 @@ def show_clusters():
                                 columns=ALL_DETAILED_REPORT_COLUMNS, 
                                 files=validated_files_to_show,
                                 message=message,
+                                update_clusters_new_file_message=update_clusters_new_file_message,
+                                update_clusters_existing_file_message=update_clusters_existing_file_message,
                                 raports=raports_to_show)
     
     return 'Nothing to show here'
@@ -776,7 +780,7 @@ def update_clusters_new_file():
                 # response.headers['Location'] = redirect_url
                 # response.status_code = 302
 
-                return redirect(url_for("show_clusters", message=f"Cluster labels for {destination_filename} have been successfully assigned."))
+                return redirect(url_for("show_clusters", update_clusters_new_file_message=f"Cluster labels for {destination_filename} have been successfully assigned."))
 
             else:
 
@@ -829,7 +833,7 @@ def update_clusters_new_file():
 
                 n_clusters = len(new_current_df[LABELS_COLUMN].unique())
 
-                return redirect(url_for("show_clusters", message=f"{n_clusters} clusters has been created successfully."))
+                return redirect(url_for("show_clusters", update_clusters_new_file_message=f"Clusters successfully updated - {n_clusters} clusters has been created successfully."))
             
         else:
             logger.error(f'Can not preprocess file {filename}')
@@ -924,7 +928,7 @@ def update_clusters_existing_file():
             only_update=True
         )
 
-        return redirect(url_for("show_clusters", message=f"Cluster labels for {existing_file_for_update} have been successfully assigned."))
+        return redirect(url_for("show_clusters", update_clusters_existing_file_message=f"Cluster labels for {existing_file_for_update} have been successfully assigned."))
 
     else:
 
@@ -968,7 +972,7 @@ def update_clusters_existing_file():
 
         n_clusters = len(new_current_df[LABELS_COLUMN].unique())
 
-        return redirect(url_for("show_clusters", message=f"Clusters successfully updated - {n_clusters} clusters have been created successfully."))
+        return redirect(url_for("show_clusters", update_clusters_existing_file_message=f"Clusters successfully updated - {n_clusters} clusters have been created successfully."))
     
 @app.route('/compare_selected_reports', methods=['POST'])
 def compare_selected_reports():

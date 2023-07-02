@@ -90,25 +90,30 @@
             <div class="Qucik-clustering">
                 <form action="/update_clusters_new_file"  method="post" enctype="multipart/form-data">
                     <label>Load new file:</label>
-                        <input type="file" name="file">
-                        <br>
-                        <input type="submit" value="Cluster with new file">
-                        {% if success_upload %}
-                            <p style="color: rgb(80, 187, 80)">Files uploaded successfully:</p>
-                            <ol>
-                            {% for file_ in success_upload %}
-                            <li>{{file_}}</li>
-                            {% endfor %}
-                            </ol>
-                        {% endif %}
-                        {% if failed_upload %} 
-                            <p style="color: rgb(244, 22, 22)">Failed to upload files:</p>
-                            <ol>
-                            {% for file_ in failed_upload %}
-                            <li>{{file_}}</li>
-                            {% endfor %}
-                            </ol>
-                        {% endif %}
+                    <input type="file" name="file">
+                    <br>
+                    <input type="submit" value="Cluster with new file" data-toggle="modal" data-target="#exampleModalCenter">
+                                <!-- Modal -->
+                    <div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true" data-backdrop="static">
+                        <div class="modal-dialog modal-dialog-centered" role="document" data-backdrop="static">
+                        <div class="modal-content" data-backdrop="static">
+                            <div class="modal-header" data-backdrop="static">
+                            <h5 class="modal-title" id="exampleModalLongTitle">Clustering in progress</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                            </div>
+                            <div class="modal-body">
+                            Please do not close this window and wait for clusterization process to finish...
+                            <br>
+                            <br>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    {% if update_clusters_new_file_message %}
+                    <p style="color: rgb(80, 187, 80)">{{ update_clusters_new_file_message }}</p>
+                    {% endif %}
                 </form>
                 <form style="margin-top: 20px;" action="/update_clusters_existing_file"  method="post">
                     <p>Choose exisitng file for clustering</p>
@@ -118,12 +123,30 @@
                             <option value="{{ file }}">{{ file }}</option>
                         {% endfor %}
                     </select>
-                    <input type="submit" value="Cluster with existing file">
+                    <input type="submit" value="Cluster with existing file" data-toggle="modal" data-target="#exampleModalCenter">
+                                <!-- Modal -->
+                    <div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true" data-backdrop="static">
+                        <div class="modal-dialog modal-dialog-centered" role="document" data-backdrop="static">
+                        <div class="modal-content" data-backdrop="static">
+                            <div class="modal-header" data-backdrop="static">
+                            <h5 class="modal-title" id="exampleModalLongTitle">Clustering in progress</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                            </div>
+                            <div class="modal-body">
+                            Please do not close this window and wait for clusterization process to finish...
+                            <br>
+                            <br>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    {% if update_clusters_existing_file_message %}
+                    <p style="color: rgb(80, 187, 80)">{{ update_clusters_existing_file_message }}</p>
+                    {% endif %}
                 </form>
             </div>
-        {% if message %}
-            <h4 style="color: rgb(18, 131, 196)">{{ message }}</h4>
-        {% endif %}
         <h3 style="margin-top: 20px;">Compare reports</h3>
         <form method="post" action="/compare_with_last_report">
             
