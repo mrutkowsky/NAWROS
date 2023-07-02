@@ -803,7 +803,7 @@ def compare_with_last_report():
     return response
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)
 
 
 
