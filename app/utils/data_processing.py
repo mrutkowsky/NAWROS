@@ -13,6 +13,8 @@ import sys
 import spacy
 import lemminflect
 from collections import Counter
+from datetime import datetime
+import io
 
 from utils.embeddings_module import load_transformer_model, get_embeddings
 from utils.etl import preprocess_text
@@ -182,7 +184,7 @@ def save_df_to_file(
         df: pd.DataFrame,
         filename: str,
         path_to_dir: str,
-        file_ext: str = '.csv') -> None:
+        file_ext: str = '.csv') -> str:
     
     """
     Save a DataFrame to a file.
@@ -228,6 +230,8 @@ def save_df_to_file(
     else:
         return 'Unallowed file extension'
     
+    return saving_path, f'{filename}{file_ext}'
+    
 def create_dataloader(
     df: pd.DataFrame,
     target_column: str or list,
@@ -247,6 +251,15 @@ def create_dataloader(
     )
 
     return dataloader
+
+def find_filename_in_dir(
+    path_to_dir: str) -> dict:
+
+    lookup_dir = {
+        os.path.splitext(file_)[0]: file_ for file_ in os.listdir(path_to_dir)
+    }
+
+    return lookup_dir
 
 def process_data_from_choosen_files(
         chosen_files: list,
@@ -304,9 +317,7 @@ def process_data_from_choosen_files(
        PATH_TO_JSON_EMBEDDED_FILES 
     )
 
-    cleared_files_names = {
-        os.path.splitext(file_)[0]: file_ for file_ in os.listdir(path_to_cleared_files)
-    }
+    cleared_files_names = find_filename_in_dir(path_to_cleared_files)
 
     only_filenames = [os.path.splitext(file_)[0] for file_ in chosen_files]
 
@@ -594,4 +605,49 @@ def preprocess_pipeline(
         min_n_of_occurence=min_n_of_occurence)
 
     return fully_preprocessed
+
+def get_n_of_rows_df(
+    file_path: str,
+    loaded_column: str = 'OS') -> int:
+
+    df = read_file(
+        file_path=file_path,
+        columns=[loaded_column]
+    )
+
+    return len(df)
+
+def get_report_name_with_timestamp(
+    filename_prefix: str,
+    timestamp_format: str = r"%Y_%m_%d_%H_%M_%S"): 
+
+    timestamp_filename = f"""{filename_prefix}_{datetime.now().strftime(timestamp_format)}"""
+
+    return timestamp_filename
+
+def create_response_report(
+        df: pd.DataFrame,
+        file_format: str = 'csv'):
+
+    buffer = io.BytesIO()
+
+    if file_format == 'csv':
+
+        df.to_csv(buffer, index=False)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    elif file_format == 'excel':
+
+        df.to_excel(buffer, index=False)
+        buffer.seek(0)
+        return buffer.getvalue(),
+    
+    elif file_format == 'html':
+
+        df_html = df.to_html(index=False)
+        return df_html.encode()
+    
+    else:
+        return None
 

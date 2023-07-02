@@ -4,6 +4,8 @@ DIRECTORIES:
   cleared_files: cleared_files
   valid_files: validated_files
   cluster_exec_reports: cluster_exec_reports
+  detailed_cluster_exec_reports: detailed_cluster_exec_reports
+  detailed_filtered_reports: detailed_filtered_reports
   comparing_reports: comparing_reports
   empty_content: empty_content
   tmp: tmp
@@ -21,7 +23,6 @@ FILES:
   filtered_df: filtered_df.parquet.gzip
   polish_swearwords: 'polish_swearwords.txt'
   english_swearwords: 'english_swearwords.txt'
-  filtered_df: filtered_df.csv
   topics_df: topics_df.csv
   ext_mappings: mimetypes_formats.json
 
@@ -58,8 +59,10 @@ REPORT_SETTINGS:
   no_topic_token: '-'
   comparing_report_suffix: _comparison
   cluster_exec_filename_prefix: cluster_exec
+  detailed_cluster_exec_filename_prefix: detailed
   cluster_exec_filename_ext: .parquet.gzip
-  download_name: comparing_raports.csv
+  filtered_filename_prefix: filtered
+  filtered_filename_ext: .parquet.gzip
 
 LOGGER:
   logging_format: '[%(asctime)s] - %(levelname)s - %(message)s'
@@ -78,7 +81,7 @@ ML:
   seed: 42
   recalculate_clusters_treshold: 0.1
   embeddings:
-    model_name: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+    model_name: sentence-transformers/all-mpnet-base-v2
   UMAP:
     dim_reducer_model_name: 'umap_reducer.pkl'
     reducer_2d_model_name: 'dim_reducer_2d.pkl'
@@ -103,4 +106,4 @@ ML:
   lang_detection_model: papluca/xlm-roberta-base-language-detection
 
 FILTERING:
-  download_name: 'filtered_data.xlsx'
+  

@@ -14,7 +14,7 @@ import logging
 import pickle
 from datetime import datetime
 
-from utils.data_processing import get_embedded_files, read_file, set_rows_cardinalities, save_df_to_file
+from utils.data_processing import get_embedded_files, read_file, set_rows_cardinalities, save_df_to_file, get_report_name_with_timestamp
 from utils.c_tf_idf_module import get_topics_from_texts
 
 logger = logging.getLogger(__file__)
@@ -453,14 +453,19 @@ def save_cluster_exec_report(
        None
    """
     df = df.groupby(df[labels_column_name]).size().reset_index(name=cardinalities_column_name)
-    df = pd.concat([df, clusters_topics.drop(columns=[labels_column_name])], axis=1) 
+    if len(df) == len(clusters_topics):
+        df = pd.concat([df, clusters_topics.drop(columns=[labels_column_name])], axis=1) 
+    else:
+        df = df.merge(clusters_topics, on='labels', how='left')
 
-    save_df_to_file(
+    path_to_exec_report, destination_filename = save_df_to_file(
         df=df,
         filename=filename,
         path_to_dir=path_to_cluster_exec_reports_dir,
         file_ext=filename_ext
     )
+
+    return df, path_to_exec_report, destination_filename
 
 def cns_after_clusterization(
         new_current_df: pd.DataFrame,
@@ -478,7 +483,6 @@ def cns_after_clusterization(
         cluster_exec_filename_ext: str = '.parquet.gzip'):
 
     TIMESTAMP_FORMAT = "%Y_%m_%d_%H_%M_%S"
-
 
     if not only_update:
 
@@ -519,9 +523,12 @@ def cns_after_clusterization(
             file_path=os.path.join(path_to_current_df_dir, topic_df_file_name)
         )
 
-    clusterization_exec_filename = f"""{cluster_exec_filename_prefix}_{datetime.now().strftime(TIMESTAMP_FORMAT)}"""
+    clusterization_exec_filename = get_report_name_with_timestamp(
+        filename_prefix=cluster_exec_filename_prefix,
+        timestamp_format=TIMESTAMP_FORMAT
+    )
 
-    save_cluster_exec_report(
+    _, path_to_exec_report, destination_filename = save_cluster_exec_report(
         df=new_current_df,
         filename=clusterization_exec_filename,
         filename_ext=cluster_exec_filename_ext,
@@ -533,7 +540,7 @@ def cns_after_clusterization(
 
     logger.info(f'Report from clusterization execution: {clusterization_exec_filename}{cluster_exec_filename_ext} has been successfully saved on disk')
 
-    return None
+    return path_to_exec_report, destination_filename
 
 
 
