@@ -768,7 +768,7 @@ def update_clusters_new_file():
                 # response.headers['Location'] = redirect_url
                 # response.status_code = 302
 
-                return url_for("show_clusters", message=f"Cluster labels for {destination_filename} have been successfully assigned.")
+                return redirect(url_for("show_clusters", message=f"Cluster labels for {destination_filename} have been successfully assigned."))
 
             else:
 
