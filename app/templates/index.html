@@ -93,9 +93,27 @@
                 <input type="checkbox" name="chosen_files" value="{{ file }}"> {{ file }}<br>
             {% endfor %}
             <br>
-            <input type="submit" value="Process Selected Files">
+            <input type="submit" value="Process Selected Files"  data-toggle="modal" data-target="#exampleModalCenter">
+            <!-- Modal -->
+            <div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true" data-backdrop="static">
+              <div class="modal-dialog modal-dialog-centered" role="document" data-backdrop="static">
+                <div class="modal-content" data-backdrop="static">
+                  <div class="modal-header" data-backdrop="static">
+                    <h5 class="modal-title" id="exampleModalLongTitle">Clustering in progress</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                  <div class="modal-body">
+                    Please do not close this window and wait for clusterization process to finish...
+                    <br>
+                    <br>
+                  </div>
+                </div>
+              </div>
+            </div>
             {% if cluster_message %}
-              <p style="color: rgb(80, 187, 80)">{{ cluster_message }}</h4>
+            <p style="color: rgb(80, 187, 80)">{{ cluster_message }}</h4>
             {% endif %}
           </form>
         </div>
