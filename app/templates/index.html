@@ -64,6 +64,9 @@
               {% endfor %}
               </ol>
             {% endif %}
+            {% if upload_no_file_message %}
+            <p style="color: rgb(250, 89, 89)">{{ upload_no_file_message }}</h4>
+            {% endif %}
           </form>
         </div>
       </div>
@@ -81,6 +84,9 @@
             <input style="background-color: rgb(250, 89, 89)" type="submit" value="Delete">
             {% if delete_message %}
               <p style="color: rgb(80, 187, 80)">{{ delete_message }}</h4>
+            {% endif %}
+            {% if delete_no_file_message %}
+            <p style="color: rgb(250, 89, 89)">{{ delete_no_file_message }}</h4>
             {% endif %}
           </form>
         </div>
@@ -117,6 +123,9 @@
             </div>
             {% if cluster_message %}
             <p style="color: rgb(80, 187, 80)">{{ cluster_message }}</h4>
+            {% endif %}
+            {% if cluster_no_file_message %}
+            <p style="color: rgb(250, 89, 89)">{{ cluster_no_file_message }}</h4>
             {% endif %}
           </form>
         </div>
