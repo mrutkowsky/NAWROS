@@ -628,6 +628,8 @@ def get_report_name_with_timestamp(
 def create_response_report(
         df: pd.DataFrame,
         file_format: str = 'csv'):
+    
+    logger.debug(file_format)
 
     buffer = io.BytesIO()
 
@@ -635,13 +637,13 @@ def create_response_report(
 
         df.to_csv(buffer, index=False)
         buffer.seek(0)
-        return buffer.getvalue()
+        return buffer
 
     elif file_format == 'excel':
 
         df.to_excel(buffer, index=False)
         buffer.seek(0)
-        return buffer.getvalue(),
+        return buffer
     
     elif file_format == 'html':
 

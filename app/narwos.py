@@ -641,7 +641,7 @@ def get_detailed_cluster_exec_report():
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
     detailed_cluster_exec_report_filename = get_report_name_with_timestamp(
-        filename_prefix=f"{DETAILED_CLUSTER_EXEC_FILENAME_PREFIX}_{FILTERED_REPORT_PREFIX}"
+        filename_prefix=f"{DETAILED_CLUSTER_EXEC_FILENAME_PREFIX}_{CLUSTER_EXEC_FILENAME_PREFIX}"
     )
 
     current_df = read_file(
