@@ -467,14 +467,13 @@ def process_data_from_choosen_files(
                             logger.info(f'Successfully assigned translated tickets for {filename}')
 
                     known_langs = list(translation_models_dict.keys()) + known_langs
+                    unknown_lang_contents_indexes = df.loc[~df[detected_language_column_name].isin(known_langs)].index
 
-                unknown_lang_contents_indexes = df.loc[~df[detected_language_column_name].isin(known_langs)].index
+                    df = df.drop(unknown_lang_contents_indexes)
 
-                df = df.drop(unknown_lang_contents_indexes)
-
-                df_dropped_indexes = pd.concat(
-                    [df_dropped_indexes, 
-                        pd.DataFrame({dropped_indexes_column_name: unknown_lang_contents_indexes})])
+                    df_dropped_indexes = pd.concat(
+                        [df_dropped_indexes, 
+                            pd.DataFrame({dropped_indexes_column_name: unknown_lang_contents_indexes})])
                     
                 df_dropped_indexes = df_dropped_indexes.sort_values(by=dropped_indexes_column_name)
 
@@ -640,6 +639,8 @@ def preprocess_pipeline(
     min_n_of_occurence: int = 3): 
 
     nlp = spacy.load('en_core_web_sm')
+
+    text = re.sub(r'\b[^a-z]+\b', '', text.lower())
 
     removed_before_lem = remove_stopwords(
         text,

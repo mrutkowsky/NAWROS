@@ -83,6 +83,43 @@ def cluster_sentences(
 
     return cluster
 
+def perform_soft_clustering(
+    clusterer: hdbscan.HDBSCAN,
+    original_labels: np.array = None,
+    new_points: np.array = None,
+    outlier_treshold: float = 0.1) -> list:
+
+    logger.debug(f'Start of execution of soft_clustering')
+
+    soft_clusters = hdbscan.all_points_membership_vectors(clusterer) \
+        if new_points is None else hdbscan.membership_vector(clusterer, new_points)
+    
+    closest_cluster_label = [np.argmax(x) for x in soft_clusters]
+    closest_cluster_prob = [max(x) for x in soft_clusters]
+
+    if original_labels is not None:
+
+        new_labels = [
+            label if (original_labels[i] != -1) 
+            or ((original_labels[i] == -1) and (closest_cluster_prob[i] > outlier_treshold))
+            else -1 
+            for i, label in enumerate(closest_cluster_label)
+        ]
+
+        logger.debug(f'Number of outliers before soft clustering: {list(original_labels).count(-1)}')
+        logger.debug(f'Number of outliers after soft clustering: {list(new_labels).count(-1)}')
+        
+    else:
+
+        new_labels = [
+            label if prob > outlier_treshold else -1 
+            for label, prob in zip(closest_cluster_label, closest_cluster_prob)
+        ]
+
+    logger.debug(f'End of execution soft_clustering')
+
+    return new_labels
+
 def save_model(
         model,
         path_to_current_df_dir: str,
@@ -184,6 +221,7 @@ def get_clusters_for_choosen_files(
         clusterer_model_name: str = 'clusterer.pkl',
         umap_model_name: str = 'umap_reducer.pkl',
         reducer_2d_model_name: str = 'dim_reducer_2d.pkl',
+        outlier_treshold: float = 0.1,
         random_state: int = 42,
         n_neighbors: int = 15,
         min_dist: float = 0.0,
@@ -268,6 +306,8 @@ def get_clusters_for_choosen_files(
         min_samples=min_samples,
         metric=metric,                      
         cluster_selection_method=cluster_selection_method)
+    
+    logger.info(f"Successfully clustered embeddings")
 
     save_model(
         model=clusterer,
@@ -275,12 +315,19 @@ def get_clusters_for_choosen_files(
         model_name=clusterer_model_name
     )
     
-    logger.info(f"Clusters calculated successfully, number of clusters: {len(set(clusterer.labels_))}")
+    cluster_labels = perform_soft_clustering(
+        clusterer=clusterer,
+        original_labels=clusterer.labels_,
+        new_points=None,
+        outlier_treshold=outlier_treshold
+    )
+
+    logger.info(f"Clusters calculated successfully, number of clusters: {len(set(cluster_labels))}")
 
     df = pd.DataFrame({
         'x': dimensions_2d[:, 0],
         'y': dimensions_2d[:, 1],
-        labels_column: clusterer.labels_,
+        labels_column: cluster_labels,
     })
 
     logger.info("Succesfully created dataframe for topic visuzalization")
@@ -310,6 +357,7 @@ def get_cluster_labels_for_new_file(
         path_to_cleared_files_dir: str,
         path_to_faiss_vetors_dir: str,
         required_columns: list,
+        outlier_treshold: float = 0.1,
         clusterer_model_name: str = 'clusterer.pkl',
         umap_model_name: str = 'umap_reducer.pkl',
         reducer_2d_model_name: str = 'dim_reducer_2d.pkl',
@@ -351,8 +399,12 @@ def get_cluster_labels_for_new_file(
     dimensions_2d = reducer_2d.transform(vector_embeddings)
     logger.info(f"Applied UMAP model for getting 2D coridinates for vizualization")
 
-    labels_for_new_file, strenghts = hdbscan.approximate_predict(
-        hdbscan_loaded_model, clusterable_embeddings)
+    labels_for_new_file = perform_soft_clustering(
+        clusterer=hdbscan_loaded_model,
+        original_labels=None,
+        new_points=clusterable_embeddings,
+        outlier_treshold=outlier_treshold
+    )
     
     logger.info(f'Successfully calculated labels for new file {filename}')
     

@@ -109,6 +109,7 @@ REDUCER_2D_MODEL_NAME = UMAP.get('reducer_2d_model_name')
 HDBSCAN_SETTINGS = ML.get('HDBSCAN_SETTINGS')
 HDBSCAN_MODEL_NAME = HDBSCAN_SETTINGS.get('model_name')
 RECALCULATE_CLUSTERS_TRESHOLD = ML.get('recalculate_clusters_treshold')
+OUTLIER_TRESHOLD = HDBSCAN_SETTINGS.get('outlier_treshold')
 
 LANG_DETECTION_MODEL = ML.get('lang_detection_model')
 
@@ -462,7 +463,10 @@ def choose_files_for_clusters():
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
         embedded_files_filename=EMBEDDED_JSON,
         cleared_files_ext=CLEARED_FILE_EXT,
+        outlier_treshold=OUTLIER_TRESHOLD,
         random_state=SEED,
+        umap_model_name=DIM_REDUCER_MODEL_NAME,
+        reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
         n_neighbors=UMAP.get('n_neighbors'),
         min_dist=UMAP.get('min_dist'),
         n_components=UMAP.get('n_components'),
@@ -800,6 +804,7 @@ def update_clusters_new_file():
                     path_to_cleared_files_dir=PATH_TO_CLEARED_FILES,
                     path_to_faiss_vetors_dir=PATH_TO_FAISS_VECTORS_DIR,
                     required_columns=REQUIRED_COLUMNS,
+                    outlier_treshold=OUTLIER_TRESHOLD,
                     clusterer_model_name=HDBSCAN_MODEL_NAME,
                     umap_model_name=DIM_REDUCER_MODEL_NAME,
                     reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
@@ -839,7 +844,7 @@ def update_clusters_new_file():
                 # response.headers['Location'] = redirect_url
                 # response.status_code = 302
 
-                return redirect(url_for("show_clusters", update_clusters_new_file_message=f"Cluster labels for {destination_filename} have been successfully assigned."))
+                return redirect(url_for("show_clusters", update_clusters_new_file_message=f"Cluster labels for {filename} have been successfully assigned."))
 
             else:
 
@@ -856,7 +861,10 @@ def update_clusters_new_file():
                     faiss_vectors_dirname=FAISS_VECTORS_DIR,
                     embedded_files_filename=EMBEDDED_JSON,
                     cleared_files_ext=CLEARED_FILE_EXT,
+                    outlier_treshold=OUTLIER_TRESHOLD,
                     random_state=SEED,
+                    umap_model_name=DIM_REDUCER_MODEL_NAME,
+                    reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
                     n_neighbors=UMAP.get('n_neighbors'),
                     min_dist=UMAP.get('min_dist'),
                     n_components=UMAP.get('n_components'),
@@ -962,6 +970,7 @@ def update_clusters_existing_file():
             path_to_cleared_files_dir=PATH_TO_CLEARED_FILES,
             path_to_faiss_vetors_dir=PATH_TO_FAISS_VECTORS_DIR,
             required_columns=REQUIRED_COLUMNS,
+            outlier_treshold=OUTLIER_TRESHOLD,
             clusterer_model_name=HDBSCAN_MODEL_NAME,
             umap_model_name=DIM_REDUCER_MODEL_NAME,
             reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
@@ -1007,7 +1016,10 @@ def update_clusters_existing_file():
             faiss_vectors_dirname=FAISS_VECTORS_DIR,
             embedded_files_filename=EMBEDDED_JSON,
             cleared_files_ext=CLEARED_FILE_EXT,
+            outlier_treshold=OUTLIER_TRESHOLD,
             random_state=SEED,
+            umap_model_name=DIM_REDUCER_MODEL_NAME,
+            reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
             n_neighbors=UMAP.get('n_neighbors'),
             min_dist=UMAP.get('min_dist'),
             n_components=UMAP.get('n_components'),
