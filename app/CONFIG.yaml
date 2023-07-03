@@ -41,7 +41,13 @@ INPUT_FILES_SETTINGS:
     - Application_Name
     - content
 
+ETL_SETTINGS:
+  translate: false
+  sentiment: false
+
 REPORT_SETTINGS:
+  original_content_column: content
+  preprocessed_content_column: preprocessed_content
   labels_column: labels
   cardinalities_column: counts
   sentiment_column: sentiment
@@ -54,7 +60,6 @@ REPORT_SETTINGS:
     - CSC
     - Category 
     - Application_Name
-    - content
 
   no_topic_token: '-'
   comparing_report_suffix: _comparison
@@ -101,7 +106,10 @@ ML:
     cluster_selection_method: eom
 
   translation_models:
-    PL_TO_ENG: Helsinki-NLP/opus-mt-pl-en
+    pl: Helsinki-NLP/opus-mt-pl-en
+    de: Helsinki-NLP/opus-mt-de-en
+    es: Helsinki-NLP/opus-mt-es-en
+    ko: Helsinki-NLP/opus-mt-ko-en
 
   lang_detection_model: papluca/xlm-roberta-base-language-detection
 

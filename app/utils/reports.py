@@ -227,7 +227,7 @@ def find_latest_two_reports(
 def find_latested_n_exec_report(
     path_to_dir: str,
     cluster_exec_prefix: str = 'cluster_exec',
-    n_reports: int = 1) -> str:
+    n_reports: int = 1) -> str or tuple[str, str]:
 
     TIMESTAMP_PATTERN = r"_(\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2})\..+"
     TIMESTAMP_FORMAT = "%Y_%m_%d_%H_%M_%S"

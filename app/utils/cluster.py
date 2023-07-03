@@ -475,7 +475,7 @@ def cns_after_clusterization(
         only_update: bool = False,
         topic_df_file_name: str = None,
         current_df_filename: str = 'current_df',
-        content_column_name: str = 'content',
+        content_column_name: str = 'preprocessed_content',
         labels_column: str = 'labels',
         cardinalities_column: str = 'counts',
         no_topic_token: str = '-',

@@ -70,7 +70,8 @@ def cleanup_data(
         path_to_empty_content_dir: str,
         empty_contents_suffix: str,
         empty_content_ext: str,
-        content_column_name: str = 'content') -> pd.DataFrame:
+        content_column_name: str = 'preprocessed_content',
+        dropped_indexes_column_name: str = 'dropped_indexes') -> pd.DataFrame:
     
     """
     Remove rows with empty contents, save them to a separate file, and preprocess the remaining contents.
@@ -108,14 +109,14 @@ def cleanup_data(
 
     indexes_to_drop = np.concatenate((float_contents_indexes, short_contents_indexes))
 
-    df_dropped_indexes = pd.DataFrame({'Dropped_indexes': indexes_to_drop})
-    df_dropped_indexes.to_csv(save_path)
+    df_dropped_indexes = pd.DataFrame({dropped_indexes_column_name: indexes_to_drop})
+    # df_dropped_indexes.to_csv(save_path)
     
     df.drop(index=short_contents_indexes, inplace=True)
 
     logger.debug(f'Preprocessed: {preprocessed_contents}')
 
-    return df
+    return df, df_dropped_indexes
 
 def get_embedded_files(
         path_to_embeddings_file: str):
@@ -273,17 +274,21 @@ def process_data_from_choosen_files(
         embeddings_model_name: str,
         sentiment_model_name: str,
         lang_detection_model_name: str,
-        translation_model_name: str,
         swearwords: list,
-        currently_serviced_langs: str = 'pl',
-        content_column_name: str = 'content',
+        currently_serviced_langs: dict,
+        get_sentiment: bool = True,
+        translate_content: bool = True,
+        original_content_column: str = 'content',
+        content_column_name: str = 'preprocessed_content',
         sentiment_column_name: str = 'sentiment',
         detected_language_column_name: str = 'detected_language',
+        dropped_indexes_column_name: str = 'dropped_indexes',
         offensive_label: str = 'offensive',
         faiss_vector_ext: str = '.index',
         cleread_file_ext: str = '.gzip.parquet',
         empty_contents_suffix: str = '_EMPTY_CONTENT',
         empty_content_ext: str = '.csv',
+        en_code: str = 'en',
         batch_size: int = 32,
         seed: int = 42):
     
@@ -352,22 +357,34 @@ def process_data_from_choosen_files(
 
     logger.info(f'Language detection model {lang_detection_model_name} loaded successfully')
 
-    translation_model_dict = load_translation_model(
-        model_name=translation_model_name,
-        device=DEVICE
-    )
+    if translate_content:
 
-    translation_model = translation_model_dict.get('model')
-    translation_tokenizer = translation_model_dict.get('tokenizer')
+        translation_models_dict = {}
 
-    logger.info(f'Translation model {lang_detection_model_name} loaded successfully')
+        for lang, model_name in currently_serviced_langs.items():
+
+            current_trans_model_dict = load_translation_model(
+                model_name=model_name,
+                device=DEVICE
+            )
+
+            translation_models_dict[lang] = current_trans_model_dict
+
+            # translation_model = current_trans_model_dict.get('model')
+            # translation_tokenizer = current_trans_model_dict.get('tokenizer')
+
+            logger.info(f'Translation model {model_name} for {lang.upper()} loaded successfully')
 
     logger.info(
         f"""Loading data from chosen files:{chosen_files}""")
     
-    # loading sentiment model setup
-    sent_tokenizer, sent_models, sent_cofnig = load_sentiment_model(sentiment_model_name, device=DEVICE)
-    logger.info(f'Sentiment setup loaded successfully.')
+    if get_sentiment:
+        # loading sentiment model setup
+        sent_tokenizer, sent_models, sent_cofnig = load_sentiment_model(
+            sentiment_model_name, 
+            device=DEVICE)
+        
+        logger.info(f'Sentiment setup loaded successfully.')
 
     rows_cardinalities = {}
 
@@ -384,19 +401,22 @@ def process_data_from_choosen_files(
                 df = read_file(
                     file_path=os.path.join(path_to_valid_files, file_))
                     
-                logger.info(f'{filename=}, {ext=}')
-                logger.info(f'Loaded {file_}')
+                logger.debug(f'{filename=}, {ext=}')
+                logger.debug(f'Loaded {file_}')
                 logger.debug(df)
 
-                df = cleanup_data(
+                df[content_column_name] = df[original_content_column].copy()
+
+                df, df_dropped_indexes = cleanup_data(
                     df=df, 
                     filename=file_,
                     path_to_empty_content_dir=path_to_empty_content_dir,
                     empty_contents_suffix=empty_contents_suffix,
-                    empty_content_ext=empty_content_ext)
+                    empty_content_ext=empty_content_ext,
+                    content_column_name=content_column_name,
+                    dropped_indexes_column_name=dropped_indexes_column_name)
                 
                 logger.info(f'Cleaned {file_}')
-                logger.info(f'Predicting sentiment for {file_}')
 
                 dataloader = create_dataloader(
                     df=df,
@@ -415,47 +435,80 @@ def process_data_from_choosen_files(
                 logger.info(f'Successfully detected languages for {filename}')
 
                 df[detected_language_column_name] = lang_detection_labels
+                known_langs = [en_code]
 
-                to_translate_dataloader = create_dataloader(
-                    df.loc[df[detected_language_column_name] == currently_serviced_langs],
-                    target_column=content_column_name,
-                    batch_size=8,
-                    shuffle=False
+                if translate_content:
+
+                    for lang, lang_model_dict in translation_models_dict.items():
+
+                        to_translate_dataloader = create_dataloader(
+                            df.loc[df[detected_language_column_name] == lang],
+                            target_column=content_column_name,
+                            batch_size=8,
+                            shuffle=False
+                        )
+
+                        translated_tickets = translate_text(
+                            dataloader=to_translate_dataloader,
+                            trans_model=lang_model_dict.get('model'),
+                            trans_tokenizer=lang_model_dict.get('tokenizer'),
+                            device=DEVICE
+                        )
+
+                        logger.info(f'Successfully translated {lang} tickets for {filename}')
+
+                        try:
+                            df.loc[df[detected_language_column_name] == lang, 
+                                content_column_name] = translated_tickets
+                        except Exception:
+                            logger.error(f'Failed to assign translated tickets for {filename}')
+                            return None
+                        else:
+                            logger.info(f'Successfully assigned translated tickets for {filename}')
+
+                    known_langs = list(translation_models_dict.keys()) + known_langs
+
+                unknown_lang_contents_indexes = df.loc[~df[detected_language_column_name].isin(known_langs)].index
+
+                df = df.drop(unknown_lang_contents_indexes)
+
+                df_dropped_indexes = pd.concat(
+                    [df_dropped_indexes, 
+                        pd.DataFrame({dropped_indexes_column_name: unknown_lang_contents_indexes})])
+                    
+                df_dropped_indexes = df_dropped_indexes.sort_values(by=dropped_indexes_column_name)
+
+                save_df_to_file(
+                    df=df_dropped_indexes,
+                    filename=f"{filename}{empty_contents_suffix}",
+                    path_to_dir=path_to_empty_content_dir,
+                    file_ext=empty_content_ext
                 )
 
-                translated_tickets = translate_text(
-                    dataloader=to_translate_dataloader,
-                    trans_model=translation_model,
-                    trans_tokenizer=translation_tokenizer,
-                    device=DEVICE
-                )
+                if get_sentiment:
 
-                logger.info(f'Successfully translated non-english tickets for {filename}')
+                    dataloader = create_dataloader(
+                        df=df,
+                        target_column=content_column_name,
+                        batch_size=batch_size,
+                        shuffle=False
+                    )
 
-                try:
-                    df.loc[df[detected_language_column_name] == currently_serviced_langs, 
-                           content_column_name] = translated_tickets
-                except Exception:
-                    logger.error(f'Failed to assign translated tickets for {filename}')
-                    sys.exit(0)
-                else:
-                    logger.info(f'Successfully assigned translated tickets for {filename}')
+                    sentiment_labels = predict_sentiment(
+                        data=dataloader,
+                        tokenizer=sent_tokenizer, 
+                        model=sent_models, 
+                        config=sent_cofnig,
+                        device=DEVICE
+                    ) 
 
-                sentiment_labels = predict_sentiment(
-                    data=dataloader,
-                    tokenizer=sent_tokenizer, 
-                    model=sent_models, 
-                    config=sent_cofnig,
-                    device=DEVICE
-                ) 
+                    df[sentiment_column_name] = sentiment_labels
+                    df[sentiment_column_name] = np.where(
+                        df[content_column_name].apply(lambda x: offensive_language(x, swearwords)), 
+                        offensive_label, 
+                        df[sentiment_column_name])
 
-                df[sentiment_column_name] = sentiment_labels
-                df[sentiment_column_name] = np.where(
-                    df[content_column_name].apply(lambda x: offensive_language(x, swearwords)), 
-                    offensive_label, 
-                    df[sentiment_column_name])
-
-                logger.info(f'Sentiment predicted successfully for {filename}')
+                    logger.info(f'Sentiment predicted successfully for {filename}')
 
                 save_df_to_file(
                     df=df,
@@ -482,15 +535,14 @@ def process_data_from_choosen_files(
                     )
 
                 logger.debug(f"Content column: {df[content_column_name]}")
-            
-                dataset = MyDataset(df[content_column_name].to_frame())
-                
-                dataloader = DataLoader(
-                    dataset, 
-                    batch_size=batch_size, 
+                    
+                dataloader = create_dataloader(
+                    df=df,
+                    target_column=content_column_name,
+                    batch_size=batch_size,
                     shuffle=False
                 )
-                
+            
                 logger.info('Successfully converted df to Torch Dataset')
                 
                 save_name = f'{filename}{faiss_vector_ext}'

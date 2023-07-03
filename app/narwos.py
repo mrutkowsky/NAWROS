@@ -91,6 +91,10 @@ CLEARED_FILE_EXT = PIPELINE.get('cleared_file_ext')
 LOGGING_FORMAT = LOGGER.get('logging_format')
 LOGGER_LEVEL = LOGGER.get('logger_level')
 
+ETL_SETTINGS = CONFIGURATION.get('ETL_SETTINGS')
+TRANSLATE_CONTENT = ETL_SETTINGS.get('translate')
+GET_SENTIMENT = ETL_SETTINGS.get('sentiment')
+
 ALLOWED_EXTENSIONS = INPUT_FILES_SETTINGS.get('allowed_extensions')
 REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 
@@ -109,24 +113,31 @@ RECALCULATE_CLUSTERS_TRESHOLD = ML.get('recalculate_clusters_treshold')
 LANG_DETECTION_MODEL = ML.get('lang_detection_model')
 
 TRANSLATION_MODELS = ML.get('translation_models')
-PL_TO_ENG_TRANS = TRANSLATION_MODELS.get('PL_TO_ENG')
 
 REPORT_CONFIG = CONFIGURATION.get('REPORT_SETTINGS')
 
 BASE_REPORT_COLUMNS = REPORT_CONFIG.get('base_columns')
+ORIGINAL_CONTENT_COLUMN = REPORT_CONFIG.get('original_content_column')
+PREPROCESSED_CONTENT_COLUMN = REPORT_CONFIG.get('preprocessed_content_column')
 LABELS_COLUMN = REPORT_CONFIG.get('labels_column', 'labels')
 CARDINALITIES_COLUMN = REPORT_CONFIG.get('cardinalities_column', 'counts')
 SENTIMENT_COLUMN = REPORT_CONFIG.get('sentiment_column', 'sentiment')
 FILENAME_COLUMN = REPORT_CONFIG.get('filename_column', 'filename')
+ORIGINAL_CONTENT = REPORT_CONFIG.get('original_content')
+
 COMPARING_RAPORT_DOWNLOAD_NAME = REPORT_CONFIG.get('download_name')
 NO_TOPIC_TOKEN = REPORT_CONFIG.get('no_topic_token')
 COMPARING_REPORT_SUFFIX = REPORT_CONFIG.get('comparing_report_suffix')
 
 ALL_DETAILED_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
-    LABELS_COLUMN, 
-    SENTIMENT_COLUMN, 
+    ORIGINAL_CONTENT,
+    PREPROCESSED_CONTENT_COLUMN,
+    LABELS_COLUMN,  
     FILENAME_COLUMN
 ]
+
+if GET_SENTIMENT:
+    ALL_DETAILED_REPORT_COLUMNS += [SENTIMENT_COLUMN]
 
 CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('cluster_exec_filename_prefix')
 CLUSTER_EXEC_FILENAME_EXT = REPORT_CONFIG.get('cluster_exec_filename_ext')
@@ -428,11 +439,14 @@ def choose_files_for_clusters():
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
         embedded_files_filename=EMBEDDED_JSON,
         embeddings_model_name=EMBEDDINGS_MODEL,
+        get_sentiment=GET_SENTIMENT,
+        translate_content=TRANSLATE_CONTENT,
         lang_detection_model_name=LANG_DETECTION_MODEL,
-        translation_model_name=PL_TO_ENG_TRANS,
+        currently_serviced_langs=TRANSLATION_MODELS,
         sentiment_model_name=SENTIMENT_MODEL_NAME,
         swearwords=SWEAR_WORDS,
-        content_column_name=CONTENT_COLUMN,
+        original_content_column=ORIGINAL_CONTENT_COLUMN,
+        content_column_name=PREPROCESSED_CONTENT_COLUMN,
         cleread_file_ext=CLEARED_FILE_EXT,
         empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
         empty_content_ext=EMPTY_CONTENTS_EXT,
@@ -749,11 +763,14 @@ def update_clusters_new_file():
                 faiss_vectors_dirname=FAISS_VECTORS_DIR,
                 embedded_files_filename=EMBEDDED_JSON,
                 embeddings_model_name=EMBEDDINGS_MODEL,
+                get_sentiment=GET_SENTIMENT,
+                translate_content=TRANSLATE_CONTENT,
                 lang_detection_model_name=LANG_DETECTION_MODEL,
-                translation_model_name=PL_TO_ENG_TRANS,
+                currently_serviced_langs=TRANSLATION_MODELS,
                 sentiment_model_name=SENTIMENT_MODEL_NAME,
                 swearwords=SWEAR_WORDS,
-                content_column_name=CONTENT_COLUMN,
+                original_content_column=ORIGINAL_CONTENT_COLUMN,
+                content_column_name=PREPROCESSED_CONTENT_COLUMN,
                 cleread_file_ext=CLEARED_FILE_EXT,
                 empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
                 empty_content_ext=EMPTY_CONTENTS_EXT,
@@ -898,11 +915,14 @@ def update_clusters_existing_file():
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
         embedded_files_filename=EMBEDDED_JSON,
         embeddings_model_name=EMBEDDINGS_MODEL,
+        translate_content=TRANSLATE_CONTENT,
+        get_sentiment=GET_SENTIMENT,
         lang_detection_model_name=LANG_DETECTION_MODEL,
-        translation_model_name=PL_TO_ENG_TRANS,
+        currently_serviced_langs=TRANSLATION_MODELS,
         sentiment_model_name=SENTIMENT_MODEL_NAME,
         swearwords=SWEAR_WORDS,
-        content_column_name=CONTENT_COLUMN,
+        original_content_column=ORIGINAL_CONTENT_COLUMN,
+        content_column_name=PREPROCESSED_CONTENT_COLUMN,
         cleread_file_ext=CLEARED_FILE_EXT,
         empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
         empty_content_ext=EMPTY_CONTENTS_EXT,

@@ -94,7 +94,7 @@ class CTFIDFVectorizer(TfidfTransformer):
 def prepare_df_for_ctfidf(
         df: pd.DataFrame,
         stopwords: list,
-        content_column_name: str = 'content',
+        content_column_name: str = 'preprocessed_content',
         label_column_name: str = 'labels') -> pd.DataFrame:
     """Prepare a DataFrame for c-TF-IDF transformation by grouping documents per class.
 
@@ -215,7 +215,7 @@ def transform_topic_vec_to_df(
 def get_topics_from_texts(
         df: pd.DataFrame,
         stop_words: list = None,
-        content_column_name: str = 'content',
+        content_column_name: str = 'preprocessed_content',
         label_column_name: str = 'labels',
         no_topic_token: str = '-') -> tuple[list]:
     
