@@ -15,6 +15,7 @@ import lemminflect
 from collections import Counter
 from datetime import datetime
 import io
+from flask import make_response
 
 from utils.embeddings_module import load_transformer_model, get_embeddings
 from utils.etl import preprocess_text
@@ -627,29 +628,34 @@ def get_report_name_with_timestamp(
 
 def create_response_report(
         df: pd.DataFrame,
+        filename: str,
+        ext: str,
+        mimetype: str,
         file_format: str = 'csv'):
     
-    logger.debug(file_format)
+    CSV_EXT, EXCEL_EXT, HTML_EXT = 'csv', 'excel', 'html'
+    
+    buffer = io.BytesIO() if file_format in (CSV_EXT, EXCEL_EXT) else io.StringIO()
 
-    buffer = io.BytesIO()
-
-    if file_format == 'csv':
+    if file_format == CSV_EXT:
 
         df.to_csv(buffer, index=False)
-        buffer.seek(0)
-        return buffer
 
-    elif file_format == 'excel':
+    elif file_format == EXCEL_EXT:
 
         df.to_excel(buffer, index=False)
-        buffer.seek(0)
-        return buffer
     
-    elif file_format == 'html':
+    elif file_format == HTML_EXT:
 
-        df_html = df.to_html(index=False)
-        return df_html.encode()
+        df.to_html(buffer, index=False)
     
     else:
         return None
+    
+    resp = make_response(buffer.getvalue())
+    resp.headers["Content-Disposition"] = \
+        f"attachment; filename={filename}.{ext}"
+    resp.headers["Content-type"] = mimetype
+
+    return resp
 

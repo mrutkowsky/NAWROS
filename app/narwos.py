@@ -28,7 +28,7 @@ from utils.cluster import get_clusters_for_choosen_files, \
     cluster_recalculation_needed, \
     cns_after_clusterization, \
     save_cluster_exec_report
-from utils.reports import compare_reports, find_latest_two_reports
+from utils.reports import compare_reports, find_latest_two_reports, find_latested_n_exec_report
 from copy import copy
 
 app = Flask(__name__)
@@ -551,7 +551,7 @@ def apply_filter():
         f"""{filters} Columns of df to filter:{filtered_df.columns}""")
     
     query_string = ' & '.join(
-        [f"{filter_dict.get('column')} == '{filter_dict.get('value')}'" for filter_dict in filters]
+        [f"{filter_dict.get('column')} in '{filter_dict.get('value')}'" for filter_dict in filters]
     )
 
     logger.info(f"{query_string}")
@@ -600,17 +600,13 @@ def get_exec_filtered_report():
 
     resp_report = create_response_report(
         df=summary_df,
+        filename=filtered_exec_report_name,
+        ext=report_ext,
+        mimetype=report_mimetype,
         file_format=report_type
     )
 
-    response = make_response(send_file(
-        resp_report,
-        mimetype = report_mimetype,
-        as_attachment = True,
-        download_name = f"{filtered_exec_report_name}{report_ext}"
-    ))
-
-    return response
+    return resp_report
 
 @app.route('/get_detailed_filtered_report', methods=['POST'])
 def get_detailed_filtered_report():
@@ -631,17 +627,67 @@ def get_detailed_filtered_report():
 
     resp_report = create_response_report(
         df=filtered_df,
+        filename=filtered_df_filename,
+        ext=report_ext,
+        mimetype=report_mimetype,
         file_format=report_type
     )
 
-    response = make_response(send_file(
-        resp_report,
-        mimetype = report_mimetype,
-        as_attachment = True,
-        download_name = f"{filtered_df_filename}{report_ext}"
-    ))
+    return resp_report
 
-    return response
+@app.route('/get_last_cluster_exec_report', methods=['POST'])
+def get_last_cluster_exec_report():
+
+    report_type = request.form.get('last_report_type')
+
+    ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
+    report_ext = ext_settings.get('ext', '.csv')
+    report_mimetype = ext_settings.get('mimetype', 'text/csv')
+
+    latest_exec_report = find_latested_n_exec_report(
+        path_to_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
+        cluster_exec_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
+        n_reports=1
+    )
+
+    cluster_exec_df = read_file(
+        file_path=os.path.join(PATH_TO_CLUSTER_EXEC_REPORTS_DIR, latest_exec_report)
+    )
+
+    resp_report = create_response_report(
+        df=cluster_exec_df,
+        filename=latest_exec_report.split('.')[0],
+        ext=report_ext,
+        mimetype=report_mimetype,
+        file_format=report_type
+    )
+
+    return resp_report
+
+@app.route('/get_chosen_cluster_exec_report', methods=['POST'])
+def get_chosen_cluster_exec_report():
+
+    chosen_report_name = request.form.get('chosen_report_name')
+    report_type = request.form.get('chosen_report_type')
+
+    ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
+    report_ext = ext_settings.get('ext', '.csv')
+    report_mimetype = ext_settings.get('mimetype', 'text/csv')
+
+    cluster_exec_df = read_file(
+        file_path=os.path.join(PATH_TO_CLUSTER_EXEC_REPORTS_DIR, chosen_report_name)
+    )
+
+    resp_report = create_response_report(
+        df=cluster_exec_df,
+        filename=chosen_report_name.split('.')[0],
+        ext=report_ext,
+        mimetype=report_mimetype,
+        file_format=report_type
+    )
+
+    return resp_report
+
 
 @app.route('/get_detailed_cluster_exec_report', methods=['POST'])
 def get_detailed_cluster_exec_report():
@@ -662,17 +708,13 @@ def get_detailed_cluster_exec_report():
 
     resp_report = create_response_report(
         df=current_df,
+        filename=detailed_cluster_exec_report_filename,
+        ext=report_ext,
+        mimetype=report_mimetype,
         file_format=report_type
     )
 
-    response = make_response(send_file(
-        resp_report,
-        mimetype = report_mimetype,
-        as_attachment = True,
-        download_name = f"{detailed_cluster_exec_report_filename}{report_ext}"
-    ))
-
-    return response
+    return resp_report
 
 @app.route('/update_clusters_new_file', methods=['POST'])
 def update_clusters_new_file():
@@ -1021,7 +1063,11 @@ def compare_selected_reports():
 @app.route('/compare_with_last_report', methods=['POST'])
 def compare_with_last_report():
     
-    filename1, filename2 = find_latest_two_reports(PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
+    filename1, filename2 = find_latested_n_exec_report(
+        path_to_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
+        cluster_exec_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
+        n_reports=2)
+    
     report_format_form = request.form.get('file-format')
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, DEFAULT_REPORT_FORMAT_SETTINGS)
@@ -1057,7 +1103,7 @@ def compare_with_last_report():
     return response
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)
 
 
 

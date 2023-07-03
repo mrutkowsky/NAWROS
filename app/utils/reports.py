@@ -207,7 +207,8 @@ def compare_reports(
 
     return result_df
 
-def find_latest_two_reports(path_to_reports_dir: str):
+def find_latest_two_reports(
+        path_to_reports_dir: str):
     report_files = []
 
     timestamp_pattern = r"_\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}"
@@ -222,3 +223,23 @@ def find_latest_two_reports(path_to_reports_dir: str):
     report_files.sort(reverse=True)
 
     return report_files[:2]
+
+def find_latested_n_exec_report(
+    path_to_dir: str,
+    cluster_exec_prefix: str = 'cluster_exec',
+    n_reports: int = 1) -> str:
+
+    TIMESTAMP_PATTERN = r"_(\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2})\..+"
+    TIMESTAMP_FORMAT = "%Y_%m_%d_%H_%M_%S"
+
+    only_exec_reports = sorted([
+        file_ for file_ in os.listdir(path_to_dir) 
+        if file_.startswith(cluster_exec_prefix)], reverse=True)
+
+    try:
+        reports_to_return = only_exec_reports[0] if n_reports == 1 else only_exec_reports[:n_reports]
+    except IndexError:
+        logger.error(f'No cluster execution reports in {path_to_dir}!')
+        return None
+    else:
+        return reports_to_return
