@@ -40,7 +40,7 @@
     <div class="container">
       <div class="Load-files">
         <div class="mt-20">
-          <form action="/upload_file" class="mt-20" method="post" enctype="multipart/form-data">
+          <form class="form-style" action="/upload_file" class="mt-20" method="post" enctype="multipart/form-data">
             <label>Load files:</label>
             <input type="file" name="file" multiple required>
             <br><br>
@@ -72,7 +72,7 @@
       </div>
       <div class="Delete-files">
         <div class="mt-20">
-          <form action="/delete_file" method="post">
+          <form class="form-style" action="/delete_file" method="post">
             <label for="to_delete">Delete file:</label>
             <select id="to_delete" name="to_delete" required>
               <option value="" selected disabled hidden>(Choose file)</option>
@@ -95,7 +95,7 @@
       <div style="align-items: center;">
         <h3>Clustering</h3>
         <div class="mt-20">
-          <form method="post" action="/choose_files_for_clusters">
+          <form class="form-style" method="post" action="/choose_files_for_clusters">
             <label for="chosen_files">Choose files for clustering:</label>
             <br>
             {% for file in files %}

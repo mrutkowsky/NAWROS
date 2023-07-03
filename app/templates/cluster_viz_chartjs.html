@@ -34,13 +34,12 @@
 
         .container {  display: grid;
         grid-template-columns: 1fr 1fr;
-        grid-template-rows: 1fr 1fr;
+        grid-template-rows: 1fr;
         grid-auto-rows: 1fr;
         gap: 3px 3px;
         grid-auto-flow: row;
         grid-template-areas:
-            "Compare Filter"
-            "Report Report";
+            "Compare Filter";
         }
 
         /*.Plot { grid-area: Plot; }*/
@@ -49,7 +48,7 @@
 
         .Filter { grid-area: Filter; }
 
-        .Report { grid-area: Report; }
+        /*.Report { grid-area: Report; }*/
 
         input[type="submit"], button.my-button {
         padding: 10px 10px;
@@ -60,6 +59,20 @@
         font-size: 18px;
         cursor: pointer;
         width: 100%;
+        }
+        .Report {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        /* border-bottom: 4px solid #ccc;*/
+        padding-bottom: 10px;
+        width: 40%;
+        justify-content: center;
+        }
+        .wrap {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
         }
     </style>
 </head>
@@ -84,11 +97,32 @@
     <div class="Plot">
     <!--<canvas id="myChart"></canvas>-->
     </div>
+    <div class="wrap">
+        <div class="Report">
+            <div style="margin-right: 10px;">
+                <form action="/get_detailed_cluster_exec_report"  method="post">
+                    <input type="submit" value="Get detailed report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
+                </form>
+            </div>
+            <div style="margin-right: 10px;">
+                <form action="/get_summary_cluster_exec_report"  method="post">
+                    <input type="submit" value="Get summary report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
+                </form>
+            </div>
+            <label for="value" style="margin-right: 10px;">Choose report type</label>
+            <div style="margin-right: 10px;">
+                <select id="report_type_exec">
+                    <option value="excel">Excel</option>
+                    <option value="csv">CSV</option>
+                </select>
+            </div>
+        </div>
+    </div>
     <div class="container">
         <div class="Compare">
             <h3>Update clusters</h3>
             <div class="Qucik-clustering">
-                <form action="/update_clusters_new_file"  method="post" enctype="multipart/form-data">
+                <form class="form-style" action="/update_clusters_new_file"  method="post" enctype="multipart/form-data">
                     <label>Load new file:</label>
                     <input type="file" name="file">
                     <br>
@@ -114,8 +148,11 @@
                     {% if update_clusters_new_file_message %}
                     <p style="color: rgb(80, 187, 80)">{{ update_clusters_new_file_message }}</p>
                     {% endif %}
+                    {% if update_clusters_new_file_no_file_message %}
+                    <p style="color:  rgb(250, 89, 89)">{{ update_clusters_new_file_no_file_message }}</p>
+                    {% endif %}
                 </form>
-                <form style="margin-top: 20px;" action="/update_clusters_existing_file"  method="post">
+                <form class="form-style" style="margin-top: 20px;" action="/update_clusters_existing_file"  method="post">
                     <p>Choose exisitng file for clustering</p>
                     <select class="ex_file_update" name="ex_file_update" required>
                         <option value="" selected disabled hidden>(select file)</option>
@@ -145,10 +182,13 @@
                     {% if update_clusters_existing_file_message %}
                     <p style="color: rgb(80, 187, 80)">{{ update_clusters_existing_file_message }}</p>
                     {% endif %}
+                    {% if update_clusters_existing_file_no_file_message %}
+                    <p style="color:  rgb(250, 89, 89)">{{ update_clusters_existing_file_no_file_message }}</p>
+                    {% endif %}
                 </form>
             </div>
         <h3 style="margin-top: 20px;">Compare reports</h3>
-        <form method="post" action="/compare_with_last_report">
+        <form class="form-style" method="post" action="/compare_with_last_report">
             
             <label for="file-format">File Format:</label><br>
 
@@ -171,7 +211,7 @@
         </form>
         <div class="Compare-reports">
             <div class="mt-20" style="margin-top: 20px;">
-                <form method="post" action="/compare_selected_reports">
+                <form class="form-style" method="post" action="/compare_selected_reports">
                         <label for="file-format">File Format:</label><br>
 
                         <input type="radio" id="csv" name="file-format" value="csv">
@@ -245,17 +285,6 @@
             </div>
         <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="addFilter()">Add Filter</button>
         <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="applyFilters()">Apply Filters</button>
-    </div>
-    <div class="Report">
-        <div style="margin-top: 10px;">
-            <label for="value">Choose report type</label>
-            <select id="reportTypeInput">
-                <option value="excel">Excel</option>
-                <option value="csv">CSV</option>
-            </select>
-        </div>
-        <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="downloadFilteredData()">Download detailed report</button>
-        <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="downloadSummaryData()">Download summary report</button>
     </div>
     </div>
 <script>
