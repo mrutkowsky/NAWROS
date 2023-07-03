@@ -85,7 +85,6 @@ EMPTY_CONTENTS_EXT = EMPTY_CONTENT_SETTINGS.get('empty_content_ext')
 EMPTY_CONTENTS_SUFFIX = EMPTY_CONTENT_SETTINGS.get('empty_content_suffix')
 
 BATCH_SIZE = PIPELINE.get('batch_size')
-CONTENT_COLUMN = PIPELINE.get('content_column')
 CLEARED_FILE_EXT = PIPELINE.get('cleared_file_ext')
 
 LOGGING_FORMAT = LOGGER.get('logging_format')
@@ -131,7 +130,7 @@ NO_TOPIC_TOKEN = REPORT_CONFIG.get('no_topic_token')
 COMPARING_REPORT_SUFFIX = REPORT_CONFIG.get('comparing_report_suffix')
 
 ALL_DETAILED_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
-    ORIGINAL_CONTENT,
+    ORIGINAL_CONTENT_COLUMN,
     PREPROCESSED_CONTENT_COLUMN,
     LABELS_COLUMN,  
     FILENAME_COLUMN
@@ -487,7 +486,7 @@ def choose_files_for_clusters():
         cardinalities_column=CARDINALITIES_COLUMN,
         cluster_exec_filename_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
         cluster_exec_filename_ext=CLUSTER_EXEC_FILENAME_EXT,
-        content_column_name=CONTENT_COLUMN,
+        content_column_name=PREPROCESSED_CONTENT_COLUMN,
         no_topic_token=NO_TOPIC_TOKEN
     )
 
@@ -885,7 +884,7 @@ def update_clusters_new_file():
                     cardinalities_column=CARDINALITIES_COLUMN,
                     cluster_exec_filename_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
                     cluster_exec_filename_ext=CLUSTER_EXEC_FILENAME_EXT,
-                    content_column_name=CONTENT_COLUMN,
+                    content_column_name=PREPROCESSED_CONTENT_COLUMN,
                     no_topic_token=NO_TOPIC_TOKEN
                 )
 
@@ -1040,7 +1039,7 @@ def update_clusters_existing_file():
             cardinalities_column=CARDINALITIES_COLUMN,
             cluster_exec_filename_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
             cluster_exec_filename_ext=CLUSTER_EXEC_FILENAME_EXT,
-            content_column_name=CONTENT_COLUMN,
+            content_column_name=PREPROCESSED_CONTENT_COLUMN,
             no_topic_token=NO_TOPIC_TOKEN
         )
 

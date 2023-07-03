@@ -640,7 +640,8 @@ def preprocess_pipeline(
 
     nlp = spacy.load('en_core_web_sm')
 
-    text = re.sub(r'\b[^a-z]+\b', '', text.lower())
+    text = re.sub(r'[^a-z ]', '', text.lower())
+    text = re.sub(r'\s+', ' ', text)
 
     removed_before_lem = remove_stopwords(
         text,
