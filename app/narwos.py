@@ -947,12 +947,16 @@ def update_clusters_existing_file():
         n_of_rows_for_new_file = rows_cards_for_preprocessed.get(existing_file_for_update)
     else:
 
+        logger.debug(existing_file_for_update)
+
         filename_in_cleared_files = find_filename_in_dir(
-            path_to_dir=PATH_TO_CLEARED_FILES
-        ).get(existing_file_for_update)
+            path_to_dir=PATH_TO_CLEARED_FILES) \
+                .get(os.path.splitext(existing_file_for_update)[0])
+        
+        logger.debug(filename_in_cleared_files)
 
         n_of_rows_for_new_file = get_n_of_rows_df(
-            os.path.join(CLEARED_DATA_DIR, filename_in_cleared_files)
+            os.path.join(PATH_TO_CLEARED_FILES, filename_in_cleared_files)
         )
 
     rows_cardinalities_current_df = get_rows_cardinalities(
