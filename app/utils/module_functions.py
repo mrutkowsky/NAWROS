@@ -141,19 +141,6 @@ def read_config(
 
     return config
 
-def return_valid_response_file(
-        filename: str,
-        report_format: str,
-        mimetype: str,
-        ext: str):
-
-    resp = make_response()
-    resp.headers["Content-Disposition"] = \
-        f"attachment; filename={filename}.{ext}"
-    resp.headers["Content-type"] = mimetype
-
-    return resp
-
 def get_report_ext(
     path_to_arf_dir: str,
     filename: str):

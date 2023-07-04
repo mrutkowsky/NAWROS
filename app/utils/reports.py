@@ -135,7 +135,7 @@ def compare_reports(
     )
 
     topic_columns = [f"{topic_preffix_name}_{i}" for i in range(1, topics_number + 1)]
-    columns_to_load = topic_columns + [cardinality_column]
+    columns_to_load = topic_columns + [cardinality_column, ]
 
     old_report_df = read_file(
         file_path=old_report_path,
@@ -160,14 +160,14 @@ def compare_reports(
 
     rows_for_result_df = []
 
-    for _, row2 in report2.iterrows():
+    for idx2, row2 in report2.iterrows():
 
         group2 = set(row2[topic_columns]).difference(no_topic_token)  
         cardinality2 = row2[cardinality_column]
 
         new_group_flag = True
 
-        for _, row1 in report1.iterrows():
+        for idx1, row1 in report1.iterrows():
 
             group1 = set(row1[topic_columns]).difference(no_topic_token)  
             cardinality1 = row1[cardinality_column]
@@ -175,7 +175,7 @@ def compare_reports(
             if (len(group2.intersection(group1)) >= must_match_topics_numbers) \
                 or ((group2.issubset(group1)) and (len(group2) != 0) and (len(group1) != 0)) \
                 or ((group1.issubset(group2)) and (len(group2) != 0) and (len(group1) != 0)) \
-                or (group1 == group2):
+                or (group1 == group2) or ((idx1 == 0) and (idx2 == 0)):
 
                 growth = cardinality2 - cardinality1
                 growth_str = f'+{growth}' if growth >= 0 else str(growth)
@@ -189,12 +189,12 @@ def compare_reports(
             
         if new_group_flag:
 
-            new_group_row = [np.nan] * 6 + list(row2) + [new_cluster_value]
+            new_group_row = [''] * 6 + list(row2) + [new_cluster_value]
             rows_for_result_df.append(new_group_row)
 
     for _, row1 in report1.iterrows():
 
-        new_group_row = list(row1) + [np.nan] * 6 + [old_cluster_value]
+        new_group_row = list(row1) + [''] * 6 + [old_cluster_value]
         rows_for_result_df.append(new_group_row)
 
     result_columns = [f'{old_report_column_prefix}_{col}' for col in report1.columns] \

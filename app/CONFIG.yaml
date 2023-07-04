@@ -42,8 +42,8 @@ INPUT_FILES_SETTINGS:
     - content
 
 ETL_SETTINGS:
-  translate: false
-  sentiment: false
+  translate: true
+  sentiment: true
 
 REPORT_SETTINGS:
   original_content_column: content
@@ -103,6 +103,7 @@ ML:
     model_name: 'clusterer.pkl'
     min_cluster_size: 15
     min_samples: 15
+    outlier_treshold: 0.1
     metric: euclidean                      
     cluster_selection_method: eom
 
