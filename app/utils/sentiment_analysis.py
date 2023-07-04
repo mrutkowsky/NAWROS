@@ -30,6 +30,18 @@ def load_sentiment_model(
 
 
 def offensive_language(text, swear_words):
+    """
+       Translates text using a pre-trained translation model and tokenizer.
+
+       Args:
+           dataloader (DataLoader): The data loader containing the input texts to translate.
+           trans_model: The pre-trained translation model.
+           trans_tokenizer: The tokenizer associated with the translation model.
+           device (str, optional): The device to use for translation. Defaults to 'cpu'.
+
+       Returns:
+           List[str]: A list of translated texts.
+       """
 
     text = text.lower().split()
 
@@ -44,7 +56,19 @@ def predict_sentiment(
         model, 
         config,
         device: str = 'cpu'):
-    
+    """
+        Translates text using a pre-trained translation model and tokenizer.
+
+        Args:
+            dataloader (DataLoader): The data loader containing the input texts to translate.
+            trans_model: The pre-trained translation model.
+            trans_tokenizer: The tokenizer associated with the translation model.
+            device (str, optional): The device to use for translation. Defaults to 'cpu'.
+
+        Returns:
+            List[str]: A list of translated texts.
+    """
+
     labels = []
     
     for i, batch in enumerate(data):

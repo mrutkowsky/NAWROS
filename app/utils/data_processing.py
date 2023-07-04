@@ -13,9 +13,6 @@ import sys
 import spacy
 import lemminflect
 from collections import Counter
-from datetime import datetime
-import io
-from flask import make_response
 
 from utils.embeddings_module import load_transformer_model, get_embeddings
 from utils.etl import preprocess_text
@@ -70,8 +67,7 @@ def cleanup_data(
         path_to_empty_content_dir: str,
         empty_contents_suffix: str,
         empty_content_ext: str,
-        content_column_name: str = 'preprocessed_content',
-        dropped_indexes_column_name: str = 'dropped_indexes') -> pd.DataFrame:
+        content_column_name: str = 'content') -> pd.DataFrame:
     
     """
     Remove rows with empty contents, save them to a separate file, and preprocess the remaining contents.
@@ -109,14 +105,14 @@ def cleanup_data(
 
     indexes_to_drop = np.concatenate((float_contents_indexes, short_contents_indexes))
 
-    df_dropped_indexes = pd.DataFrame({dropped_indexes_column_name: indexes_to_drop})
-    # df_dropped_indexes.to_csv(save_path)
+    df_dropped_indexes = pd.DataFrame({'Dropped_indexes': indexes_to_drop})
+    df_dropped_indexes.to_csv(save_path)
     
     df.drop(index=short_contents_indexes, inplace=True)
 
     logger.debug(f'Preprocessed: {preprocessed_contents}')
 
-    return df, df_dropped_indexes
+    return df
 
 def get_embedded_files(
         path_to_embeddings_file: str):
@@ -167,6 +163,16 @@ def save_file_as_embeded(
 def del_file_from_embeded(
     filename_to_del: str,
     path_to_embeddings_file: str) -> None:
+    """
+       Delete a file entry from the embedded files dictionary.
+
+       Args:
+           filename_to_del (str): The name of the file to delete.
+           path_to_embeddings_file (str): The path to the file containing the embedded files dictionary.
+
+       Returns:
+           bool: True if the file was successfully deleted, False otherwise.
+    """
 
     logger.debug(path_to_embeddings_file)
 
@@ -186,7 +192,7 @@ def save_df_to_file(
         df: pd.DataFrame,
         filename: str,
         path_to_dir: str,
-        file_ext: str = '.csv') -> str:
+        file_ext: str = '.csv') -> None:
     
     """
     Save a DataFrame to a file.
@@ -232,36 +238,36 @@ def save_df_to_file(
     else:
         return 'Unallowed file extension'
     
-    return saving_path, f'{filename}{file_ext}'
-    
 def create_dataloader(
     df: pd.DataFrame,
     target_column: str or list,
     batch_size: int,
     shuffle: bool = False):
+    """
+       Create a DataLoader for a given DataFrame.
 
+       Args:
+           df (pd.DataFrame): The DataFrame containing the data.
+           target_column (str or list): The column(s) in the DataFrame to be used as the target.
+           batch_size (int): The batch size for the DataLoader.
+           shuffle (bool, optional): Whether to shuffle the data. Defaults to False.
+
+       Returns:
+           DataLoader: The created DataLoader.
+    """
     base_data = df[target_column].to_frame() \
         if isinstance(target_column, str) \
         else df[target_column]
-    
+
     dataset = MyDataset(base_data)
-    
+
     dataloader = DataLoader(
-        dataset, 
-        batch_size=batch_size, 
+        dataset,
+        batch_size=batch_size,
         shuffle=shuffle
     )
 
     return dataloader
-
-def find_filename_in_dir(
-    path_to_dir: str) -> dict:
-
-    lookup_dir = {
-        os.path.splitext(file_)[0]: file_ for file_ in os.listdir(path_to_dir)
-    }
-
-    return lookup_dir
 
 def process_data_from_choosen_files(
         chosen_files: list,
@@ -274,21 +280,17 @@ def process_data_from_choosen_files(
         embeddings_model_name: str,
         sentiment_model_name: str,
         lang_detection_model_name: str,
+        translation_model_name: str,
         swearwords: list,
-        currently_serviced_langs: dict,
-        get_sentiment: bool = True,
-        translate_content: bool = True,
-        original_content_column: str = 'content',
-        content_column_name: str = 'preprocessed_content',
+        currently_serviced_langs: str = 'pl',
+        content_column_name: str = 'content',
         sentiment_column_name: str = 'sentiment',
         detected_language_column_name: str = 'detected_language',
-        dropped_indexes_column_name: str = 'dropped_indexes',
         offensive_label: str = 'offensive',
         faiss_vector_ext: str = '.index',
         cleread_file_ext: str = '.gzip.parquet',
         empty_contents_suffix: str = '_EMPTY_CONTENT',
         empty_content_ext: str = '.csv',
-        en_code: str = 'en',
         batch_size: int = 32,
         seed: int = 42):
     
@@ -323,7 +325,9 @@ def process_data_from_choosen_files(
        PATH_TO_JSON_EMBEDDED_FILES 
     )
 
-    cleared_files_names = find_filename_in_dir(path_to_cleared_files)
+    cleared_files_names = {
+        os.path.splitext(file_)[0]: file_ for file_ in os.listdir(path_to_cleared_files)
+    }
 
     only_filenames = [os.path.splitext(file_)[0] for file_ in chosen_files]
 
@@ -357,34 +361,22 @@ def process_data_from_choosen_files(
 
     logger.info(f'Language detection model {lang_detection_model_name} loaded successfully')
 
-    if translate_content:
+    translation_model_dict = load_translation_model(
+        model_name=translation_model_name,
+        device=DEVICE
+    )
 
-        translation_models_dict = {}
+    translation_model = translation_model_dict.get('model')
+    translation_tokenizer = translation_model_dict.get('tokenizer')
 
-        for lang, model_name in currently_serviced_langs.items():
-
-            current_trans_model_dict = load_translation_model(
-                model_name=model_name,
-                device=DEVICE
-            )
-
-            translation_models_dict[lang] = current_trans_model_dict
-
-            # translation_model = current_trans_model_dict.get('model')
-            # translation_tokenizer = current_trans_model_dict.get('tokenizer')
-
-            logger.info(f'Translation model {model_name} for {lang.upper()} loaded successfully')
+    logger.info(f'Translation model {lang_detection_model_name} loaded successfully')
 
     logger.info(
         f"""Loading data from chosen files:{chosen_files}""")
     
-    if get_sentiment:
-        # loading sentiment model setup
-        sent_tokenizer, sent_models, sent_cofnig = load_sentiment_model(
-            sentiment_model_name, 
-            device=DEVICE)
-        
-        logger.info(f'Sentiment setup loaded successfully.')
+    # loading sentiment model setup
+    sent_tokenizer, sent_models, sent_cofnig = load_sentiment_model(sentiment_model_name, device=DEVICE)
+    logger.info(f'Sentiment setup loaded successfully.')
 
     rows_cardinalities = {}
 
@@ -401,22 +393,19 @@ def process_data_from_choosen_files(
                 df = read_file(
                     file_path=os.path.join(path_to_valid_files, file_))
                     
-                logger.debug(f'{filename=}, {ext=}')
-                logger.debug(f'Loaded {file_}')
+                logger.info(f'{filename=}, {ext=}')
+                logger.info(f'Loaded {file_}')
                 logger.debug(df)
 
-                df[content_column_name] = df[original_content_column].copy()
-
-                df, df_dropped_indexes = cleanup_data(
+                df = cleanup_data(
                     df=df, 
                     filename=file_,
                     path_to_empty_content_dir=path_to_empty_content_dir,
                     empty_contents_suffix=empty_contents_suffix,
-                    empty_content_ext=empty_content_ext,
-                    content_column_name=content_column_name,
-                    dropped_indexes_column_name=dropped_indexes_column_name)
+                    empty_content_ext=empty_content_ext)
                 
                 logger.info(f'Cleaned {file_}')
+                logger.info(f'Predicting sentiment for {file_}')
 
                 dataloader = create_dataloader(
                     df=df,
@@ -435,79 +424,47 @@ def process_data_from_choosen_files(
                 logger.info(f'Successfully detected languages for {filename}')
 
                 df[detected_language_column_name] = lang_detection_labels
-                known_langs = [en_code]
 
-                if translate_content:
-
-                    for lang, lang_model_dict in translation_models_dict.items():
-
-                        to_translate_dataloader = create_dataloader(
-                            df.loc[df[detected_language_column_name] == lang],
-                            target_column=content_column_name,
-                            batch_size=8,
-                            shuffle=False
-                        )
-
-                        translated_tickets = translate_text(
-                            dataloader=to_translate_dataloader,
-                            trans_model=lang_model_dict.get('model'),
-                            trans_tokenizer=lang_model_dict.get('tokenizer'),
-                            device=DEVICE
-                        )
-
-                        logger.info(f'Successfully translated {lang} tickets for {filename}')
-
-                        try:
-                            df.loc[df[detected_language_column_name] == lang, 
-                                content_column_name] = translated_tickets
-                        except Exception:
-                            logger.error(f'Failed to assign translated tickets for {filename}')
-                            return None
-                        else:
-                            logger.info(f'Successfully assigned translated tickets for {filename}')
-
-                    known_langs = list(translation_models_dict.keys()) + known_langs
-                    unknown_lang_contents_indexes = df.loc[~df[detected_language_column_name].isin(known_langs)].index
-
-                    df = df.drop(unknown_lang_contents_indexes)
-
-                    df_dropped_indexes = pd.concat(
-                        [df_dropped_indexes, 
-                            pd.DataFrame({dropped_indexes_column_name: unknown_lang_contents_indexes})])
-                    
-                df_dropped_indexes = df_dropped_indexes.sort_values(by=dropped_indexes_column_name)
-
-                save_df_to_file(
-                    df=df_dropped_indexes,
-                    filename=f"{filename}{empty_contents_suffix}",
-                    path_to_dir=path_to_empty_content_dir,
-                    file_ext=empty_content_ext
+                to_translate_dataloader = create_dataloader(
+                    df.loc[df[detected_language_column_name] == currently_serviced_langs],
+                    target_column=content_column_name,
+                    batch_size=8,
+                    shuffle=False
                 )
 
-                if get_sentiment:
+                translated_tickets = translate_text(
+                    dataloader=to_translate_dataloader,
+                    trans_model=translation_model,
+                    trans_tokenizer=translation_tokenizer,
+                    device=DEVICE
+                )
 
-                    dataloader = create_dataloader(
-                        df=df,
-                        target_column=content_column_name,
-                        batch_size=batch_size,
-                        shuffle=False
-                    )
+                logger.info(f'Successfully translated non-english tickets for {filename}')
 
-                    sentiment_labels = predict_sentiment(
-                        data=dataloader,
-                        tokenizer=sent_tokenizer, 
-                        model=sent_models, 
-                        config=sent_cofnig,
-                        device=DEVICE
-                    ) 
+                try:
+                    df.loc[df[detected_language_column_name] == currently_serviced_langs, 
+                           content_column_name] = translated_tickets
+                except Exception:
+                    logger.error(f'Failed to assign translated tickets for {filename}')
+                    sys.exit(0)
+                else:
+                    logger.info(f'Successfully assigned translated tickets for {filename}')
 
-                    df[sentiment_column_name] = sentiment_labels
-                    df[sentiment_column_name] = np.where(
-                        df[content_column_name].apply(lambda x: offensive_language(x, swearwords)), 
-                        offensive_label, 
-                        df[sentiment_column_name])
+                sentiment_labels = predict_sentiment(
+                    data=dataloader,
+                    tokenizer=sent_tokenizer, 
+                    model=sent_models, 
+                    config=sent_cofnig,
+                    device=DEVICE
+                ) 
 
-                    logger.info(f'Sentiment predicted successfully for {filename}')
+                df[sentiment_column_name] = sentiment_labels
+                df[sentiment_column_name] = np.where(
+                    df[content_column_name].apply(lambda x: offensive_language(x, swearwords)), 
+                    offensive_label, 
+                    df[sentiment_column_name])
+
+                logger.info(f'Sentiment predicted successfully for {filename}')
 
                 save_df_to_file(
                     df=df,
@@ -534,14 +491,15 @@ def process_data_from_choosen_files(
                     )
 
                 logger.debug(f"Content column: {df[content_column_name]}")
-                    
-                dataloader = create_dataloader(
-                    df=df,
-                    target_column=content_column_name,
-                    batch_size=batch_size,
+            
+                dataset = MyDataset(df[content_column_name].to_frame())
+                
+                dataloader = DataLoader(
+                    dataset, 
+                    batch_size=batch_size, 
                     shuffle=False
                 )
-            
+                
                 logger.info('Successfully converted df to Torch Dataset')
                 
                 save_name = f'{filename}{faiss_vector_ext}'
@@ -570,7 +528,16 @@ def process_data_from_choosen_files(
 
 def get_stopwords(
         path_to_dir_with_stopwords: str) -> list:
-    
+    """
+        Get a list of stopwords from files in a directory.
+
+        Args:
+            path_to_dir_with_stopwords (str): The path to the directory containing the stopwords files.
+
+        Returns:
+            list: A list of stopwords.
+    """
+
     all_stopwords = []
 
     for lang_file in os.listdir(path_to_dir_with_stopwords):
@@ -590,7 +557,17 @@ def get_swearwords(
 
     return all_swearwords
 
-def get_rows_cardinalities(path_to_cardinalities_file: str) -> dict:
+def get_rows_cardinalities(
+        path_to_cardinalities_file: str) -> dict:
+    """
+        Get the cardinalities of rows from a JSON file.
+
+        Args:
+            path_to_cardinalities_file (str): The path to the JSON file containing the cardinalities.
+
+        Returns:
+            dict: A dictionary mapping row identifiers to their cardinalities.
+        """
 
     with open(path_to_cardinalities_file, 'r', encoding='utf-8') as cards_json:
         return json.load(cards_json)
@@ -598,6 +575,16 @@ def get_rows_cardinalities(path_to_cardinalities_file: str) -> dict:
 def set_rows_cardinalities(
     path_to_cardinalities_file: str,
     updated_cardinalities) -> str or True:
+    """
+        Set the cardinalities of rows in a JSON file.
+
+        Args:
+            path_to_cardinalities_file (str): The path to the JSON file to update.
+            updated_cardinalities: The updated cardinalities to set.
+
+        Returns:
+            Union[str, bool]: True if the cardinalities were successfully set, or an error message if an exception occurred.
+    """
 
     try:
         with open(path_to_cardinalities_file, 'w', encoding='utf-8') as cards_json:
@@ -617,7 +604,20 @@ def remove_stopwords(text, stopwords):
 
     return filtered_text
 
-def remove_single_occurrence_words(text, min_n_of_occurence: int = 3):
+def remove_single_occurrence_words(
+        text,
+        min_n_of_occurence: int = 3):
+    """
+        Remove words from the text that appear only a single time.
+
+        Args:
+            text (str): The input text.
+            min_n_of_occurrence (int, optional): The minimum number of occurrences for a word to be kept. Defaults to 3.
+
+        Returns:
+            str: The filtered text with single-occurrence words removed.
+    """
+
     # Split the text into words
     words = text.split()
 
@@ -636,12 +636,20 @@ def remove_single_occurrence_words(text, min_n_of_occurence: int = 3):
 def preprocess_pipeline(
     text: str,
     stopwords: list,
-    min_n_of_occurence: int = 3): 
+    min_n_of_occurence: int = 3):
+    """
+        Apply a series of preprocessing steps to the input text.
+
+        Args:
+            text (str): The input text.
+            stopwords (list): A list of stopwords to be removed.
+            min_n_of_occurrence (int, optional): The minimum number of occurrences for a word to be kept. Defaults to 3.
+
+        Returns:
+            str: The fully preprocessed text.
+        """
 
     nlp = spacy.load('en_core_web_sm')
-
-    text = re.sub(r'[^a-z ]', '', text.lower())
-    text = re.sub(r'\s+', ' ', text)
 
     removed_before_lem = remove_stopwords(
         text,
@@ -660,56 +668,4 @@ def preprocess_pipeline(
         min_n_of_occurence=min_n_of_occurence)
 
     return fully_preprocessed
-
-def get_n_of_rows_df(
-    file_path: str,
-    loaded_column: str = 'OS') -> int:
-
-    df = read_file(
-        file_path=file_path,
-        columns=[loaded_column]
-    )
-
-    return len(df)
-
-def get_report_name_with_timestamp(
-    filename_prefix: str,
-    timestamp_format: str = r"%Y_%m_%d_%H_%M_%S"): 
-
-    timestamp_filename = f"""{filename_prefix}_{datetime.now().strftime(timestamp_format)}"""
-
-    return timestamp_filename
-
-def create_response_report(
-        df: pd.DataFrame,
-        filename: str,
-        ext: str,
-        mimetype: str,
-        file_format: str = 'csv'):
-    
-    CSV_EXT, EXCEL_EXT, HTML_EXT = 'csv', 'excel', 'html'
-    
-    buffer = io.BytesIO() if file_format in (CSV_EXT, EXCEL_EXT) else io.StringIO()
-
-    if file_format == CSV_EXT:
-
-        df.to_csv(buffer, index=False)
-
-    elif file_format == EXCEL_EXT:
-
-        df.to_excel(buffer, index=False)
-    
-    elif file_format == HTML_EXT:
-
-        df.to_html(buffer, index=False)
-    
-    else:
-        return None
-    
-    resp = make_response(buffer.getvalue())
-    resp.headers["Content-Disposition"] = \
-        f"attachment; filename={filename}.{ext}"
-    resp.headers["Content-type"] = mimetype
-
-    return resp
 

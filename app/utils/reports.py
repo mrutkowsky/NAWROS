@@ -15,6 +15,19 @@ def find_newer_report(
         only_for_existence: bool = False,
         older_report_key: str = 'old',
         newer_report_key: str = 'new') -> dict:
+    """
+        Performs sentiment analysis on a given dataset using a pre-trained sentiment classification model.
+
+        Args:
+            data (Iterable): The dataset to perform sentiment analysis on.
+            tokenizer (Tokenizer): The tokenizer used to preprocess the text data.
+            model (nn.Module): The pre-trained sentiment classification model.
+            config (SentimentConfig): The configuration object containing label mappings.
+            device (str): The device to run the inference on (default is 'cpu').
+
+        Returns:
+            List[str]: A list of predicted sentiment labels for the dataset.
+    """
 
     TIMESTAMP_PATTERN = r"_(\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2})\..+"
     TIMESTAMP_FORMAT = "%Y_%m_%d_%H_%M_%S"
@@ -94,6 +107,27 @@ def compare_reports(
         new_report_column_prefix: str = 'New',
         old_cluster_value: str = 'Old group',
         new_cluster_value: str = 'New group') -> pd.DataFrame:
+    """
+        Compares two reports and generates a comparison result dataframe based on specified criteria.
+
+        Args:
+            first_report_name (str): The filename of the first report.
+            second_report_name (str): The filename of the second report.
+            path_to_reports_dir (str): The path to the directory containing the reports.
+            only_for_existence (bool): Indicates whether the comparison should be performed only for the existence of reports (default is False).
+            topics_number (int): The number of topics to consider in the comparison (default is 5).
+            must_match_topics_numbers (int): The minimum number of topics that must match between the reports for them to be considered similar (default is 3).
+            no_topic_token (str): The token used to represent the absence of a topic (default is '-').
+            topic_preffix_name (str): The prefix used for the topic column names (default is 'Word').
+            cardinality_column (str): The column name representing the cardinality or count (default is 'counts').
+            old_report_column_prefix (str): The prefix used for column names of the first report in the comparison result (default is 'Old').
+            new_report_column_prefix (str): The prefix used for column names of the second report in the comparison result (default is 'New').
+            old_cluster_value (str): The value used to indicate clusters present only in the first report (default is 'Old group').
+            new_cluster_value (str): The value used to indicate clusters present only in the second report (default is 'New group').
+
+        Returns:
+            pd.DataFrame: The comparison result dataframe.
+    """
 
     COMPARISON_COLUMN_NAME = 'Comparison'
     OLDER_REPORT_KEY = 'old'
@@ -135,7 +169,7 @@ def compare_reports(
     )
 
     topic_columns = [f"{topic_preffix_name}_{i}" for i in range(1, topics_number + 1)]
-    columns_to_load = topic_columns + [cardinality_column, ]
+    columns_to_load = topic_columns + [cardinality_column]
 
     old_report_df = read_file(
         file_path=old_report_path,
@@ -160,22 +194,21 @@ def compare_reports(
 
     rows_for_result_df = []
 
-    for idx2, row2 in report2.iterrows():
+    for _, row2 in report2.iterrows():
 
         group2 = set(row2[topic_columns]).difference(no_topic_token)  
         cardinality2 = row2[cardinality_column]
 
         new_group_flag = True
 
-        for idx1, row1 in report1.iterrows():
+        for _, row1 in report1.iterrows():
 
             group1 = set(row1[topic_columns]).difference(no_topic_token)  
             cardinality1 = row1[cardinality_column]
 
             if (len(group2.intersection(group1)) >= must_match_topics_numbers) \
-                or ((group2.issubset(group1)) and (len(group2) != 0) and (len(group1) != 0)) \
-                or ((group1.issubset(group2)) and (len(group2) != 0) and (len(group1) != 0)) \
-                or (group1 == group2) or ((idx1 == 0) and (idx2 == 0)):
+                or (group2.issubset(group1)) \
+                or (group1.issubset(group2)):
 
                 growth = cardinality2 - cardinality1
                 growth_str = f'+{growth}' if growth >= 0 else str(growth)
@@ -189,12 +222,12 @@ def compare_reports(
             
         if new_group_flag:
 
-            new_group_row = [''] * 6 + list(row2) + [new_cluster_value]
+            new_group_row = [np.nan] * 6 + list(row2) + [new_cluster_value]
             rows_for_result_df.append(new_group_row)
 
     for _, row1 in report1.iterrows():
 
-        new_group_row = list(row1) + [''] * 6 + [old_cluster_value]
+        new_group_row = list(row1) + [np.nan] * 6 + [old_cluster_value]
         rows_for_result_df.append(new_group_row)
 
     result_columns = [f'{old_report_column_prefix}_{col}' for col in report1.columns] \
@@ -207,8 +240,17 @@ def compare_reports(
 
     return result_df
 
-def find_latest_two_reports(
-        path_to_reports_dir: str):
+def find_latest_two_reports(path_to_reports_dir: str):
+    """
+        Finds the filenames of the two latest reports in the specified directory.
+
+        Args:
+            path_to_reports_dir (str): The path to the directory containing the reports.
+
+        Returns:
+            List[str]: The filenames of the two latest reports.
+    """
+
     report_files = []
 
     timestamp_pattern = r"_\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}"
@@ -223,23 +265,3 @@ def find_latest_two_reports(
     report_files.sort(reverse=True)
 
     return report_files[:2]
-
-def find_latested_n_exec_report(
-    path_to_dir: str,
-    cluster_exec_prefix: str = 'cluster_exec',
-    n_reports: int = 1) -> str or tuple[str, str]:
-
-    TIMESTAMP_PATTERN = r"_(\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2})\..+"
-    TIMESTAMP_FORMAT = "%Y_%m_%d_%H_%M_%S"
-
-    only_exec_reports = sorted([
-        file_ for file_ in os.listdir(path_to_dir) 
-        if file_.startswith(cluster_exec_prefix)], reverse=True)
-
-    try:
-        reports_to_return = only_exec_reports[0] if n_reports == 1 else only_exec_reports[:n_reports]
-    except IndexError:
-        logger.error(f'No cluster execution reports in {path_to_dir}!')
-        return None
-    else:
-        return reports_to_return
