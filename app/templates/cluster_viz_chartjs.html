@@ -201,7 +201,7 @@
                         <select name="raport-2"  id="raport-2" required>
                             <option value="" selected disabled hidden>(select file)</option>
                             {% for raport in raports %}
-                                <option value="{{ raport }}">{{ raport }}</option>
+                                <option value="{{ raport }}.parquet.gzip">{{ raport }}</option>
                             {% endfor %}
                         </select>
                         <br>

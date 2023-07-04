@@ -516,13 +516,6 @@ def show_clusters():
             color=LABELS_COLUMN
         )
 
-        # validated_files = os.listdir(PATH_TO_VALID_FILES)
-        
-        # validated_files_to_show = [
-        #     v_file for v_file in validated_files 
-        #     if os.path.splitext(v_file)[-1].lower() in ALLOWED_EXTENSIONS
-        # ]
-
         files_to_filter = list(df[FILENAME_COLUMN].unique())
 
         columns_unique_values_dict = {
@@ -532,7 +525,7 @@ def show_clusters():
         raports = os.listdir(PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
         
         raports_to_show = [
-            os.path.splitext(raport)[0] for raport in raports 
+            raport.split('.')[0] for raport in raports 
             if os.path.splitext(raport)[-1] == '.gzip'
         ]
         
