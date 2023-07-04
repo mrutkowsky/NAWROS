@@ -133,7 +133,7 @@ TOPIC_COLUMN_PREFIX = REPORT_CONFIG.get('topic_column_prefix')
 
 ALL_DETAILED_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
     ORIGINAL_CONTENT_COLUMN,
-    PREPROCESSED_CONTENT_COLUMN,
+    #PREPROCESSED_CONTENT_COLUMN,
     LABELS_COLUMN,  
     FILENAME_COLUMN] + [f"{TOPIC_COLUMN_PREFIX}_{i}" for i in range(1, 6)]
 
@@ -526,14 +526,14 @@ def show_clusters():
             if os.path.splitext(v_file)[-1].lower() in ALLOWED_EXTENSIONS
         ]
 
-        raports = os.listdir(
+        reports = os.listdir(
         PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
         
-        raports_to_show = [
-            raport for raport in raports 
-            if raport != '.gitkeep'
+        reports_to_show = [
+            report for report in reports 
+            if report != '.gitkeep'
         ]
-        print(raports_to_show)
+        print(reports_to_show)
         
         fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
         return render_template("cluster_viz_chartjs.html", 
@@ -545,7 +545,7 @@ def show_clusters():
                                 update_clusters_existing_file_message=update_clusters_existing_file_message,
                                 update_clusters_existing_file_no_file_message=update_clusters_existing_file_no_file_message,
                                 update_clusters_new_file_no_file_message=update_clusters_new_file_no_file_message,
-                                raports=raports_to_show)
+                                reports=reports_to_show)
     
     return 'Nothing to show here'
 

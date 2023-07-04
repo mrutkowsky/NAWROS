@@ -61,7 +61,7 @@ input[type="text"]{
 }
 input[type="submit"], button.my-button {
     padding: 10px 10px;
-    background-color: rgb(68, 208, 255);
+    background-color: rgb(6, 143, 255);
     color: white;
     border: none;
     border-radius: 5px;
