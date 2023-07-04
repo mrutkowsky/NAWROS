@@ -758,16 +758,18 @@ def get_summary_cluster_exec_report():
 
     path_to_summary_report = os.path.join(PATH_TO_CLUSTER_EXEC_REPORTS_DIR, latest_report)
     
-    report_df = read_file(path_to_summary_report).to_csv(index=False)
+    report_df = read_file(
+        file_path=path_to_summary_report)
 
-    response = make_response(send_file(
-        report_df,
-        mimetype = report_mimetype,
-        as_attachment = True,
-        download_name = f"{latest_report}"
-    ))
+    resp_report = create_response_report(
+        df=report_df,
+        filename=summary_cluster_exec_report_filename,
+        ext=report_ext,
+        mimetype=report_mimetype,
+        file_format=report_type
+    )
 
-    return response
+    return resp_report
 
 @app.route('/update_clusters_new_file', methods=['POST'])
 def update_clusters_new_file():

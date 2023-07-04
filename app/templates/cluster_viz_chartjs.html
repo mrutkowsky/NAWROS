@@ -102,19 +102,22 @@
             <div style="margin-right: 10px;">
                 <form action="/get_detailed_cluster_exec_report"  method="post">
                     <input type="submit" value="Get detailed report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
+                    <select id="report_type_exec" name="report_type_exec">
+                        <option value="excel">Excel</option>
+                        <option value="csv">CSV</option>
+                    </select>
                 </form>
             </div>
             <div style="margin-right: 10px;">
                 <form action="/get_summary_cluster_exec_report"  method="post">
                     <input type="submit" value="Get summary report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
+                    <select id="report_type_exec" name="report_type_exec">
+                        <option value="excel">Excel</option>
+                        <option value="csv">CSV</option>
+                    </select>
                 </form>
             </div>
-            <label for="value" style="margin-right: 10px;">Choose report type</label>
             <div style="margin-right: 10px;">
-                <select id="report_type_exec">
-                    <option value="excel">Excel</option>
-                    <option value="csv">CSV</option>
-                </select>
             </div>
         </div>
     </div>
