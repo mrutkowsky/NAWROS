@@ -214,6 +214,7 @@ def transform_topic_vec_to_df(
 
 def get_topics_from_texts(
         df: pd.DataFrame,
+        topic_preffix_name: str = 'Word',
         stop_words: list = None,
         content_column_name: str = 'preprocessed_content',
         label_column_name: str = 'labels',
@@ -257,7 +258,8 @@ def get_topics_from_texts(
     logging.info('Properly exctracted topics from clusters')
     
     topics_df = transform_topic_vec_to_df(
-        topics_array=topics_array
+        topics_array=topics_array,
+        topic_preffix_name=topic_preffix_name
     )
 
     topics_df[label_column_name] = np.arange(-1, len(topics_df) - 1)

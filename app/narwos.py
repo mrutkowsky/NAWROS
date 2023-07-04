@@ -129,12 +129,13 @@ COMPARING_RAPORT_DOWNLOAD_NAME = REPORT_CONFIG.get('download_name')
 NO_TOPIC_TOKEN = REPORT_CONFIG.get('no_topic_token')
 COMPARING_REPORT_SUFFIX = REPORT_CONFIG.get('comparing_report_suffix')
 
+TOPIC_COLUMN_PREFIX = REPORT_CONFIG.get('topic_column_prefix')
+
 ALL_DETAILED_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
     ORIGINAL_CONTENT_COLUMN,
     PREPROCESSED_CONTENT_COLUMN,
     LABELS_COLUMN,  
-    FILENAME_COLUMN
-]
+    FILENAME_COLUMN] + [f"{TOPIC_COLUMN_PREFIX}_{i}" for i in range(1, 6)]
 
 if GET_SENTIMENT:
     ALL_DETAILED_REPORT_COLUMNS += [SENTIMENT_COLUMN]
@@ -482,6 +483,7 @@ def choose_files_for_clusters():
         path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
         topic_df_file_name=TOPICS_DF_FILE,
         current_df_filename=CURRENT_DF_FILE,
+        topic_preffix_name=TOPIC_COLUMN_PREFIX,
         stop_words=STOP_WORDS,
         labels_column=LABELS_COLUMN,
         cardinalities_column=CARDINALITIES_COLUMN,
@@ -603,7 +605,8 @@ def get_exec_filtered_report():
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
     filtered_df = read_file(
-        file_path=PATH_TO_FILTERED_DF
+        file_path=PATH_TO_FILTERED_DF,
+        columns=[LABELS_COLUMN]
     )
 
     filtered_exec_report_name = get_report_name_with_timestamp(
@@ -644,7 +647,8 @@ def get_detailed_filtered_report():
     )
 
     filtered_df = read_file(
-        file_path=PATH_TO_FILTERED_DF
+        file_path=PATH_TO_FILTERED_DF,
+        columns=ALL_DETAILED_REPORT_COLUMNS
     )
 
     resp_report = create_response_report(
@@ -725,7 +729,8 @@ def get_detailed_cluster_exec_report():
     )
 
     current_df = read_file(
-        file_path=PATH_TO_CURRENT_DF
+        file_path=PATH_TO_CURRENT_DF,
+        columns=ALL_DETAILED_REPORT_COLUMNS
     )
 
     resp_report = create_response_report(
@@ -862,6 +867,7 @@ def update_clusters_new_file():
                     path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
                     current_df_filename=CURRENT_DF_FILE,
                     stop_words=STOP_WORDS,
+                    topic_preffix_name=TOPIC_COLUMN_PREFIX,
                     labels_column=LABELS_COLUMN,
                     cardinalities_column=CARDINALITIES_COLUMN,
                     cluster_exec_filename_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
@@ -918,6 +924,7 @@ def update_clusters_new_file():
                     topic_df_file_name=TOPICS_DF_FILE,
                     current_df_filename=CURRENT_DF_FILE,
                     stop_words=STOP_WORDS,
+                    topic_preffix_name=TOPIC_COLUMN_PREFIX,
                     labels_column=LABELS_COLUMN,
                     cardinalities_column=CARDINALITIES_COLUMN,
                     cluster_exec_filename_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
@@ -1029,6 +1036,7 @@ def update_clusters_existing_file():
             path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
             path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
             current_df_filename=CURRENT_DF_FILE,
+            topic_preffix_name=TOPIC_COLUMN_PREFIX,
             stop_words=STOP_WORDS,
             labels_column=LABELS_COLUMN,
             cardinalities_column=CARDINALITIES_COLUMN,
@@ -1074,6 +1082,7 @@ def update_clusters_existing_file():
             path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
             topic_df_file_name=TOPICS_DF_FILE,
             current_df_filename=CURRENT_DF_FILE,
+            topic_preffix_name=TOPIC_COLUMN_PREFIX,
             stop_words=STOP_WORDS,
             labels_column=LABELS_COLUMN,
             cardinalities_column=CARDINALITIES_COLUMN,

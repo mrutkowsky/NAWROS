@@ -61,6 +61,7 @@ REPORT_SETTINGS:
     - Category 
     - Application_Name
 
+  topic_column_prefix: Word
   no_topic_token: '-'
   comparing_report_suffix: _comparison
   cluster_exec_filename_prefix: cluster_exec

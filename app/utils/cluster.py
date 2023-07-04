@@ -508,7 +508,7 @@ def save_cluster_exec_report(
     if len(df) == len(clusters_topics):
         df = pd.concat([df, clusters_topics.drop(columns=[labels_column_name])], axis=1) 
     else:
-        df = df.merge(clusters_topics, on='labels', how='left')
+        df = df.merge(clusters_topics, on=labels_column_name, how='left')
 
     path_to_exec_report, destination_filename = save_df_to_file(
         df=df,
@@ -526,6 +526,7 @@ def cns_after_clusterization(
         stop_words: list = None,
         only_update: bool = False,
         topic_df_file_name: str = None,
+        topic_preffix_name: str = 'Word',
         current_df_filename: str = 'current_df',
         content_column_name: str = 'preprocessed_content',
         labels_column: str = 'labels',
@@ -540,6 +541,7 @@ def cns_after_clusterization(
 
         clusters_topics_df = get_topics_from_texts(
             df=new_current_df,
+            topic_preffix_name=topic_preffix_name,
             stop_words=stop_words,
             content_column_name=content_column_name,
             label_column_name=labels_column,
