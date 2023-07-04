@@ -133,7 +133,7 @@ TOPIC_COLUMN_PREFIX = REPORT_CONFIG.get('topic_column_prefix')
 
 ALL_DETAILED_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
     ORIGINAL_CONTENT_COLUMN,
-    PREPROCESSED_CONTENT_COLUMN,
+    #PREPROCESSED_CONTENT_COLUMN,
     LABELS_COLUMN,  
     FILENAME_COLUMN] + [f"{TOPIC_COLUMN_PREFIX}_{i}" for i in range(1, 6)]
 
@@ -144,6 +144,7 @@ CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('cluster_exec_filename_prefix')
 CLUSTER_EXEC_FILENAME_EXT = REPORT_CONFIG.get('cluster_exec_filename_ext')
 
 DETAILED_CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('detailed_cluster_exec_filename_prefix')
+SUMMARY_CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('summary_cluster_exec_filename_prefix')
 
 FILTERED_REPORT_PREFIX = REPORT_CONFIG.get('filtered_filename_prefix')
 FILTERED_FILENAME_EXT = REPORT_CONFIG.get('filtered_filename_ext')
@@ -504,6 +505,8 @@ def show_clusters():
     message = request.args.get("message")
     update_clusters_new_file_message = request.args.get("update_clusters_new_file_message")
     update_clusters_existing_file_message = request.args.get("update_clusters_existing_file_message")
+    update_clusters_existing_file_no_file_message = request.args.get("update_clusters_existing_file_no_file_message")
+    update_clusters_new_file_no_file_message = request.args.get("update_clusters_new_file_no_file_message")
 
     df = read_file(PATH_TO_CURRENT_DF)
 
@@ -522,12 +525,14 @@ def show_clusters():
             col: list(df[col].unique()) for col in ALL_DETAILED_REPORT_COLUMNS
         }
 
-        raports = os.listdir(PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
+        reports = os.listdir(
+        PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
         
-        raports_to_show = [
-            raport.split('.')[0] for raport in raports 
-            if os.path.splitext(raport)[-1] == '.gzip'
+        reports_to_show = [
+            report for report in reports 
+            if report != '.gitkeep'
         ]
+        print(reports_to_show)
         
         fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
 
@@ -538,7 +543,9 @@ def show_clusters():
                                 message=message,
                                 update_clusters_new_file_message=update_clusters_new_file_message,
                                 update_clusters_existing_file_message=update_clusters_existing_file_message,
-                                raports=raports_to_show)
+                                update_clusters_existing_file_no_file_message=update_clusters_existing_file_no_file_message,
+                                update_clusters_new_file_no_file_message=update_clusters_new_file_no_file_message,
+                                reports=reports_to_show)
     
     return 'Nothing to show here'
 
@@ -701,7 +708,7 @@ def get_chosen_cluster_exec_report():
 @app.route('/get_detailed_cluster_exec_report', methods=['POST'])
 def get_detailed_cluster_exec_report():
 
-    report_type = request.form.get('detailed_cluster_exec_report_type')
+    report_type = request.form.get('report_type_exec')
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -726,6 +733,39 @@ def get_detailed_cluster_exec_report():
 
     return resp_report
 
+
+@app.route('/get_summary_cluster_exec_report', methods=['POST'])
+def get_summary_cluster_exec_report():
+
+    report_type = request.form.get('report_type_exec')
+
+    ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
+    report_ext = ext_settings.get('ext', '.csv')
+    report_mimetype = ext_settings.get('mimetype', 'text/csv')
+
+    summary_cluster_exec_report_filename = get_report_name_with_timestamp(
+        filename_prefix=f"{SUMMARY_CLUSTER_EXEC_FILENAME_PREFIX}_{CLUSTER_EXEC_FILENAME_PREFIX}"
+    )
+
+    latest_report = find_latested_n_exec_report(
+            PATH_TO_CLUSTER_EXEC_REPORTS_DIR
+        )
+
+    path_to_summary_report = os.path.join(PATH_TO_CLUSTER_EXEC_REPORTS_DIR, latest_report)
+    
+    report_df = read_file(
+        file_path=path_to_summary_report)
+
+    resp_report = create_response_report(
+        df=report_df,
+        filename=summary_cluster_exec_report_filename,
+        ext=report_ext,
+        mimetype=report_mimetype,
+        file_format=report_type
+    )
+
+    return resp_report
+
 @app.route('/update_clusters_new_file', methods=['POST'])
 def update_clusters_new_file():
     
@@ -733,7 +773,7 @@ def update_clusters_new_file():
     filename = uploaded_file.filename
 
     if filename == '':
-        return redirect(url_for("show_clusters", message=f'No file has been selected for uploading!'))
+        return redirect(url_for("show_clusters", update_clusters_new_file_no_file_message=f'No file has been selected for uploading!'))
 
     logger.debug(f"Uploaded file: {filename}")
 
@@ -904,6 +944,8 @@ def update_clusters_new_file():
 def update_clusters_existing_file():
     
     existing_file_for_update = request.form.get('ex_file_update')
+    logger.info(existing_file_for_update)
+
 
     if not os.path.exists(os.path.join(PATH_TO_VALID_FILES, existing_file_for_update)):
         return redirect(url_for("show_clusters", message=f"Selected file {existing_file_for_update} does not exist!"))
