@@ -207,19 +207,6 @@ logger.debug(f'Required columns: {REQUIRED_COLUMNS}')
 def upload_and_validate_files(
         uploaded_files: list):
 
-    """
-    Uploads and validates a list of files.
-
-    Args:
-        uploaded_files (list): A list of uploaded files.
-
-    Returns:
-        tuple: A tuple containing two lists. The first list contains the filenames
-        of files that were uploaded successfully, and the second list contains
-        the filenames and corresponding error messages of files that failed to upload.
-    """
-
-
     files_uploading_status = {
         "uploaded_successfully": [],
         "uploading_failed": {}}
@@ -273,16 +260,6 @@ def upload_and_validate_files(
 
 @app.route("/")
 def index():
-    """
-    Renders the index.html template with the necessary variables.
-
-    Retrieves the message, success_upload, and failed_upload parameters from the request query string
-    and converts them from JSON format if available. Retrieves the list of validated files and filters
-    them based on their file extensions. Renders the index.html template with the appropriate variables.
-
-    Returns:
-        str: The rendered HTML content.
-    """
 
     message = request.args.get("message")
     success_upload = request.args.get("success_upload")
@@ -311,17 +288,6 @@ def index():
 
 @app.route('/upload_file', methods=['POST'])
 def upload_file():
-    """
-    Handles file uploads, performs validation, and redirects to the index page.
-
-    Returns a redirect response to the index page with a success message and the uploaded file details
-    if the file upload and validation are successful. If no file is selected for uploading, redirects to
-    the index page with an appropriate error message.
-
-    Returns:
-        str: A redirect response to the index page.
-    """
-
         # Check if files were uploaded
     if len(request.files.getlist('file')) == 1:
 
@@ -343,17 +309,6 @@ def upload_file():
 
 @app.route('/delete_file', methods=['POST'])
 def delete_file():
-    """
-    Handles file deletion and performs additional cleanup tasks.
-
-    Returns a redirect response to the index page with a success message if the file is deleted
-    successfully. If no file is selected for deletion or the file does not exist, redirects to
-    the index page with an appropriate error message.
-
-    Returns:
-        str: A redirect response to the index page.
-    """
-
     filename = request.form.get('to_delete')
 
     if not filename:
@@ -419,18 +374,6 @@ def delete_file():
     
 @app.route('/choose_files_for_clusters', methods=['POST', 'GET'])
 def choose_files_for_clusters():
-    """
-        Processes selected files for clustering, performs data processing and clustering tasks,
-        and updates the current dataframe and cluster execution reports.
-
-        Returns a redirect response to the index page with a success message indicating the number
-        of clusters created.
-
-        If no files are selected for clustering, redirects to the index page with an error message.
-
-        Returns:
-            str: A redirect response to the index page.
-        """
 
     files_for_clustering = request.form.getlist('chosen_files')
 
@@ -501,17 +444,6 @@ def choose_files_for_clusters():
     
 @app.route('/show_clusters_submit', methods=['POST'])
 def show_clusters_submit():
-    """
-        Handles the submission of the "Show Clusters" form.
-
-        If the form contains the "show_plot" field, redirects to the 'show_clusters' route
-        with the value of "show_plot" as a query parameter.
-
-        If the "show_plot" field is not present, redirects to the index page with an error message.
-
-        Returns:
-            str: A redirect response to the appropriate page.
-        """
 
     show_plot = request.form.get('show_plot')
 
@@ -522,18 +454,6 @@ def show_clusters_submit():
 
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
-    """
-        Renders the cluster visualization page with the necessary variables.
-
-        Retrieves the message parameter from the request query string. Reads the current dataframe from the
-        specified path. If the dataframe is valid, creates a scatter plot using Plotly Express and converts it
-        to JSON format. Retrieves the list of validated files and filters them based on their file extensions.
-        Retrieves the list of cluster execution reports and filters out the '.gitkeep' file. Renders the
-        cluster visualization template with the appropriate variables.
-
-        Returns:
-            str: The rendered HTML content.
-    """
 
     message = request.args.get("message")
 
@@ -590,16 +510,6 @@ def show_clusters():
 
 @app.route('/show_filters_submit', methods=['POST'])
 def show_filter_submit():
-    """
-        Handles the submission of the filter form and redirects to the appropriate page.
-
-        Retrieves the value of the 'show_filter' field from the form data. If the value is present,
-        redirects to the 'show_filter' route with the 'show_filter' parameter. Otherwise, redirects
-        to the index page with an appropriate message.
-
-        Returns:
-            str: A redirect response to the designated page.
-    """
 
     show_filter = request.form.get('show_filter')
     if show_filter:
@@ -609,16 +519,6 @@ def show_filter_submit():
 
 @app.route('/show_filter', methods=['GET'])
 def show_filter():
-    """
-        Handles the GET request for showing the filtering page.
-
-        Retrieves the list of report columns from the `ALL_REPORT_COLUMNS` variable. If the variable is
-        a list, renders the `filtering.html` template with the `columns` variable set to the list of report columns.
-        Otherwise, returns a string indicating that there is nothing to show.
-
-        Returns:
-            str: The rendered HTML content or a string indicating that there is nothing to show.
-    """
 
     if request.method == 'GET':
         if isinstance(ALL_REPORT_COLUMNS, list):
@@ -629,19 +529,6 @@ def show_filter():
     
 @app.route('/apply_filter', methods=['POST'])
 def apply_filter():
-    """
-        Handles the POST request for applying filters to the DataFrame.
-
-        Retrieves the filter values from the JSON payload of the request. Reads the current DataFrame from the file
-        specified by `PATH_TO_CURRENT_DF` and converts it to a DataFrame object. Converts the columns of the DataFrame
-        to string type. Constructs a query string based on the filter values. Applies the query string as a filter to
-        the DataFrame. Writes the filtered DataFrame to a CSV file specified by `PATH_TO_FILTERED_DF`. Sets a success
-        message indicating that the filters have been applied successfully. Renders the `filtering.html` template with
-        the updated columns and the success message.
-
-        Returns:
-            str: The rendered HTML content.
-    """
 
     filters = request.get_json()
 
@@ -678,19 +565,7 @@ def apply_filter():
 
 @app.route('/filter_download_report', methods=['POST'])
 def filter_data_download_report():
-    """
-        Handles the POST request for downloading the filtered data report.
-
-        Retrieves the report type from the JSON payload of the request. Reads the filtered DataFrame from the file
-        specified by `PATH_TO_FILTERED_DF`. Retrieves the file type for the report. Prepares the CSV file for download
-        by writing the DataFrame to the appropriate file format. Creates a response object with the file as the content
-        to be downloaded. Sets the appropriate MIME type for the response. Sets the response as an attachment with
-        the specified download name. Returns the response.
-
-        Returns:
-            Response: The response object for downloading the file.
-    """
-
+ 
     report_type = request.get_json()
     filtered_df = read_file(PATH_TO_FILTERED_DF)
     file_type = report_type['reportType']
@@ -707,20 +582,7 @@ def filter_data_download_report():
 
 @app.route('/update_clusters_new_file', methods=['POST'])
 def update_clusters_new_file():
-    """
-        Handles the POST request for updating clusters with a new file.
-
-        Retrieves the uploaded file from the request. Processes the data from the chosen file.
-        Retrieves the rows cardinalities for the current DataFrame. Checks if recalculation of clusters is needed.
-        If not, retrieves the cluster labels for the new file based on the current DataFrame. Updates the rows cardinalities file.
-        If recalculation is needed, retrieves the clusters for the chosen files. Updates the cluster execution reports and topic DataFrame.
-        Redirects to the `show_clusters` route with a success message if recalculation is needed and completed successfully.
-        If there was an error during preprocessing or updating the clusters, redirects to the `show_clusters` route with an appropriate error message.
-
-        Returns:
-            Response: The response object for redirecting to the `show_clusters` route.
-    """
-
+ 
     uploaded_file = request.files['file']
     
     filename = uploaded_file.filename
@@ -861,18 +723,7 @@ def update_clusters_new_file():
     
 @app.route('/compare_selected_reports', methods=['POST'])
 def compare_selected_reports():
-    """
-        Handles the POST request for comparing selected reports.
-
-        Retrieves the selected filenames and report format from the form data.
-        Calls the `compare_reports` function to compare the selected reports.
-        Saves the comparison result DataFrame to a file.
-        Constructs a response object to download the comparison report.
-
-        Returns:
-            Response: The response object for downloading the comparison report.
-    """
-
+ 
     filename1 = request.form.get('raport-1')
     filename2 = request.form.get('raport-2')
     report_format_form = request.form.get('file-format')
@@ -913,19 +764,7 @@ def compare_selected_reports():
 
 @app.route('/compare_with_last_report', methods=['POST'])
 def compare_with_last_report():
-    """
-        Handles the POST request for comparing with the last report.
-
-        Retrieves the filenames of the two latest reports from the specified directory.
-        Retrieves the selected report format from the form data.
-        Calls the `compare_reports` function to compare the selected reports.
-        Saves the comparison result DataFrame to a file.
-        Constructs a response object to download the comparison report.
-
-        Returns:
-            Response: The response object for downloading the comparison report.
-    """
-
+ 
     filename1, filename2 = find_latest_two_reports(PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
     report_format_form = request.form.get('file-format')
 
