@@ -195,7 +195,7 @@
                         <select name="raport-1" id="raport-1" required>
                             <option value="" selected disabled hidden>(select file)</option>
                             {% for raport in raports %}
-                                <option value="{{ raport }}">{{ raport }}</option>
+                                <option value="{{ raport }}.parquet.gzip">{{ raport }}</option>
                             {% endfor %}
                         </select>
                         <select name="raport-2"  id="raport-2" required>
@@ -234,8 +234,8 @@
                     <p style="text-align: left; margin-top: 20px ;">Filter by other atributes</p>
                     <label for="column">Select a column:</label>
                     <select class="filter-column">
-                        {% for column in columns %}
-                            <option value="{{ column }}">{{ column }}</option>
+                        {% for column, unique_values in columns.items() %}
+                            <option value="{{ column }}">{{ column}}</option>
                         {% endfor %}
                     </select>
                     <label style="margin-top: 10px;" for="value">Enter a value:</label>
