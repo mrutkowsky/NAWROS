@@ -13,14 +13,14 @@ def compare_columns(
     required_columns: set) -> set:
 
     """
-    Compare the columns of a file to a set of required columns.
+        Compare the columns of a file to a set of required columns.
 
-    Args:
-        file_columns (str): The columns of the file.
-        required_columns (set): The set of required columns.
+        Args:
+            file_columns (str): The columns of the file.
+            required_columns (set): The set of required columns.
 
-    Returns:
-        set: A set of column names that are missing in the file.
+        Returns:
+            set: A set of column names that are missing in the file.
     """
 
     required_columns_set = set(map(str.lower, required_columns))
@@ -141,9 +141,44 @@ def read_config(
 
     return config
 
+def return_valid_response_file(
+        filename: str,
+        report_format: str,
+        mimetype: str,
+        ext: str):
+    """
+            Return a valid response file with the specified filename, format, mimetype, and extension.
+
+            Args:
+                filename (str): The desired filename for the response file.
+                report_format (str): The format of the report.
+                mimetype (str): The mimetype of the response file.
+                ext (str): The extension of the response file.
+
+            Returns:
+                Response: A valid response file with the specified properties.
+        """
+
+    resp = make_response()
+    resp.headers["Content-Disposition"] = \
+        f"attachment; filename={filename}.{ext}"
+    resp.headers["Content-type"] = mimetype
+
+    return resp
+
 def get_report_ext(
     path_to_arf_dir: str,
     filename: str):
+    """
+        Get the report extension from the specified ARF (Analysis Report Format) file.
+
+        Args:
+            path_to_arf_dir (str): The path to the directory containing the ARF file.
+            filename (str): The name of the ARF file.
+
+        Returns:
+            dict: A dictionary containing the report extension.
+    """
 
     with open(os.path.join(path_to_arf_dir, filename), 'r', encoding='utf-8') as arf_json:
         return json.load(arf_json)

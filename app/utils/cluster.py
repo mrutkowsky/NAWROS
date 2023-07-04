@@ -14,7 +14,7 @@ import logging
 import pickle
 from datetime import datetime
 
-from utils.data_processing import get_embedded_files, read_file, set_rows_cardinalities, save_df_to_file, get_report_name_with_timestamp
+from utils.data_processing import get_embedded_files, read_file, set_rows_cardinalities, save_df_to_file
 from utils.c_tf_idf_module import get_topics_from_texts
 
 logger = logging.getLogger(__file__)
@@ -83,62 +83,59 @@ def cluster_sentences(
 
     return cluster
 
-def perform_soft_clustering(
-    clusterer: hdbscan.HDBSCAN,
-    original_labels: np.array = None,
-    new_points: np.array = None,
-    outlier_treshold: float = 0.1) -> list:
-
-    logger.debug(f'Start of execution of soft_clustering')
-
-    soft_clusters = hdbscan.all_points_membership_vectors(clusterer) \
-        if new_points is None else hdbscan.membership_vector(clusterer, new_points)
-    
-    closest_cluster_label = [np.argmax(x) for x in soft_clusters]
-    closest_cluster_prob = [max(x) for x in soft_clusters]
-
-    if original_labels is not None:
-
-        new_labels = [
-            label if (original_labels[i] != -1) 
-            or ((original_labels[i] == -1) and (closest_cluster_prob[i] > outlier_treshold))
-            else -1 
-            for i, label in enumerate(closest_cluster_label)
-        ]
-
-        logger.debug(f'Number of outliers before soft clustering: {list(original_labels).count(-1)}')
-        logger.debug(f'Number of outliers after soft clustering: {list(new_labels).count(-1)}')
-        
-    else:
-
-        new_labels = [
-            label if prob > outlier_treshold else -1 
-            for label, prob in zip(closest_cluster_label, closest_cluster_prob)
-        ]
-
-    logger.debug(f'End of execution soft_clustering')
-
-    return new_labels
-
 def save_model(
         model,
         path_to_current_df_dir: str,
-        model_name: str = 'clusterer.pkl'): 
-    
+        model_name: str = 'clusterer.pkl'):
+    """
+        Save a machine learning model to a file.
+
+        Args:
+            model: The machine learning model to be saved.
+            path_to_current_df_dir (str): The path to the directory where the model file will be saved.
+            model_name (str, optional): The name of the model file. Defaults to 'clusterer.pkl'.
+
+        Returns:
+            None
+    """
+
     with open(os.path.join(path_to_current_df_dir, model_name), 'wb') as file_:
         pickle.dump(model, file_)
 
 def load_model(
         path_to_current_df_dir: str,
-        model_name: str = 'clusterer.pkl'): 
-    
+        model_name: str = 'clusterer.pkl'):
+    """
+        Save a machine learning model to a file.
+
+        Args:
+            model: The machine learning model to be saved.
+            path_to_current_df_dir (str): The path to the directory where the model file will be saved.
+            model_name (str, optional): The name of the model file. Defaults to 'clusterer.pkl'.
+
+        Returns:
+            None
+    """
+
     with open(os.path.join(path_to_current_df_dir, model_name), 'rb') as file_:
         model = pickle.load(file_)
 
     return model
 
-def load_embeddings_from_index(path_to_faiss_vector: str):
-    
+def load_embeddings_from_index(
+        path_to_faiss_vector: str):
+    """
+       Save a machine learning model to a file.
+
+       Args:
+           model: The machine learning model to be saved.
+           path_to_current_df_dir (str): The path to the directory where the model file will be saved.
+           model_name (str, optional): The name of the model file. Defaults to 'clusterer.pkl'.
+
+       Returns:
+           None
+    """
+
     index = faiss.read_index(path_to_faiss_vector)
         
     n = index.ntotal
@@ -151,6 +148,17 @@ def concat_new_df_to_current_df(
     new_file_df: pd.DataFrame,
     current_df: pd.DataFrame,
     current_df_path: str) -> pd.DataFrame:
+    """
+        Save a machine learning model to a file.
+
+        Args:
+            model: The machine learning model to be saved.
+            path_to_current_df_dir (str): The path to the directory where the model file will be saved.
+            model_name (str, optional): The name of the model file. Defaults to 'clusterer.pkl'.
+
+        Returns:
+            None
+    """
 
     new_current_df = pd.concat([current_df, new_file_df])
     new_current_df = new_current_df.reset_index(drop=True)
@@ -171,12 +179,31 @@ def load_embeddings_get_result_df(
         filename_column: str = 'filename',
         used_as_base_key: str = 'used_as_base',
         only_classified_key: str = 'only_classified'):
-    
+    """
+       Load embeddings from Faiss vectors and generate a result DataFrame.
+
+       Args:
+           embeddings_files (list): A list of filenames for the embeddings files.
+           chosen_files (list): A list of filenames for the chosen files.
+           path_to_faiss_vectors (str): The path to the directory containing the Faiss vectors.
+           path_to_cleared_files (str): The path to the directory containing the cleared files.
+           cleared_files_ext (str, optional): The extension of the cleared files. Defaults to '.parquet.gzip'.
+           filename_column (str, optional): The column name to store the filename in the result DataFrame. Defaults to 'filename'.
+           used_as_base_key (str, optional): The key for the rows cardinalities of files used as base. Defaults to 'used_as_base'.
+           only_classified_key (str, optional): The key for the rows cardinalities of files only classified. Defaults to 'only_classified'.
+
+       Returns:
+           tuple: A tuple containing the following elements:
+               - all_vectors (np.ndarray): The concatenated embeddings vectors.
+               - result_df (pd.DataFrame): The result DataFrame with the combined data from the chosen files.
+               - rows_cardinalities_dict (dict): A dictionary containing the rows cardinalities of the files used as base and only classified.
+    """
+
     rows_cardinalities_dict = {
         used_as_base_key: {},
         only_classified_key: {}
     }
-    
+
     all_vectors = None
     result_df = None
 
@@ -186,19 +213,19 @@ def load_embeddings_get_result_df(
         path_to_faiss_vector_file = os.path.join(path_to_faiss_vectors, embeddings_files[file_])
 
         vectors = load_embeddings_from_index(path_to_faiss_vector_file)
-       
+
         all_vectors = np.vstack((all_vectors, vectors)) if all_vectors is not None else vectors
 
         filename, _ = os.path.splitext(file_)
 
         current_file_df = read_file(
-            os.path.join(path_to_cleared_files, f'{filename}{cleared_files_ext}'), 
+            os.path.join(path_to_cleared_files, f'{filename}{cleared_files_ext}'),
             columns=None)
-        
+
         current_file_df[filename_column] = file_
 
         rows_cardinalities_dict[used_as_base_key][file_] = len(current_file_df)
-        
+
         result_df = pd.concat([result_df, current_file_df])
         result_df = result_df.reset_index(drop=True)
 
@@ -221,14 +248,13 @@ def get_clusters_for_choosen_files(
         clusterer_model_name: str = 'clusterer.pkl',
         umap_model_name: str = 'umap_reducer.pkl',
         reducer_2d_model_name: str = 'dim_reducer_2d.pkl',
-        outlier_treshold: float = 0.1,
         random_state: int = 42,
         n_neighbors: int = 15,
         min_dist: float = 0.0,
         n_components: int = 5,
         min_cluster_size: int = 15,
         min_samples: int = 15,
-        metric: str = 'euclidean',                      
+        metric: str = 'euclidean',
         cluster_selection_method: str = 'eom') -> pd.DataFrame:
     """
     Calculate clusters based on vectors for chosen files and return a dataframe with labels and 2D coordinates for each sentence.
@@ -306,8 +332,6 @@ def get_clusters_for_choosen_files(
         min_samples=min_samples,
         metric=metric,                      
         cluster_selection_method=cluster_selection_method)
-    
-    logger.info(f"Successfully clustered embeddings")
 
     save_model(
         model=clusterer,
@@ -315,19 +339,12 @@ def get_clusters_for_choosen_files(
         model_name=clusterer_model_name
     )
     
-    cluster_labels = perform_soft_clustering(
-        clusterer=clusterer,
-        original_labels=clusterer.labels_,
-        new_points=None,
-        outlier_treshold=outlier_treshold
-    )
-
-    logger.info(f"Clusters calculated successfully, number of clusters: {len(set(cluster_labels))}")
+    logger.info(f"Clusters calculated successfully, number of clusters: {len(set(clusterer.labels_))}")
 
     df = pd.DataFrame({
         'x': dimensions_2d[:, 0],
         'y': dimensions_2d[:, 1],
-        labels_column: cluster_labels,
+        labels_column: clusterer.labels_,
     })
 
     logger.info("Succesfully created dataframe for topic visuzalization")
@@ -357,7 +374,6 @@ def get_cluster_labels_for_new_file(
         path_to_cleared_files_dir: str,
         path_to_faiss_vetors_dir: str,
         required_columns: list,
-        outlier_treshold: float = 0.1,
         clusterer_model_name: str = 'clusterer.pkl',
         umap_model_name: str = 'umap_reducer.pkl',
         reducer_2d_model_name: str = 'dim_reducer_2d.pkl',
@@ -365,6 +381,27 @@ def get_cluster_labels_for_new_file(
         index_ext: str = '.index',
         filename_column: str = 'filename',
         label_column: str = 'labels'):
+    """
+       Get cluster labels for a new file and update the current DataFrame.
+
+       Args:
+           filename (str): The name of the new file.
+           path_to_current_df (str): The path to the current DataFrame file.
+           path_to_current_df_dir (str): The directory path of the current DataFrame file.
+           path_to_cleared_files_dir (str): The directory path of the cleared files.
+           path_to_faiss_vectors_dir (str): The directory path of the Faiss vectors.
+           required_columns (list): A list of required column names in the new file DataFrame.
+           clusterer_model_name (str, optional): The filename of the clusterer model. Defaults to 'clusterer.pkl'.
+           umap_model_name (str, optional): The filename of the UMAP reducer model. Defaults to 'umap_reducer.pkl'.
+           reducer_2d_model_name (str, optional): The filename of the 2D reducer model. Defaults to 'dim_reducer_2d.pkl'.
+           cleared_files_ext (str, optional): The extension of the cleared files. Defaults to '.parquet.gzip'.
+           index_ext (str, optional): The extension of the Faiss index file. Defaults to '.index'.
+           filename_column (str, optional): The column name to store the filename in the new file DataFrame. Defaults to 'filename'.
+           label_column (str, optional): The column name to store the cluster labels in the new file DataFrame. Defaults to 'labels'.
+
+       Returns:
+           pd.DataFrame: The updated current DataFrame with the new file data.
+    """
 
     hdbscan_loaded_model = load_model(
         path_to_current_df_dir=path_to_current_df_dir,
@@ -399,12 +436,8 @@ def get_cluster_labels_for_new_file(
     dimensions_2d = reducer_2d.transform(vector_embeddings)
     logger.info(f"Applied UMAP model for getting 2D coridinates for vizualization")
 
-    labels_for_new_file = perform_soft_clustering(
-        clusterer=hdbscan_loaded_model,
-        original_labels=None,
-        new_points=clusterable_embeddings,
-        outlier_treshold=outlier_treshold
-    )
+    labels_for_new_file, strenghts = hdbscan.approximate_predict(
+        hdbscan_loaded_model, clusterable_embeddings)
     
     logger.info(f'Successfully calculated labels for new file {filename}')
     
@@ -444,6 +477,19 @@ def cluster_recalculation_needed(
     recalculate_treshold: float,
     used_as_base_key: str = 'used_as_base',
     only_classified_key: str = 'only_classified') -> bool:
+    """
+        Check if cluster recalculation is needed based on the number of rows and cardinalities.
+
+        Args:
+            n_of_rows (int): The number of rows to be added.
+            rows_cardinalities_current_df (dict): The dictionary of rows cardinalities in the current DataFrame.
+            recalculate_threshold (float): The threshold value for determining if recalculation is needed.
+            used_as_base_key (str, optional): The key for base cluster cardinalities in the dictionary. Defaults to 'used_as_base'.
+            only_classified_key (str, optional): The key for only classified cluster cardinalities in the dictionary. Defaults to 'only_classified'.
+
+        Returns:
+            bool: True if cluster recalculation is needed, False otherwise.
+    """
 
     try:
         n_of_rows_for_base = sum(rows_cardinalities_current_df.get(used_as_base_key).values())
@@ -473,6 +519,17 @@ def join_topics_to_df(
         detailed_df: pd.DataFrame,
         topics_df: pd.DataFrame,
         joining_column: str = 'labels') -> pd.DataFrame:
+        """
+        Join topics to the detailed DataFrame based on a joining column.
+
+        Args:
+            detailed_df (pd.DataFrame): The detailed DataFrame.
+            topics_df (pd.DataFrame): The DataFrame containing topics.
+            joining_column (str, optional): The column used for joining the DataFrames. Defaults to 'labels'.
+
+        Returns:
+            pd.DataFrame: The joined DataFrame.
+        """
 
         joined_topics_df = detailed_df.join(
             topics_df.set_index(joining_column),
@@ -505,19 +562,14 @@ def save_cluster_exec_report(
        None
    """
     df = df.groupby(df[labels_column_name]).size().reset_index(name=cardinalities_column_name)
-    if len(df) == len(clusters_topics):
-        df = pd.concat([df, clusters_topics.drop(columns=[labels_column_name])], axis=1) 
-    else:
-        df = df.merge(clusters_topics, on=labels_column_name, how='left')
+    df = pd.concat([df, clusters_topics.drop(columns=[labels_column_name])], axis=1) 
 
-    path_to_exec_report, destination_filename = save_df_to_file(
+    save_df_to_file(
         df=df,
         filename=filename,
         path_to_dir=path_to_cluster_exec_reports_dir,
         file_ext=filename_ext
     )
-
-    return df, path_to_exec_report, destination_filename
 
 def cns_after_clusterization(
         new_current_df: pd.DataFrame,
@@ -526,22 +578,42 @@ def cns_after_clusterization(
         stop_words: list = None,
         only_update: bool = False,
         topic_df_file_name: str = None,
-        topic_preffix_name: str = 'Word',
         current_df_filename: str = 'current_df',
-        content_column_name: str = 'preprocessed_content',
+        content_column_name: str = 'content',
         labels_column: str = 'labels',
         cardinalities_column: str = 'counts',
         no_topic_token: str = '-',
         cluster_exec_filename_prefix: str = 'cluster_exec',
         cluster_exec_filename_ext: str = '.parquet.gzip'):
+    """
+        Perform post-processing steps after clusterization.
+
+        Args:
+            new_current_df (pd.DataFrame): The new current DataFrame after clusterization.
+            path_to_current_df_dir (str): The path to the directory where the current DataFrame is stored.
+            path_to_cluster_exec_dir (str): The path to the directory where cluster execution reports will be saved.
+            stop_words (list, optional): List of stop words to be removed. Defaults to None.
+            only_update (bool, optional): Flag indicating whether to only update the existing data without re-computing topics. Defaults to False.
+            topic_df_file_name (str, optional): The filename for the topic DataFrame if only_update is True. Defaults to None.
+            current_df_filename (str, optional): The filename for the updated current DataFrame. Defaults to 'current_df'.
+            content_column_name (str, optional): The name of the column in the DataFrame that contains the content. Defaults to 'content'.
+            labels_column (str, optional): The name of the column in the DataFrame that contains the cluster labels. Defaults to 'labels'.
+            cardinalities_column (str, optional): The name of the column in the clusterization execution report that contains the cluster cardinalities. Defaults to 'counts'.
+            no_topic_token (str, optional): The token to represent clusters without assigned topics. Defaults to '-'.
+            cluster_exec_filename_prefix (str, optional): The prefix for the clusterization execution report filename. Defaults to 'cluster_exec'.
+            cluster_exec_filename_ext (str, optional): The file extension for the clusterization execution report. Defaults to '.parquet.gzip'.
+
+        Returns:
+            None
+    """
 
     TIMESTAMP_FORMAT = "%Y_%m_%d_%H_%M_%S"
+
 
     if not only_update:
 
         clusters_topics_df = get_topics_from_texts(
             df=new_current_df,
-            topic_preffix_name=topic_preffix_name,
             stop_words=stop_words,
             content_column_name=content_column_name,
             label_column_name=labels_column,
@@ -577,12 +649,9 @@ def cns_after_clusterization(
             file_path=os.path.join(path_to_current_df_dir, topic_df_file_name)
         )
 
-    clusterization_exec_filename = get_report_name_with_timestamp(
-        filename_prefix=cluster_exec_filename_prefix,
-        timestamp_format=TIMESTAMP_FORMAT
-    )
+    clusterization_exec_filename = f"""{cluster_exec_filename_prefix}_{datetime.now().strftime(TIMESTAMP_FORMAT)}"""
 
-    _, path_to_exec_report, destination_filename = save_cluster_exec_report(
+    save_cluster_exec_report(
         df=new_current_df,
         filename=clusterization_exec_filename,
         filename_ext=cluster_exec_filename_ext,
@@ -594,7 +663,7 @@ def cns_after_clusterization(
 
     logger.info(f'Report from clusterization execution: {clusterization_exec_filename}{cluster_exec_filename_ext} has been successfully saved on disk')
 
-    return path_to_exec_report, destination_filename
+    return None
 
 
 

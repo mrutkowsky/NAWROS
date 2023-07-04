@@ -16,7 +16,19 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 def load_lang_detector(
     model_name: str,
     device: str = "cpu"):
-    
+    """
+        Performs language detection using the provided data loader, detection model, tokenizer, and device.
+
+        Args:
+            dataloader (DataLoader): The data loader object providing the data for language detection.
+            detection_model: The language detection model.
+            tokenizer: The tokenizer associated with the detection model.
+            device (str, optional): The device to use for language detection. Defaults to "cpu".
+
+        Returns:
+            List[str]: A list of the language labels extracted from the language detections.
+    """
+
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSequenceClassification.from_pretrained(model_name).to(device)
 
@@ -27,6 +39,18 @@ def detect_lang(
     detection_model,
     tokenizer,
     device: str = "cpu"):
+    """
+        Performs language detection using the provided data loader, detection model, tokenizer, and device.
+
+        Args:
+            dataloader (DataLoader): The data loader object providing the data for language detection.
+            detection_model: The language detection model.
+            tokenizer: The tokenizer associated with the detection model.
+            device (str, optional): The device to use for language detection. Defaults to "cpu".
+
+        Returns:
+            List[str]: A list of the language labels extracted from the language detections.
+    """
 
     TASK = "text-classification"
     RESULT_LABEL_KEY = "label"
@@ -61,6 +85,16 @@ def detect_lang(
 def load_translation_model(
     model_name: str,
     device: str = "cpu"):
+    """
+        Loads a translation model and tokenizer based on the specified model name and device.
+
+        Args:
+            model_name (str): The name or path of the pre-trained translation model.
+            device (str, optional): The device to use for loading the model and tokenizer. Defaults to "cpu".
+
+        Returns:
+            Dict[str, Union[PreTrainedTokenizer, PreTrainedModel]]: A dictionary containing the loaded tokenizer and model.
+        """
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
@@ -72,6 +106,18 @@ def translate_text(
     trans_model,
     trans_tokenizer,
     device: str = 'cpu'):
+    """
+        Translates text using a pre-trained translation model and tokenizer.
+
+        Args:
+            dataloader (DataLoader): The data loader containing the input texts to translate.
+            trans_model: The pre-trained translation model.
+            trans_tokenizer: The tokenizer associated with the translation model.
+            device (str, optional): The device to use for translation. Defaults to 'cpu'.
+
+        Returns:
+            List[str]: A list of translated texts.
+    """
 
     CUDA_DEVICE = "cuda:0"
 

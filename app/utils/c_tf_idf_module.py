@@ -24,14 +24,16 @@ class CTFIDFVectorizer(TfidfTransformer):
         self._idf_diag = None
 
     def fit(self, X: sp.csr_matrix, n_samples: int):
-        """Learn the idf vector (global term weights)
-
-        Parameters
-        ----------
-        X : sparse matrix of shape n_samples, n_features)
-            A matrix of term/token counts.
-
         """
+    Learn the IDF vector (global term weights).
+
+    Args:
+        X (sp.csr_matrix): A sparse matrix of term/token counts with shape (n_samples, n_features).
+        n_samples (int): The number of samples in the input matrix.
+
+    Returns:
+        None
+    """
 
         # Prepare input
         X = check_array(X, accept_sparse=('csr', 'csc'))
@@ -94,7 +96,7 @@ class CTFIDFVectorizer(TfidfTransformer):
 def prepare_df_for_ctfidf(
         df: pd.DataFrame,
         stopwords: list,
-        content_column_name: str = 'preprocessed_content',
+        content_column_name: str = 'content',
         label_column_name: str = 'labels') -> pd.DataFrame:
     """Prepare a DataFrame for c-TF-IDF transformation by grouping documents per class.
 
@@ -214,9 +216,8 @@ def transform_topic_vec_to_df(
 
 def get_topics_from_texts(
         df: pd.DataFrame,
-        topic_preffix_name: str = 'Word',
         stop_words: list = None,
-        content_column_name: str = 'preprocessed_content',
+        content_column_name: str = 'content',
         label_column_name: str = 'labels',
         no_topic_token: str = '-') -> tuple[list]:
     
@@ -258,8 +259,7 @@ def get_topics_from_texts(
     logging.info('Properly exctracted topics from clusters')
     
     topics_df = transform_topic_vec_to_df(
-        topics_array=topics_array,
-        topic_preffix_name=topic_preffix_name
+        topics_array=topics_array
     )
 
     topics_df[label_column_name] = np.arange(-1, len(topics_df) - 1)
