@@ -530,6 +530,8 @@ def show_clusters():
             report.split('.')[0] for report in reports 
             if os.path.splitext(report)[-1] == '.gzip'
         ]
+
+        logger.debug(f'Report to show: {reports_to_show}')
         
         fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
 

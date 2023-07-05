@@ -159,6 +159,8 @@ def perform_ctfidf(
     
     words_per_class = []
 
+    logger.debug(f'ct-idf: {ctfidf}')
+
     for label in clusters_labels:
 
         current = []

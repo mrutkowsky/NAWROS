@@ -153,7 +153,7 @@
                     <select id="chosen_report_name" name="chosen_report_name" required>
                       <option value="" selected disabled hidden>(Choose file)</option>
                       {% for report in reports %}
-                          <option value="{{ report }}">{{ report }}</option>
+                          <option value="{{ report }}.parquet.gzip">{{ report }}</option>
                       {% endfor %}
                     </select>
                     <label style="margin-top: 5px;" for="chosen_report_type">Choose report type</label>
@@ -283,13 +283,13 @@
                         <label for="chosen_files">Choose reports to compare:</label>
                         <select name="raport-1" id="raport-1" required>
                             <option value="" selected disabled hidden>(select file)</option>
-                            {% for raport in raports %}
+                            {% for raport in reports %}
                                 <option value="{{ raport }}.parquet.gzip">{{ raport }}</option>
                             {% endfor %}
                         </select>
                         <select name="raport-2"  id="raport-2" required>
                             <option value="" selected disabled hidden>(select file)</option>
-                            {% for raport in raports %}
+                            {% for raport in reports %}
                                 <option value="{{ raport }}.parquet.gzip">{{ raport }}</option>
                             {% endfor %}
                         </select>
