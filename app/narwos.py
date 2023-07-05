@@ -133,7 +133,7 @@ TOPIC_COLUMN_PREFIX = REPORT_CONFIG.get('topic_column_prefix')
 
 ALL_DETAILED_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
     ORIGINAL_CONTENT_COLUMN,
-    PREPROCESSED_CONTENT_COLUMN,
+    #PREPROCESSED_CONTENT_COLUMN,
     LABELS_COLUMN,  
     FILENAME_COLUMN] + [f"{TOPIC_COLUMN_PREFIX}_{i}" for i in range(1, 6)]
 
@@ -1142,7 +1142,7 @@ def compare_with_last_report():
     return response
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)
 
 
 
