@@ -535,6 +535,8 @@ def show_clusters():
         columns_unique_values_dict = {
             col: list(df[col].unique()) for col in ALL_DETAILED_REPORT_COLUMNS
         }
+        
+        logger.debug(f'columns_unique_values_dict {columns_unique_values_dict}')
 
         reports = os.listdir(PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
 
@@ -546,6 +548,7 @@ def show_clusters():
         logger.debug(f'Report to show: {reports_to_show}')
         
         fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
+        json_columns = json.dumps(str(columns_unique_values_dict))
 
         return render_template("cluster_viz_chartjs.html", 
                                 figure=fig_json, 
@@ -557,7 +560,8 @@ def show_clusters():
                                 update_clusters_existing_file_message=update_clusters_existing_file_message,
                                 update_clusters_existing_file_no_file_message=update_clusters_existing_file_no_file_message,
                                 update_clusters_new_file_no_file_message=update_clusters_new_file_no_file_message,
-                                reports=reports_to_show)
+                                reports=reports_to_show,
+                                json_columns=json_columns)
     
     return 'Nothing to show here'
 

@@ -381,13 +381,20 @@
                     <div>
                         <p style="text-align: left; margin-top: 20px ;">Filter by other atributes</p>
                         <label for="column">Select a column:</label>
-                        <select class="filter-column">
+                        <select class="filter-column" id="filter-column">
                             {% for column, unique_values in columns.items() %}
                                 <option value="{{ column }}">{{ column}}</option>
+                                {% set selected_column = column %}
                             {% endfor %}
                         </select>
-                        <label style="margin-top: 10px;" for="value">Enter a value:</label>
-                        <input type="text" class="filter-value">
+                        <label style="margin-top: 10px;" for="value">Select a value:</label>
+                        <select class="filter-value">
+                            {% for column, unique_values in columns.items() %}
+                                    {% for value in unique_values %}
+                                        <option value="{{ value }}">{{ value}}</option>
+                                    {% endfor %}    
+                            {% endfor %}
+                        </select>
                         <button class="delete" onclick="deleteFilter(this)">Delete filter</button>
                     </div>
                 </div>
@@ -543,6 +550,34 @@
                 div.style.display = 'block';
             }
         };
+    </script>
+    <script>
+        var columns = {
+            {% for column, unique_values in columns.items() %}
+                "{{ column }}": [
+                    {% for value in unique_values %}
+                        "{{ value }}",
+                    {% endfor %}
+                ],
+            {% endfor %}
+        };
+
+        var columnSelect = document.getElementById("filter-column");
+        var itemSelect = document.getElementById("itemSelect");
+
+        columnSelect.addEventListener("change", function() {
+            var selectedColumn = columnSelect.value;
+            var items = columns[selectedColumn];
+
+            itemSelect.innerHTML = "";
+
+            for (var i = 0; i < items.length; i++) {
+                var option = document.createElement("option");
+                option.value = items[i];
+                option.textContent = items[i];
+                itemSelect.appendChild(option);
+            }
+        });
     </script>
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
