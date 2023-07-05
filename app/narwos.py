@@ -144,7 +144,6 @@ CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('cluster_exec_filename_prefix')
 CLUSTER_EXEC_FILENAME_EXT = REPORT_CONFIG.get('cluster_exec_filename_ext')
 
 DETAILED_CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('detailed_cluster_exec_filename_prefix')
-SUMMARY_CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('summary_cluster_exec_filename_prefix')
 
 FILTERED_REPORT_PREFIX = REPORT_CONFIG.get('filtered_filename_prefix')
 FILTERED_FILENAME_EXT = REPORT_CONFIG.get('filtered_filename_ext')
