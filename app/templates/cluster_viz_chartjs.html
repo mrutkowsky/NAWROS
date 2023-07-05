@@ -142,7 +142,7 @@
     <div class="Plot">
     <!--<canvas id="myChart"></canvas>-->
     </div>
-    <div style="padding: 20px;margin-left: 16%;margin-right: 15%; margin-top: 20px; box-shadow: 0px 0px 10px #999; border-radius: 10px; display: flex; justify-content: center; flex-direction: column; width: 1280px;">
+    <div style="padding: 20px;margin-left: 300px;margin-right: 250px; margin-top: 20px; box-shadow: 0px 0px 10px #999; border-radius: 10px; display: flex; justify-content: center; flex-direction: column; width: 1280px;">
         <h2 style="text-align: center;">Download clustering reports</h2>
             <div class="Report">
                 <div style="margin-right: 10px;">
@@ -235,7 +235,7 @@
                 <button id="quick-clustering-button" class="button-36" style="width: 400px;">Quick clustering</button>
             </div>
             <div class="quick-clustering" id="quick-clustering" style="display: none;">
-                <form class="form-style" action="/update_clusters_new_file"  method="post" enctype="multipart/form-data" style="height: 200px;">
+                <form class="form-style" action="/update_clusters_new_file"  method="post" enctype="multipart/form-data" style="height: 250px;">
                     <label>Load new file:</label>
                     <input type="file" name="file">
                     <br>
@@ -304,7 +304,7 @@
         <div class="Compare" style="margin-top: 20px; margin-right: 20px; margin-left: 20px;">
             <button id="compare-button" class="button-36" style="width: 400px;">Compare reports</button>
             <div id="compare" style="display: none;">
-                <form class="form-style" method="post" action="/compare_with_last_report" style="height: 200px;">
+                <form class="form-style" method="post" action="/compare_with_last_report" style="height: 250px;">
                     
                     <label for="file-format">File Format:</label><br>
 
@@ -369,7 +369,7 @@
         </div>
         <div class="Filter" style="margin-top: 20px; margin-right: 20px; margin-left: 20px;">
             <button id="filter-button" class="button-36" style="width: 400px;">Filter results</button>
-            <div id="filter" name="filter" style="display: none; box-shadow: 0px 0px 10px #999; border-radius: 10px; padding: 20px; width: 400px;height: 560px;">
+            <div id="filter" name="filter" style="display: none; box-shadow: 0px 0px 10px #999; border-radius: 10px; padding: 20px; width: 400px;height: 610px;">
                 <div>
                     <p style="text-align: left;">Filter by date</p>
                     <label for="filter-from-date">From</label>
