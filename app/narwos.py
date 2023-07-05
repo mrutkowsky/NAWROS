@@ -592,10 +592,7 @@ def apply_filter():
     # filtered_df_excluded = show_columns_for_filtering(PATH_TO_CURRENT_DF)
     message = f"{filters} filters has been applied successfully."
 
-    return render_template(
-        'filtering.html', 
-        columns=ALL_DETAILED_REPORT_COLUMNS, 
-        message=message)
+    return redirect(url_for("show_clusters", messsage=message))
 
 @app.route('/get_exec_filtered_report', methods=['POST'])
 def get_exec_filtered_report():
