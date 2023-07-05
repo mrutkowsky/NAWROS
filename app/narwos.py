@@ -525,14 +525,12 @@ def show_clusters():
             col: list(df[col].unique()) for col in ALL_DETAILED_REPORT_COLUMNS
         }
 
-        reports = os.listdir(
-        PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
-        
+        reports = os.listdir(PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
+
         reports_to_show = [
-            report for report in reports 
-            if report != '.gitkeep'
+            report.split('.')[0] for report in reports 
+            if os.path.splitext(report)[-1] == '.gzip'
         ]
-        print(reports_to_show)
         
         fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
 
@@ -1144,7 +1142,7 @@ def compare_with_last_report():
     return response
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
 
 
 
