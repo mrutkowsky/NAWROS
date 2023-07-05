@@ -733,39 +733,6 @@ def get_detailed_cluster_exec_report():
 
     return resp_report
 
-
-@app.route('/get_summary_cluster_exec_report', methods=['POST'])
-def get_summary_cluster_exec_report():
-
-    report_type = request.form.get('report_type_exec')
-
-    ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
-    report_ext = ext_settings.get('ext', '.csv')
-    report_mimetype = ext_settings.get('mimetype', 'text/csv')
-
-    summary_cluster_exec_report_filename = get_report_name_with_timestamp(
-        filename_prefix=f"{SUMMARY_CLUSTER_EXEC_FILENAME_PREFIX}_{CLUSTER_EXEC_FILENAME_PREFIX}"
-    )
-
-    latest_report = find_latested_n_exec_report(
-            PATH_TO_CLUSTER_EXEC_REPORTS_DIR
-        )
-
-    path_to_summary_report = os.path.join(PATH_TO_CLUSTER_EXEC_REPORTS_DIR, latest_report)
-    
-    report_df = read_file(
-        file_path=path_to_summary_report)
-
-    resp_report = create_response_report(
-        df=report_df,
-        filename=summary_cluster_exec_report_filename,
-        ext=report_ext,
-        mimetype=report_mimetype,
-        file_format=report_type
-    )
-
-    return resp_report
-
 @app.route('/update_clusters_new_file', methods=['POST'])
 def update_clusters_new_file():
     
