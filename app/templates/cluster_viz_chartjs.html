@@ -204,7 +204,7 @@
                     <p>Choose exisitng file for clustering</p>
                     <select class="ex_file_update" name="ex_file_update" required>
                         <option value="" selected disabled hidden>(select file)</option>
-                        {% for file in files %}
+                        {% for file in available_for_update %}
                             <option value="{{ file }}">{{ file }}</option>
                         {% endfor %}
                     </select>
