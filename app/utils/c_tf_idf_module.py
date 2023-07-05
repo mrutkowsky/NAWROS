@@ -162,7 +162,7 @@ def perform_ctfidf(
 
     logger.debug(f'ct-idf: {ctfidf}')
 
-    index_adder = 0 if len(clusters_labels) != len(ctfidf) else 1
+    index_adder = 0 if -1 not in clusters_labels else 1
 
     for label in clusters_labels:
 
@@ -254,6 +254,10 @@ def get_topics_from_texts(
         content_column_name=content_column_name,
         label_column_name=label_column_name
     )
+
+    logger.debug(f'Length docs_per_class: {len(docs_per_class)}')
+    logger.debug(f'Number of classes: {len(docs_per_class[label_column_name])}')
+    logger.debug(f'Classes: {docs_per_class[label_column_name]}')
 
     logging.info('Properly prepared df for c-tf-idf')
 
