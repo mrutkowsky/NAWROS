@@ -125,6 +125,7 @@ def perform_ctfidf(
         clusters_labels: list or pd.Series,
         df_number_of_rows: int,
         stop_words: list = None,
+        outliers_topic_name: str = '<NO_TOPIC>',
         no_topic_token: str = '-') -> np.array:
     
     """Perform c-TF-IDF transformation on joined texts.
@@ -161,12 +162,18 @@ def perform_ctfidf(
 
     logger.debug(f'ct-idf: {ctfidf}')
 
+    index_adder = 0 if -1 not in clusters_labels else 1
+
     for label in clusters_labels:
+
+        if label == -1:
+            words_per_class.append(5 * [outliers_topic_name])
+            continue
 
         current = []
 
-        tf_idf_scores = sorted(ctfidf[label + 1], reverse=True)
-        best_topics_idx = ctfidf[label + 1].argsort()[::-1]
+        tf_idf_scores = sorted(ctfidf[label + index_adder], reverse=True)
+        best_topics_idx = ctfidf[label + index_adder].argsort()[::-1]
 
         for score, idx in zip(tf_idf_scores, best_topics_idx):
 
@@ -247,6 +254,10 @@ def get_topics_from_texts(
         content_column_name=content_column_name,
         label_column_name=label_column_name
     )
+
+    logger.debug(f'Length docs_per_class: {len(docs_per_class)}')
+    logger.debug(f'Number of classes: {len(docs_per_class[label_column_name])}')
+    logger.debug(f'Classes: {docs_per_class[label_column_name]}')
 
     logging.info('Properly prepared df for c-tf-idf')
 

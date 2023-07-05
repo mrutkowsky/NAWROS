@@ -40,6 +40,8 @@ DEFAULT_REPORT_FORMAT_SETTINGS = {
     "ext": ".csv", "mimetype": "text/csv"
 }
 
+GITKEEP_FILE = '.gitkeep'
+
 app.config['CONFIG_FILE'] = 'CONFIG.yaml'
 
 CONFIGURATION = read_config(
@@ -520,6 +522,16 @@ def show_clusters():
 
         files_to_filter = list(df[FILENAME_COLUMN].unique())
 
+        logger.debug(f'Files for filtering {files_to_filter}')
+
+        available_for_update = list(
+            set(os.listdir(PATH_TO_VALID_FILES)).difference(
+                set(files_to_filter)))
+        
+        available_for_update = list(filter(lambda x: x != GITKEEP_FILE, available_for_update))
+        
+        logger.debug(f'available_for_update {available_for_update}')
+
         columns_unique_values_dict = {
             col: list(df[col].unique()) for col in ALL_DETAILED_REPORT_COLUMNS
         }
@@ -538,7 +550,8 @@ def show_clusters():
         return render_template("cluster_viz_chartjs.html", 
                                 figure=fig_json, 
                                 columns=columns_unique_values_dict, 
-                                files=files_to_filter,
+                                files_for_filtering=files_to_filter,
+                                available_for_update=available_for_update,
                                 message=message,
                                 update_clusters_new_file_message=update_clusters_new_file_message,
                                 update_clusters_existing_file_message=update_clusters_existing_file_message,
