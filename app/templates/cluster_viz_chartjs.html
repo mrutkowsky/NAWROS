@@ -33,16 +33,17 @@
         }
 
         .container {  display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr;
         grid-template-rows: 1fr;
         grid-auto-rows: 1fr;
         gap: 3px 3px;
         grid-auto-flow: row;
         grid-template-areas:
-            "Compare Filter";
+            "Cluster Compare Filter";
         }
 
         /*.Plot { grid-area: Plot; }*/
+        .Cluster { grid-area: Cluster; }
 
         .Compare { 
             grid-area: Compare;
@@ -65,6 +66,7 @@
         cursor: pointer;
         width: 100%;
         }
+
         .Report {
         display: flex;
         padding-bottom: 10px;
@@ -130,15 +132,19 @@
     <!--<canvas id="myChart"></canvas>-->
     </div>
     <div style="padding: 20px;margin-left: 25%;margin-right: 25%; margin-top: 20px; box-shadow: 0px 0px 10px #999; border-radius: 10px; display: flex; justify-content: center; flex-direction: column;">
-        <h2>Download clustering reports</h2>
+        <h2 style="text-align: center;">Download clustering reports</h2>
             <div class="Report">
                 <div style="margin-right: 10px;">
-                    <form action="/get_detailed_cluster_exec_report"  method="post">
-                        <input type="submit" value="Get detailed report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
-                        <select id="report_type_exec" name="report_type_exec">
-                            <option value="excel">Excel</option>
-                            <option value="csv">CSV</option>
-                        </select>
+                    <form action="/get_last_cluster_exec_report"  method="post">
+                            <div style="float: left;">
+                            <input type="submit" value="Get summary exec report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
+                            </div>    
+                            <div style="float: right;margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
+                                <select id="last_report_type" name="last_report_type"  style="display: inline-block;">
+                                    <option value="excel">Excel</option>
+                                    <option value="csv">CSV</option>
+                                </select>
+                            </div>
                     </form>
                 </div>
             </div>
@@ -148,6 +154,20 @@
                 </div>
             </div>
             <div id="download-report-select" name="download-report-select" style="display: none;">
+                <div style="display: flex; flex-direction: row; justify-content: center;">
+                    <form action="/get_detailed_cluster_exec_report"  method="post">
+                        <div style="float: left;">
+                            <input type="submit" value="Get detailed exec report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
+                        </div>
+                        <div style="float: right;margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
+                            <select id="report_type_exec" name="report_type_exec">
+                                <option value="excel">Excel</option>
+                                <option value="csv">CSV</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div>
                 <form style="box-shadow: 0px 0px 0px #999;" class="form-style" action="/get_chosen_cluster_exec_report" method="post">
                     <label for="chosen_report_name">Choose another report to download</label>
                     <select id="chosen_report_name" name="chosen_report_name" required>
@@ -164,10 +184,11 @@
                     <br><br>
                     <input type="submit" value="Download report">
                   </form>
+                </div> 
             </div>
     </div>
     <div class="container" >
-        <div class="Compare" style="margin-top: 20px;">
+        <div class="Cluster" style="margin-top: 20px;">
             <button id="quick-clustering-button" class="button-36">Quick clustering</button>
             <div class="quick-clustering" id="quick-clustering" style="display: none;">
                 <form class="form-style" action="/update_clusters_new_file"  method="post" enctype="multipart/form-data">
@@ -235,6 +256,8 @@
                     {% endif %}
                 </form>
             </div>
+            </div>
+            <div class="Compare">
             <button id="compare-button" class="button-36" style="margin-top: 40px;">Compare reports</button>
         <div id="compare" style="display: none;">
         <form class="form-style" method="post" action="/compare_with_last_report">
@@ -300,8 +323,9 @@
             </div>
         </div>
     </div>
-    <div class="Filter" style="margin-top: 20px;">
-        <h3>Filter results</h3>
+    <div class="Filter">
+        <button id="filter-button" class="button-36" style="margin-top: 40px;">Filter results</button>
+        <div id="filter" name="filter" style="display: none; margin-top: 20px; box-shadow: 0px 0px 10px #999; border-radius: 10px; padding: 20px">
             <div>
                 <p style="text-align: left;">Filter by date</p>
                 <label for="filter-from-date">From</label>
@@ -344,6 +368,7 @@
                     </select>
                 </form>
             </div>
+        </div>
         </div>
     </div>
     </div>
@@ -474,6 +499,19 @@
     
         button.onclick = function() {
             var div = document.getElementById('download-report-select');
+            if (div.style.display !== 'none') {
+                div.style.display = 'none';
+            }
+            else {
+                div.style.display = 'block';
+            }
+        };
+    </script>
+    <script>
+        var button = document.getElementById('filter-button');
+    
+        button.onclick = function() {
+            var div = document.getElementById('filter');
             if (div.style.display !== 'none') {
                 div.style.display = 'none';
             }
