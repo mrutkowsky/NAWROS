@@ -94,6 +94,13 @@ def perform_soft_clustering(
     soft_clusters = hdbscan.all_points_membership_vectors(clusterer) \
         if new_points is None else hdbscan.membership_vector(clusterer, new_points)
     
+    if soft_clusters.ndim == 1:
+        return original_labels
+    
+    logger.debug(f'Type of soft_clusters: {type(soft_clusters)}')
+
+    logger.debug(f'soft_clusters: {soft_clusters}')
+    
     closest_cluster_label = [np.argmax(x) for x in soft_clusters]
     closest_cluster_prob = [max(x) for x in soft_clusters]
 

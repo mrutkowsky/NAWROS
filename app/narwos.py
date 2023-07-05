@@ -501,6 +501,7 @@ def choose_files_for_clusters():
 
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
+
     message = request.args.get("message")
     update_clusters_new_file_message = request.args.get("update_clusters_new_file_message")
     update_clusters_existing_file_message = request.args.get("update_clusters_existing_file_message")
@@ -518,13 +519,11 @@ def show_clusters():
             color=LABELS_COLUMN
         )
 
-        validated_files = os.listdir(
-        PATH_TO_VALID_FILES)
-        
-        validated_files_to_show = [
-            v_file for v_file in validated_files 
-            if os.path.splitext(v_file)[-1].lower() in ALLOWED_EXTENSIONS
-        ]
+        files_to_filter = list(df[FILENAME_COLUMN].unique())
+
+        columns_unique_values_dict = {
+            col: list(df[col].unique()) for col in ALL_DETAILED_REPORT_COLUMNS
+        }
 
         reports = os.listdir(
         PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
@@ -536,10 +535,11 @@ def show_clusters():
         print(reports_to_show)
         
         fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
+
         return render_template("cluster_viz_chartjs.html", 
                                 figure=fig_json, 
-                                columns=ALL_DETAILED_REPORT_COLUMNS, 
-                                files=validated_files_to_show,
+                                columns=columns_unique_values_dict, 
+                                files=files_to_filter,
                                 message=message,
                                 update_clusters_new_file_message=update_clusters_new_file_message,
                                 update_clusters_existing_file_message=update_clusters_existing_file_message,
@@ -549,16 +549,6 @@ def show_clusters():
     
     return 'Nothing to show here'
 
-@app.route('/show_filter', methods=['GET'])
-def show_filter():
-
-    if request.method == 'GET':
-        if isinstance(ALL_DETAILED_REPORT_COLUMNS, list):
-
-            return render_template('filtering.html', columns=ALL_DETAILED_REPORT_COLUMNS)
-        
-        return 'Nothing to show here'
-    
 @app.route('/apply_filter', methods=['POST'])
 def apply_filter():
 
@@ -987,12 +977,16 @@ def update_clusters_existing_file():
         n_of_rows_for_new_file = rows_cards_for_preprocessed.get(existing_file_for_update)
     else:
 
+        logger.debug(existing_file_for_update)
+
         filename_in_cleared_files = find_filename_in_dir(
-            path_to_dir=PATH_TO_CLEARED_FILES
-        ).get(existing_file_for_update)
+            path_to_dir=PATH_TO_CLEARED_FILES) \
+                .get(os.path.splitext(existing_file_for_update)[0])
+        
+        logger.debug(filename_in_cleared_files)
 
         n_of_rows_for_new_file = get_n_of_rows_df(
-            os.path.join(CLEARED_DATA_DIR, filename_in_cleared_files)
+            os.path.join(PATH_TO_CLEARED_FILES, filename_in_cleared_files)
         )
 
     rows_cardinalities_current_df = get_rows_cardinalities(
