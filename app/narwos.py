@@ -1,7 +1,7 @@
 import os
 import shutil
 import pandas as pd
-from flask import Flask, request, render_template, send_file, redirect, url_for, make_response
+from flask import Flask, request, render_template, send_file, redirect, url_for, make_response, jsonify
 import logging
 from utils.module_functions import \
     validate_file, \
@@ -126,6 +126,7 @@ CARDINALITIES_COLUMN = REPORT_CONFIG.get('cardinalities_column', 'counts')
 SENTIMENT_COLUMN = REPORT_CONFIG.get('sentiment_column', 'sentiment')
 FILENAME_COLUMN = REPORT_CONFIG.get('filename_column', 'filename')
 ORIGINAL_CONTENT = REPORT_CONFIG.get('original_content')
+DATE_COLUMN = REPORT_CONFIG.get('date_column')
 
 COMPARING_RAPORT_DOWNLOAD_NAME = REPORT_CONFIG.get('download_name')
 NO_TOPIC_TOKEN = REPORT_CONFIG.get('no_topic_token')
@@ -536,7 +537,7 @@ def show_clusters():
             col: list(df[col].unique()) for col in ALL_DETAILED_REPORT_COLUMNS
         }
         
-        logger.debug(f'columns_unique_values_dict {columns_unique_values_dict}')
+        date_column = DATE_COLUMN
 
         reports = os.listdir(PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
 
@@ -561,7 +562,8 @@ def show_clusters():
                                 update_clusters_existing_file_no_file_message=update_clusters_existing_file_no_file_message,
                                 update_clusters_new_file_no_file_message=update_clusters_new_file_no_file_message,
                                 reports=reports_to_show,
-                                json_columns=json_columns)
+                                json_columns=json_columns,
+                                date_column=date_column)
     
     return 'Nothing to show here'
 
@@ -1155,6 +1157,16 @@ def compare_with_last_report():
     ))
 
     return response
+
+@app.route('/get_items', methods=['GET'])
+def get_items():
+    selected_column = request.args.get('column')
+    logger.info(selected_column)
+    df = read_file(PATH_TO_CURRENT_DF)
+
+    response = {'items': list(df[selected_column].unique()) }
+    logger.info(response)
+    return jsonify(response)
 
 if __name__ == '__main__':
     app.run(debug=True)
