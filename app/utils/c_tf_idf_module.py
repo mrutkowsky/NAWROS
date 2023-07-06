@@ -162,7 +162,9 @@ def perform_ctfidf(
 
     logger.debug(f'ct-idf: {ctfidf}')
 
-    index_adder = 0 if -1 not in clusters_labels else 1
+    logger.debug(f'Cluster labels: {clusters_labels}')
+
+    index_adder = 0 if -1 not in list(clusters_labels) else 1
 
     for label in clusters_labels:
 
@@ -275,7 +277,9 @@ def get_topics_from_texts(
         topic_preffix_name=topic_preffix_name
     )
 
-    topics_df[label_column_name] = np.arange(-1, len(topics_df) - 1)
+    topics_df[label_column_name] = sorted(docs_per_class[label_column_name])
+
+    # topics_df[label_column_name] = np.arange(-1, len(topics_df) - 1)
 
     logging.info('End of executing - topic_df created succesfully')
     
