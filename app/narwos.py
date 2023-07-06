@@ -28,7 +28,9 @@ from utils.cluster import get_clusters_for_choosen_files, \
     cluster_recalculation_needed, \
     cns_after_clusterization, \
     save_cluster_exec_report
-from utils.reports import compare_reports, find_latest_two_reports, find_latested_n_exec_report
+from utils.reports import compare_reports, find_latest_two_reports, \
+    find_latested_n_exec_report
+from utils.comparison_pdf_report import create_pdf_comaprison_report
 from copy import copy
 import datetime
 
@@ -36,6 +38,7 @@ app = Flask(__name__)
 
 USED_AS_BASE_KEY = "used_as_base"
 ONLY_CLASSIFIED_KEY = "only_classified"
+TOPICS_CONCAT_FOR_VIZ = 'topics'
 
 DEFAULT_REPORT_FORMAT_SETTINGS = {
     "ext": ".csv", "mimetype": "text/csv"
@@ -128,6 +131,7 @@ SENTIMENT_COLUMN = REPORT_CONFIG.get('sentiment_column', 'sentiment')
 FILENAME_COLUMN = REPORT_CONFIG.get('filename_column', 'filename')
 ORIGINAL_CONTENT = REPORT_CONFIG.get('original_content')
 DATE_COLUMN = REPORT_CONFIG.get('date_column')
+CLUSTER_SUMMARY_COLUMN = REPORT_CONFIG.get('cluster_summary_column', 'cluster_summary')
 
 COMPARING_RAPORT_DOWNLOAD_NAME = REPORT_CONFIG.get('download_name')
 NO_TOPIC_TOKEN = REPORT_CONFIG.get('no_topic_token')
@@ -135,11 +139,12 @@ COMPARING_REPORT_SUFFIX = REPORT_CONFIG.get('comparing_report_suffix')
 
 TOPIC_COLUMN_PREFIX = REPORT_CONFIG.get('topic_column_prefix')
 
+TOPICS_RANGE = range(1, 6)
 ALL_DETAILED_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
     ORIGINAL_CONTENT_COLUMN,
     PREPROCESSED_CONTENT_COLUMN,
     LABELS_COLUMN,  
-    FILENAME_COLUMN] + [f"{TOPIC_COLUMN_PREFIX}_{i}" for i in range(1, 6)]
+    FILENAME_COLUMN] + [f"{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE]
 
 if GET_SENTIMENT:
     ALL_DETAILED_REPORT_COLUMNS += [SENTIMENT_COLUMN]
@@ -151,6 +156,12 @@ DETAILED_CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('detailed_cluster_exec
 
 FILTERED_REPORT_PREFIX = REPORT_CONFIG.get('filtered_filename_prefix')
 FILTERED_FILENAME_EXT = REPORT_CONFIG.get('filtered_filename_ext')
+
+COLS_FOR_LABEL = [f"New_{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE]
+COLS_FOR_OLD_LABEL = [f"Old_{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE]
+OLD_COL_NAME = 'New_' + CARDINALITIES_COLUMN
+NEW_COL_NAME = 'Old_' + CARDINALITIES_COLUMN
+
 
 REPORT_FORMATS_MAPPING = get_report_ext(
     ALLOWED_REPORT_EXT_DIR,
@@ -468,12 +479,15 @@ def choose_files_for_clusters():
         embedded_files_filename=EMBEDDED_JSON,
         cleared_files_ext=CLEARED_FILE_EXT,
         outlier_treshold=OUTLIER_TRESHOLD,
+        cluster_summary_column=CLUSTER_SUMMARY_COLUMN,
+        filename_column=FILENAME_COLUMN,
         random_state=SEED,
         umap_model_name=DIM_REDUCER_MODEL_NAME,
         reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
         n_neighbors=UMAP.get('n_neighbors'),
         min_dist=UMAP.get('min_dist'),
         n_components=UMAP.get('n_components'),
+        coverage_with_best=HDBSCAN_SETTINGS.get('coverage_with_best'),
         min_cluster_size=HDBSCAN_SETTINGS.get('min_cluster_size'),
         min_samples=HDBSCAN_SETTINGS.get('min_samples'),
         metric=HDBSCAN_SETTINGS.get('metric'),                      
@@ -487,6 +501,7 @@ def choose_files_for_clusters():
         topic_df_file_name=TOPICS_DF_FILE,
         current_df_filename=CURRENT_DF_FILE,
         topic_preffix_name=TOPIC_COLUMN_PREFIX,
+        topics_concat_viz_col=TOPICS_CONCAT_FOR_VIZ,
         stop_words=STOP_WORDS,
         labels_column=LABELS_COLUMN,
         cardinalities_column=CARDINALITIES_COLUMN,
@@ -519,7 +534,7 @@ def show_clusters():
             data_frame=df,
             x='x',
             y='y',
-            color=LABELS_COLUMN
+            color=TOPICS_CONCAT_FOR_VIZ
         )
 
         files_to_filter = list(df[FILENAME_COLUMN].unique())
@@ -843,6 +858,7 @@ def update_clusters_new_file():
                     path_to_cleared_files_dir=PATH_TO_CLEARED_FILES,
                     path_to_faiss_vetors_dir=PATH_TO_FAISS_VECTORS_DIR,
                     required_columns=REQUIRED_COLUMNS,
+                    topic_df_filename=TOPICS_DF_FILE,
                     outlier_treshold=OUTLIER_TRESHOLD,
                     clusterer_model_name=HDBSCAN_MODEL_NAME,
                     umap_model_name=DIM_REDUCER_MODEL_NAME,
@@ -865,6 +881,7 @@ def update_clusters_new_file():
                     current_df_filename=CURRENT_DF_FILE,
                     stop_words=STOP_WORDS,
                     topic_preffix_name=TOPIC_COLUMN_PREFIX,
+                    topics_concat_viz_col=TOPICS_CONCAT_FOR_VIZ,
                     labels_column=LABELS_COLUMN,
                     cardinalities_column=CARDINALITIES_COLUMN,
                     cluster_exec_filename_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
@@ -901,13 +918,16 @@ def update_clusters_new_file():
                     faiss_vectors_dirname=FAISS_VECTORS_DIR,
                     embedded_files_filename=EMBEDDED_JSON,
                     cleared_files_ext=CLEARED_FILE_EXT,
+                    cluster_summary_column=CLUSTER_SUMMARY_COLUMN,
                     outlier_treshold=OUTLIER_TRESHOLD,
+                    filename_column=FILENAME_COLUMN,
                     random_state=SEED,
                     umap_model_name=DIM_REDUCER_MODEL_NAME,
                     reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
                     n_neighbors=UMAP.get('n_neighbors'),
                     min_dist=UMAP.get('min_dist'),
                     n_components=UMAP.get('n_components'),
+                    coverage_with_best=HDBSCAN_SETTINGS.get('coverage_with_best'),
                     min_cluster_size=HDBSCAN_SETTINGS.get('min_cluster_size'),
                     min_samples=HDBSCAN_SETTINGS.get('min_samples'),
                     metric=HDBSCAN_SETTINGS.get('metric'),                      
@@ -919,6 +939,7 @@ def update_clusters_new_file():
                     path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
                     path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
                     topic_df_file_name=TOPICS_DF_FILE,
+                    topics_concat_viz_col=TOPICS_CONCAT_FOR_VIZ,
                     current_df_filename=CURRENT_DF_FILE,
                     stop_words=STOP_WORDS,
                     topic_preffix_name=TOPIC_COLUMN_PREFIX,
@@ -1016,6 +1037,7 @@ def update_clusters_existing_file():
             path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
             path_to_cleared_files_dir=PATH_TO_CLEARED_FILES,
             path_to_faiss_vetors_dir=PATH_TO_FAISS_VECTORS_DIR,
+            topic_df_filename=TOPICS_DF_FILE,
             required_columns=REQUIRED_COLUMNS,
             outlier_treshold=OUTLIER_TRESHOLD,
             clusterer_model_name=HDBSCAN_MODEL_NAME,
@@ -1038,6 +1060,7 @@ def update_clusters_existing_file():
             path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
             current_df_filename=CURRENT_DF_FILE,
             topic_preffix_name=TOPIC_COLUMN_PREFIX,
+            topics_concat_viz_col=TOPICS_CONCAT_FOR_VIZ,
             stop_words=STOP_WORDS,
             labels_column=LABELS_COLUMN,
             cardinalities_column=CARDINALITIES_COLUMN,
@@ -1065,6 +1088,8 @@ def update_clusters_existing_file():
             embedded_files_filename=EMBEDDED_JSON,
             cleared_files_ext=CLEARED_FILE_EXT,
             outlier_treshold=OUTLIER_TRESHOLD,
+            cluster_summary_column=CLUSTER_SUMMARY_COLUMN,
+            filename_column=FILENAME_COLUMN,
             random_state=SEED,
             umap_model_name=DIM_REDUCER_MODEL_NAME,
             reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
@@ -1084,6 +1109,7 @@ def update_clusters_existing_file():
             topic_df_file_name=TOPICS_DF_FILE,
             current_df_filename=CURRENT_DF_FILE,
             topic_preffix_name=TOPIC_COLUMN_PREFIX,
+            topics_concat_viz_col=TOPICS_CONCAT_FOR_VIZ,
             stop_words=STOP_WORDS,
             labels_column=LABELS_COLUMN,
             cardinalities_column=CARDINALITIES_COLUMN,
@@ -1106,6 +1132,9 @@ def compare_selected_reports():
 
     if any(not file_ for file_ in [filename1, filename2]):
         return redirect(url_for("show_clusters", message=f"Chosing both files is required"))
+    
+    if filename1 == filename2:
+        return redirect(url_for("show_clusters", message=f"Chosen files must be different"))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -1122,15 +1151,27 @@ def compare_selected_reports():
     logger.debug(comparison_result_df)
 
     comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
-
-    save_df_to_file(
-        df=comparison_result_df,
-        filename=comparison_report_filename,
-        path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
-        file_ext=report_ext
-    )
-
     path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR, f"{comparison_report_filename}{report_ext}")
+
+    if report_ext in ['.csv', '.xlsx', 'html', '.txt']:
+        create_pdf_comaprison_report(
+            df=comparison_result_df,
+            old_col_name=OLD_COL_NAME,
+            new_col_name=NEW_COL_NAME,
+            cols_for_label=COLS_FOR_LABEL,
+            cols_for_old_label=COLS_FOR_OLD_LABEL,
+            output_file_path=path_to_new_report,
+
+        )
+    elif report_ext == '.pdf':
+        save_df_to_file(
+            df=comparison_result_df,
+            filename=comparison_report_filename,
+            path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
+            file_ext=report_ext
+        )
+    else:
+        raise ValueError(f"Report extension {report_ext} is not supported")   
 
     response = make_response(send_file(
         path_to_new_report,

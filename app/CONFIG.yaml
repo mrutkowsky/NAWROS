@@ -52,6 +52,7 @@ REPORT_SETTINGS:
   cardinalities_column: counts
   sentiment_column: sentiment
   filename_column: filename
+  cluster_summary_column: cluster_summary
   base_columns:
     - Questioned_Date
     - Model_No
@@ -101,12 +102,13 @@ ML:
     model_name: 'cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual'
     
   HDBSCAN_SETTINGS:
+    coverage_with_best: 0.87
     model_name: 'clusterer.pkl'
-    min_cluster_size: 15
-    min_samples: 15
+    min_cluster_size: [5, 10, 15, 30, 45, 60]
+    min_samples: [5, 10, 15, 20, 30]
     outlier_treshold: 0.1
-    metric: euclidean                      
-    cluster_selection_method: eom
+    metric: ['euclidean', 'manhattan']                      
+    cluster_selection_method: ['eom']
 
   translation_models:
     pl: Helsinki-NLP/opus-mt-pl-en

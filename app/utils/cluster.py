@@ -13,6 +13,8 @@ import os
 import logging
 import pickle
 from datetime import datetime
+from itertools import product
+import scipy
 
 from utils.data_processing import get_embedded_files, read_file, set_rows_cardinalities, save_df_to_file, get_report_name_with_timestamp
 from utils.c_tf_idf_module import get_topics_from_texts
@@ -54,10 +56,11 @@ def dimension_reduction(
 
 def cluster_sentences(
         clusterable_embeddings,
-        min_cluster_size: int = 15,
-        min_samples: int = 15,
-        metric: str = 'euclidean',                      
-        cluster_selection_method: str = 'eom'):
+        coverage_with_best: float = 0.87,
+        min_cluster_size: list = [5, 10, 15, 30, 45, 60],
+        min_samples: list = [5, 10, 15, 20, 30],
+        metric: list = ['euclidean', 'manhattan'],                      
+        cluster_selection_method: list = ['eom']):
     
     """
     Perform clustering on the clusterable embeddings using HDBSCAN.
@@ -72,12 +75,54 @@ def cluster_sentences(
     Returns:
         np.ndarray: The cluster labels for each embedding.
     """
+
+    param_dist = {
+        'min_samples': min_samples,
+        'min_cluster_size': min_cluster_size,
+        'metric': metric,
+        'cluster_selection_method': cluster_selection_method 
+    }
+
+    possible_combinations_parameters = list(product(
+        param_dist.get('min_samples'), 
+        param_dist.get('min_cluster_size'), 
+        param_dist.get('metric'),
+        param_dist.get('cluster_selection_method')))
     
+    scores = {}
+
+    for min_samples, min_cluster_size, metric, cluster_selection_method in possible_combinations_parameters:
+
+        cluster = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size,
+                                    min_samples=min_samples,
+                                    metric=metric,                
+                                    cluster_selection_method=cluster_selection_method,
+                                    gen_min_span_tree=True,
+                                    prediction_data=True).fit(clusterable_embeddings)
+        
+        logger.debug(f'Execution: {min_samples=}, {min_cluster_size=}, {metric=}, {cluster_selection_method=} - validity: {cluster.relative_validity_} - num labels: {len(set(cluster.labels_))}')
+        
+        scores[(min_samples, min_cluster_size, metric, cluster_selection_method)] = {
+            'validity': cluster.relative_validity_, 
+            'num_labels': len(set(cluster.labels_))
+        }
+    
+    sorted_scores = dict(sorted(scores.items(), key=lambda x: x[1]['validity'], reverse=True))
+    best_validity = max(sorted_scores.values(), key=lambda x: x['validity'])['validity']
+
+    to_choose = {params: metrics for params, metrics in sorted_scores.items() if metrics.get('validity') / best_validity >= coverage_with_best}
+    sorted_by_num_labels = dict(sorted(to_choose.items(), key=lambda x: x[1]['num_labels'], reverse=True))
+
+    best_min_samples, best_min_cluster_size, best_metric, best_cluster_selection_method = list(sorted_by_num_labels.keys())[0]
+
+    logger.info(f'Chosen params: {list(sorted_by_num_labels.keys())[0]}')
+    logger.info(f'Scores for chosen params: {sorted_by_num_labels.get(list(sorted_by_num_labels.keys())[0])}')
+
     cluster = hdbscan.HDBSCAN(
-        min_cluster_size=min_cluster_size,
-        min_samples=min_samples,
-        metric=metric,                      
-        cluster_selection_method=cluster_selection_method,
+        min_samples=best_min_samples,
+        min_cluster_size=best_min_cluster_size,
+        metric=best_metric,                      
+        cluster_selection_method=best_cluster_selection_method,
         prediction_data=True) \
             .fit(clusterable_embeddings)
 
@@ -107,9 +152,8 @@ def perform_soft_clustering(
     if original_labels is not None:
 
         new_labels = [
-            label if (original_labels[i] != -1) 
-            or ((original_labels[i] == -1) and (closest_cluster_prob[i] > outlier_treshold))
-            else -1 
+            label if (original_labels[i] == -1) and (closest_cluster_prob[i] > outlier_treshold)
+            else original_labels[i] 
             for i, label in enumerate(closest_cluster_label)
         ]
 
@@ -125,7 +169,7 @@ def perform_soft_clustering(
 
     logger.debug(f'End of execution soft_clustering')
 
-    return new_labels
+    return new_labels, closest_cluster_prob
 
 def save_model(
         model,
@@ -211,6 +255,90 @@ def load_embeddings_get_result_df(
 
     return all_vectors, result_df, rows_cardinalities_dict
 
+def get_most_representantive_tickets(
+    df: pd.DataFrame,
+    one_prob_indexes: list,
+    clusterable_embeddings: np.array,
+    label_column_name: str = 'labels',
+    content_column_name: str = 'preprocessed_content',
+    cluster_summary_column: str = 'cluster_summary'):
+
+    only_1_prob = df[[label_column_name, content_column_name]].iloc[one_prob_indexes]
+
+    representative_contents = {}
+
+    labels_to_iterate_over = sorted(list(set(df[label_column_name].unique()).difference(set([-1]))))
+
+    if not labels_to_iterate_over:
+        return pd.DataFrame(columns=[label_column_name, cluster_summary_column])
+
+    for label in labels_to_iterate_over:
+
+        label_indexes = list(only_1_prob.loc[only_1_prob[label_column_name] == label].index)
+
+        dist = scipy.spatial.distance.cdist(
+            clusterable_embeddings[label_indexes], 
+            clusterable_embeddings[label_indexes])
+        
+        representative_contents[label] = np.argsort(np.sum(dist, axis=1))[:5]
+
+    logger.debug(f'Calculated candidates for most representantive samples')
+
+    needed_for_comparison_indexes = []
+
+    for label, idx in representative_contents.items():
+
+        needed_for_comparison_indexes.extend(
+            list(only_1_prob.loc[only_1_prob[label_column_name] == label] \
+                 .iloc[list(idx)][content_column_name].index))
+        
+    logger.debug(f'Got indexes for most most representantive samples')
+
+    if len(labels_to_iterate_over) == 1:
+        return pd.DataFrame(
+            {label_column_name: labels_to_iterate_over[0],
+             cluster_summary_column: list(df.iloc[needed_for_comparison_indexes[0]][content_column_name])})
+
+    reshaped_candidates_indexes = np.array(needed_for_comparison_indexes).reshape(-1, 5)
+
+    logger.debug(f'Reshaped array with candidates')
+
+    dist_cands = scipy.spatial.distance.cdist(
+        clusterable_embeddings[needed_for_comparison_indexes], 
+        clusterable_embeddings[needed_for_comparison_indexes])
+    
+    logger.debug(f'Calculated distances between most representantive samples among clusters')
+
+    adder = 0
+    to_sub = []
+
+    for i, elem in enumerate(dist_cands):
+
+        if (i % 5 == 0) and (i != 0):
+            adder += 1
+
+        to_sub.append(np.sum(elem[5 * adder : 5 * (adder + 1)]))
+
+    to_sub = np.array(to_sub)
+
+    logger.debug(f'Calculated distances to subtract (within cluster)')
+
+    chosen_candidates_indexes_in_group = np.argmax((np.sum(dist_cands, axis=1) - to_sub).reshape(-1, 5), axis=1)
+
+    logger.debug(f'Exctracted indexes of best representantive samples')
+
+    chosen_for_labels = []
+
+    for row_label, chosen_can in zip(reshaped_candidates_indexes, chosen_candidates_indexes_in_group):
+        chosen_for_labels.append(row_label[chosen_can])
+    
+    most_representantive_df = pd.DataFrame({
+        label_column_name: labels_to_iterate_over,
+        cluster_summary_column: list(df.iloc[chosen_for_labels][content_column_name])})
+
+    logger.debug(f'Successfully extracted most representantive contents for each cluster')
+
+    return most_representantive_df
 
 def get_clusters_for_choosen_files(
         chosen_files: list,
@@ -220,11 +348,15 @@ def get_clusters_for_choosen_files(
         rows_cardinalities_file: str,
         faiss_vectors_dirname: str,
         embedded_files_filename: str,
+        cluster_summary_filename: str = 'topics_df',
+        cluster_summary_ext: str = '.csv',
         used_as_base_key: str = 'used_as_base',
         only_classified_key: str = 'only_classified',
         cleared_files_ext: str = '.parquet.gzip',
+        content_column_name: str = 'preprocessed_content',
         labels_column: str = 'labels',
         filename_column: str = 'filename',
+        cluster_summary_column: str = 'cluster_summary',
         clusterer_model_name: str = 'clusterer.pkl',
         umap_model_name: str = 'umap_reducer.pkl',
         reducer_2d_model_name: str = 'dim_reducer_2d.pkl',
@@ -233,10 +365,11 @@ def get_clusters_for_choosen_files(
         n_neighbors: int = 15,
         min_dist: float = 0.0,
         n_components: int = 5,
-        min_cluster_size: int = 15,
-        min_samples: int = 15,
-        metric: str = 'euclidean',                      
-        cluster_selection_method: str = 'eom') -> pd.DataFrame:
+        coverage_with_best: float = 0.87,
+        min_cluster_size: list = [5, 10, 15, 30, 45, 60],
+        min_samples: list = [5, 10, 15, 20, 30],
+        metric: list = ['euclidean', 'manhattan'],                      
+        cluster_selection_method: list = ['eom']) -> pd.DataFrame:
     """
     Calculate clusters based on vectors for chosen files and return a dataframe with labels and 2D coordinates for each sentence.
 
@@ -275,7 +408,8 @@ def get_clusters_for_choosen_files(
         path_to_cleared_files=path_to_cleared_files,
         cleared_files_ext=cleared_files_ext,
         filename_column=filename_column,
-        used_as_base_key=used_as_base_key)
+        used_as_base_key=used_as_base_key,
+        only_classified_key=only_classified_key)
     
     umap_dim_reducer, clusterable_embeddings = dimension_reduction(
         all_vectors,
@@ -299,6 +433,8 @@ def get_clusters_for_choosen_files(
         n_components=2,
         random_state=random_state)
     
+    dimensions_2d = np.round(dimensions_2d, decimals=2)
+    
     save_model(
         model=dim_reducer_2d,
         path_to_current_df_dir=path_to_current_df_dir,
@@ -309,6 +445,7 @@ def get_clusters_for_choosen_files(
 
     clusterer = cluster_sentences(
         clusterable_embeddings,
+        coverage_with_best=coverage_with_best,
         min_cluster_size=min_cluster_size,
         min_samples=min_samples,
         metric=metric,                      
@@ -322,7 +459,7 @@ def get_clusters_for_choosen_files(
         model_name=clusterer_model_name
     )
     
-    cluster_labels = perform_soft_clustering(
+    cluster_labels, closest_cluster_prob = perform_soft_clustering(
         clusterer=clusterer,
         original_labels=clusterer.labels_,
         new_points=None,
@@ -345,6 +482,25 @@ def get_clusters_for_choosen_files(
     logger.info("Succesfully merged dataframes into result df")
     logger.debug(f'result_df: {result_df}')
 
+    most_represent_df = get_most_representantive_tickets(
+        df=df,
+        one_prob_indexes=np.where(np.array(closest_cluster_prob) == 1)[0],
+        clusterable_embeddings=clusterable_embeddings,
+        label_column_name=labels_column,
+        content_column_name=content_column_name,
+        cluster_summary_column=cluster_summary_column)
+    
+    logger.info("Succesfully exctracted summary clusters df")
+
+    save_df_to_file(
+        df=most_represent_df,
+        filename=cluster_summary_filename,
+        path_to_dir=path_to_current_df_dir,
+        file_ext=cluster_summary_ext
+    )
+
+    logger.info("Succesfully saved summary clusters df")
+
     saved_cardinalities = set_rows_cardinalities(
         path_to_cardinalities_file=os.path.join(path_to_current_df_dir, rows_cardinalities_file),
         updated_cardinalities=rows_cardinalities_dict
@@ -365,6 +521,7 @@ def get_cluster_labels_for_new_file(
         path_to_faiss_vetors_dir: str,
         required_columns: list,
         outlier_treshold: float = 0.1,
+        topic_df_filename: str = 'topics_df.csv',
         clusterer_model_name: str = 'clusterer.pkl',
         umap_model_name: str = 'umap_reducer.pkl',
         reducer_2d_model_name: str = 'dim_reducer_2d.pkl',
@@ -403,10 +560,10 @@ def get_cluster_labels_for_new_file(
     clusterable_embeddings = umap_reducer.transform(vector_embeddings)
     logger.info(f"Applied UMAP model for getting clusterable_embeddings")
 
-    dimensions_2d = reducer_2d.transform(vector_embeddings)
+    dimensions_2d = np.round(reducer_2d.transform(vector_embeddings), decimals=2)
     logger.info(f"Applied UMAP model for getting 2D coridinates for vizualization")
 
-    labels_for_new_file = perform_soft_clustering(
+    labels_for_new_file, _ = perform_soft_clustering(
         clusterer=hdbscan_loaded_model,
         original_labels=None,
         new_points=clusterable_embeddings,
@@ -416,8 +573,7 @@ def get_cluster_labels_for_new_file(
     logger.info(f'Successfully calculated labels for new file {filename}')
     
     new_file_df = read_file(
-        os.path.join(path_to_cleared_files_dir, f'{os.path.splitext(filename)[0]}{cleared_files_ext}'), 
-        columns=None)
+        os.path.join(path_to_cleared_files_dir, f'{os.path.splitext(filename)[0]}{cleared_files_ext}'))
         
     new_file_df[filename_column] = filename
 
@@ -429,11 +585,23 @@ def get_cluster_labels_for_new_file(
 
     new_file_df = pd.concat([new_file_df, cords_and_labels_df], axis=1)
 
-    logger.info(f'Prepared df {filename} for concatenation with current_df')
+    logger.debug(f'Concateneted new_file_df with cords_and_labels_df')
+
+    topics_df = read_file(os.path.join(path_to_current_df_dir, topic_df_filename))
+
+    new_file_df = join_topics_to_df(
+        detailed_df=new_file_df,
+        topics_df=topics_df,
+        joining_column=label_column
+    )
+
+    logger.debug(f'Joined topics df to {filename}')
 
     current_df = read_file(
         file_path=path_to_current_df
     )
+
+    logger.debug(f'Prepared df {filename} for concatenation with current_df')
 
     new_current_df = concat_new_df_to_current_df(
         new_file_df=new_file_df.astype({col: str for col in required_columns}),
@@ -481,8 +649,15 @@ def join_topics_to_df(
         topics_df: pd.DataFrame,
         joining_column: str = 'labels') -> pd.DataFrame:
 
+        operate_topics_df = topics_df.copy()
+
+        logger.debug(f'Detailed df Columns: {list(detailed_df.columns)}')
+
+        if joining_column not in operate_topics_df.columns:
+            operate_topics_df[joining_column] = np.arange(-1, len(operate_topics_df) - 1)
+
         joined_topics_df = detailed_df.join(
-            topics_df.set_index(joining_column),
+            operate_topics_df.set_index(joining_column),
             on=joining_column,
             how='left'
         )
@@ -538,6 +713,7 @@ def cns_after_clusterization(
         content_column_name: str = 'preprocessed_content',
         labels_column: str = 'labels',
         cardinalities_column: str = 'counts',
+        topics_concat_viz_col: str = 'topics',
         no_topic_token: str = '-',
         cluster_exec_filename_prefix: str = 'cluster_exec',
         cluster_exec_filename_ext: str = '.parquet.gzip'):
@@ -557,6 +733,26 @@ def cns_after_clusterization(
 
         logger.debug('Extracted topics from DataFrame')
 
+        only_summaries_df = read_file(
+            file_path=os.path.join(path_to_current_df_dir, topic_df_file_name)
+        )
+
+        clusters_topics_df = clusters_topics_df.merge(
+            only_summaries_df,
+            on=labels_column,
+            how='left'
+        ).sort_values(by=labels_column)
+
+        logger.debug(f'Joined cluster summaries to topic_df')
+
+        clusters_topics_df.to_csv(
+            os.path.join(path_to_current_df_dir, topic_df_file_name),
+            index=False
+        )
+
+        logger.debug('Saved topic df on disk')
+
+
         new_current_df = join_topics_to_df(
             detailed_df=new_current_df,
             topics_df=clusters_topics_df,
@@ -565,18 +761,14 @@ def cns_after_clusterization(
 
         logger.debug('Joined topics to new current_df')
 
+        new_current_df[topics_concat_viz_col] = \
+            new_current_df[[f"{topic_preffix_name}_{i}" for i in range(1, 4)]].apply(lambda x: ', '.join([str(v) for v in x]), axis=1)
+
         new_current_df.to_parquet(
             index=False, 
             path=os.path.join(path_to_current_df_dir, current_df_filename))
         
         logger.debug('Saved current_df on disk')
-
-        clusters_topics_df.to_csv(
-            os.path.join(path_to_current_df_dir, topic_df_file_name),
-            index=False
-        )
-
-        logger.debug('Saved topic df on disk')
 
     else:
 
