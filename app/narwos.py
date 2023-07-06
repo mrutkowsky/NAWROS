@@ -30,6 +30,7 @@ from utils.cluster import get_clusters_for_choosen_files, \
     save_cluster_exec_report
 from utils.reports import compare_reports, find_latest_two_reports, find_latested_n_exec_report
 from copy import copy
+import datetime
 
 app = Flask(__name__)
 
@@ -578,6 +579,30 @@ def apply_filter():
     # filtered_df = filtered_df.astype(str)
 
     logger.info(filtered_df)
+
+    # Find elements with columns 'DataFrom' and 'DataTo'
+    for item in filters:
+        if item['column'] == 'DataFrom':
+            data_from = item['value']
+        elif item['column'] == 'DataTo':
+            data_to = item['value']
+
+    data_from = datetime.datetime.strptime(data_from, '%Y-%m-%d %H:%M:%S')
+    data_from_date_only = data_from.date()
+
+    data_to = datetime.datetime.strptime(data_to, '%Y-%m-%d %H:%M:%S')
+    data_to_date_only = data_to.date()
+
+    # filtered_df[DATE_COLUMN] = pd.to_datetime(filtered_df[DATE_COLUMN]) 
+
+    # mask = (filtered_df[DATE_COLUMN] > data_from) & (filtered_df[DATE_COLUMN] <= data_to)
+
+    # filtered_df = filtered_df.loc[mask]
+    # Print the values
+    logger.info(f"Filtering from {data_from} to {data_to}")
+
+    # Remove elements with columns 'DataFrom' and 'DataTo' from the array
+    filters = [item for item in filters if item['column'] not in ['DataFrom', 'DataTo']]
 
     logger.info(
         f"""{filters} Columns of df to filter:{filtered_df.columns}""")
