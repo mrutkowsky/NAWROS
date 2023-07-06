@@ -28,7 +28,9 @@ from utils.cluster import get_clusters_for_choosen_files, \
     cluster_recalculation_needed, \
     cns_after_clusterization, \
     save_cluster_exec_report
-from utils.reports import compare_reports, find_latest_two_reports, find_latested_n_exec_report
+from utils.reports import compare_reports, find_latest_two_reports, \
+    find_latested_n_exec_report
+from utils.comparison_pdf_report import create_pdf_comaprison_report
 from copy import copy
 
 app = Flask(__name__)
@@ -135,11 +137,12 @@ COMPARING_REPORT_SUFFIX = REPORT_CONFIG.get('comparing_report_suffix')
 
 TOPIC_COLUMN_PREFIX = REPORT_CONFIG.get('topic_column_prefix')
 
+TOPICS_RANGE = range(1, 6)
 ALL_DETAILED_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
     ORIGINAL_CONTENT_COLUMN,
     PREPROCESSED_CONTENT_COLUMN,
     LABELS_COLUMN,  
-    FILENAME_COLUMN] + [f"{TOPIC_COLUMN_PREFIX}_{i}" for i in range(1, 6)]
+    FILENAME_COLUMN] + [f"{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE]
 
 if GET_SENTIMENT:
     ALL_DETAILED_REPORT_COLUMNS += [SENTIMENT_COLUMN]
@@ -151,6 +154,12 @@ DETAILED_CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('detailed_cluster_exec
 
 FILTERED_REPORT_PREFIX = REPORT_CONFIG.get('filtered_filename_prefix')
 FILTERED_FILENAME_EXT = REPORT_CONFIG.get('filtered_filename_ext')
+
+COLS_FOR_LABEL = [f"New_{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE]
+COLS_FOR_OLD_LABEL = [f"Old_{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE]
+OLD_COL_NAME = 'New_' + CARDINALITIES_COLUMN
+NEW_COL_NAME = 'Old_' + CARDINALITIES_COLUMN
+
 
 REPORT_FORMATS_MAPPING = get_report_ext(
     ALLOWED_REPORT_EXT_DIR,
@@ -1095,6 +1104,9 @@ def compare_selected_reports():
 
     if any(not file_ for file_ in [filename1, filename2]):
         return redirect(url_for("show_clusters", message=f"Chosing both files is required"))
+    
+    if filename1 == filename2:
+        return redirect(url_for("show_clusters", message=f"Chosen files must be different"))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -1111,15 +1123,27 @@ def compare_selected_reports():
     logger.debug(comparison_result_df)
 
     comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
-
-    save_df_to_file(
-        df=comparison_result_df,
-        filename=comparison_report_filename,
-        path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
-        file_ext=report_ext
-    )
-
     path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR, f"{comparison_report_filename}{report_ext}")
+
+    if report_ext in ['.csv', '.xlsx', 'html', '.txt']:
+        create_pdf_comaprison_report(
+            df=comparison_result_df,
+            old_col_name=OLD_COL_NAME,
+            new_col_name=NEW_COL_NAME,
+            cols_for_label=COLS_FOR_LABEL,
+            cols_for_old_label=COLS_FOR_OLD_LABEL,
+            output_file_path=path_to_new_report,
+
+        )
+    elif report_ext == '.pdf':
+        save_df_to_file(
+            df=comparison_result_df,
+            filename=comparison_report_filename,
+            path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
+            file_ext=report_ext
+        )
+    else:
+        raise ValueError(f"Report extension {report_ext} is not supported")   
 
     response = make_response(send_file(
         path_to_new_report,
