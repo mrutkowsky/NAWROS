@@ -70,8 +70,6 @@ REPORT_SETTINGS:
   filtered_filename_prefix: filtered
   filtered_filename_ext: .parquet.gzip
 
-  cols_for_label: ['New_Word_1', 'New_Word_2', 'New_Word_3', 'New_Word_4', 'New_Word_5']
-  cols_for_old_label: ['Old_Word_1', 'Old_Word_2', 'Old_Word_3', 'Old_Word_4', 'Old_Word_5']
   no_topic_phrase: '<NO_TOPIC>'
   indicator_col: 'Comparison'
   new_group_value: 'New group'

@@ -135,11 +135,12 @@ COMPARING_REPORT_SUFFIX = REPORT_CONFIG.get('comparing_report_suffix')
 
 TOPIC_COLUMN_PREFIX = REPORT_CONFIG.get('topic_column_prefix')
 
+TOPICS_RANGE = range(1, 6)
 ALL_DETAILED_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
     ORIGINAL_CONTENT_COLUMN,
     PREPROCESSED_CONTENT_COLUMN,
     LABELS_COLUMN,  
-    FILENAME_COLUMN] + [f"{TOPIC_COLUMN_PREFIX}_{i}" for i in range(1, 6)]
+    FILENAME_COLUMN] + [f"{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE]
 
 if GET_SENTIMENT:
     ALL_DETAILED_REPORT_COLUMNS += [SENTIMENT_COLUMN]
@@ -152,16 +153,11 @@ DETAILED_CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('detailed_cluster_exec
 FILTERED_REPORT_PREFIX = REPORT_CONFIG.get('filtered_filename_prefix')
 FILTERED_FILENAME_EXT = REPORT_CONFIG.get('filtered_filename_ext')
 
-COLS_FOR_LABEL = REPORT_CONFIG.get('cols_for_label')
-COLS_FOR_OLD_LABEL = REPORT_CONFIG.get('cols_for_old_label')
-NO_TOPIC_PHRASE = REPORT_CONFIG.get('no_topic_phrase')
-INDICATOR_COL_NAME = REPORT_CONFIG.get('indicator_col')
-OLD_COL_VALUE = REPORT_CONFIG.get('old_group_value')
-NEW_COL_VALUE = REPORT_CONFIG.get('new_group_value')
-OLD_COL_NAME = REPORT_CONFIG.get('old_group_col_name')
-NEW_COL_NAME = REPORT_CONFIG.get('new_group_col_name')
-OLD_GROUP_PLOT_TITLE = REPORT_CONFIG.get('old_group_plot_title')
-NEW_GROUP_PLOT_TITLE = REPORT_CONFIG.get('new_group_plot_title')
+COLS_FOR_LABEL = [f"New_{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE]
+COLS_FOR_OLD_LABEL = [f"Old_{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE]
+OLD_COL_NAME = 'New_' + CARDINALITIES_COLUMN
+NEW_COL_NAME = 'Old_' + CARDINALITIES_COLUMN
+
 
 REPORT_FORMATS_MAPPING = get_report_ext(
     ALLOWED_REPORT_EXT_DIR,
@@ -1112,7 +1108,17 @@ def compare_selected_reports():
     comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
     path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR, f"{comparison_report_filename}{report_ext}")
 
-    if report_ext != '.pdf':
+    if report_ext in ['.csv', '.xlsx', 'html', '.txt']:
+        create_pdf_comaprison_report(
+            df=comparison_result_df,
+            old_col_name=OLD_COL_NAME,
+            new_col_name=NEW_COL_NAME,
+            cols_for_label=COLS_FOR_LABEL,
+            cols_for_old_label=COLS_FOR_OLD_LABEL,
+            output_file_path=path_to_new_report,
+
+        )
+    elif report_ext == '.pdf':
         save_df_to_file(
             df=comparison_result_df,
             filename=comparison_report_filename,
@@ -1120,23 +1126,7 @@ def compare_selected_reports():
             file_ext=report_ext
         )
     else:
-        create_pdf_comaprison_report(
-            df=comparison_result_df,
-            old_col_name=OLD_COL_NAME,
-            new_col_name=NEW_COL_NAME,
-            old_col_value=OLD_COL_VALUE,
-            new_col_value=NEW_COL_VALUE,
-            cols_for_label=COLS_FOR_LABEL,
-            cols_for_old_label=COLS_FOR_OLD_LABEL,
-            indicator_col_name=INDICATOR_COL_NAME,
-            new_group_plot_title=NEW_GROUP_PLOT_TITLE,
-            old_group_plot_title=OLD_GROUP_PLOT_TITLE,
-            no_topic_phrase=NO_TOPIC_PHRASE,
-            output_file_path=path_to_new_report,
-
-        )
-
-    
+        raise ValueError(f"Report extension {report_ext} is not supported")   
 
     response = make_response(send_file(
         path_to_new_report,

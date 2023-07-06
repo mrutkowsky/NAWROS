@@ -8,8 +8,16 @@ from copy import deepcopy
 
 logger = logging.getLogger(__file__)
 
+LABEL = 'Label'
 XLABEL = 'Counts'
 YLABEL = 'Category'
+OLD_GROUP_PLOT_TITLE = 'Old groups counts'
+NEW_GROUP_PLOT_TITLE = 'New groups counts'
+
+NO_TOPIC_PHRASE = '<NO_TOPIC>'
+INDICATOR_COL = 'Comparison'
+NEW_GROUP_VAL = 'New group'
+OLD_GROUP_VAL = 'Old group'
 
 NEW_GROUP_COLOR = '#068FFF'
 OLD_GROUP_COLOR = '#A4A2AB'
@@ -46,14 +54,14 @@ def create_df_for_barh(df: pd.DataFrame,
         df_changed[indicator_col_name] != indicator_value_for_new
         )
     df_changed = df_changed.dropna()
-    df_changed['Label'] = df[cols_for_label].apply(
+    df_changed[LABEL] = df[cols_for_label].apply(
         combine_words, args=(no_topic_phrase,), axis=1
         )
     df_changed[new_counts_col_name] = df_changed[new_counts_col_name].astype(int)
     df_changed[old_counts_col_name] = df_changed[old_counts_col_name].astype(int)
     df_changed.reset_index(inplace=True)
 
-    output_cols = ['Label'] + \
+    output_cols = [LABEL] + \
         [new_counts_col_name, old_counts_col_name, indicator_col_name]
     return df_changed[output_cols]
 
@@ -94,7 +102,7 @@ def plot_changed_groups(df_changed: pd.DataFrame,
 
     ax.legend()
     ax.set_yticks(bar_positions + bar_height)
-    ax.set_yticklabels(df_changed['Label'])
+    ax.set_yticklabels(df_changed[LABEL])
 
     plt.text(0.5, 1.3, s='Comparison Report',\
              transform=ax.transAxes, fontsize=22, verticalalignment='top',\
@@ -158,7 +166,7 @@ def plot_group(comp_report_df: pd.DataFrame,
     df.where(df[indicator_col_name] == indicator_value, inplace=True)
     df.dropna(inplace=True)
 
-    df['Label'] = df[columns_for_label].apply(
+    df[LABEL] = df[columns_for_label].apply(
         lambda x: combine_words(x, no_topic_phrase), axis=1
         )
     
@@ -169,11 +177,11 @@ def plot_group(comp_report_df: pd.DataFrame,
 
     df.reset_index(inplace=True)
 
-    df = df[['Label'] + [vals_col_name]]
+    df = df[[LABEL] + [vals_col_name]]
  
     fig = create_single_bar_barh(df,
                                  vals_col_name=vals_col_name,
-                                 label_col_name='Label',
+                                 label_col_name=LABEL,
                                  plot_title=plot_title,
                                  new_group=new_group
                                  )
@@ -219,15 +227,15 @@ def create_pdf_comaprison_report(
         df: pd.DataFrame,
         old_col_name: str,
         new_col_name: str,
-        old_col_value: str,
-        new_col_value: str,
+        output_file_path: str,
         cols_for_label: list,
         cols_for_old_label: list,
-        indicator_col_name: str,
-        new_group_plot_title: str,
-        old_group_plot_title: str,
-        no_topic_phrase: str,
-        output_file_path: str
+        old_col_value: str=OLD_GROUP_VAL,
+        new_col_value: str=NEW_GROUP_VAL,
+        indicator_col_name: str=INDICATOR_COL,
+        no_topic_phrase: str=NO_TOPIC_PHRASE,
+        new_group_plot_title: str=NEW_GROUP_PLOT_TITLE,
+        old_group_plot_title: str=OLD_GROUP_PLOT_TITLE,
         ) -> list:
     """
     Calls all plot generation functions and saves the plots to a pdf file.
