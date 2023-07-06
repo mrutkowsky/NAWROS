@@ -70,15 +70,6 @@ REPORT_SETTINGS:
   filtered_filename_prefix: filtered
   filtered_filename_ext: .parquet.gzip
 
-  no_topic_phrase: '<NO_TOPIC>'
-  indicator_col: 'Comparison'
-  new_group_value: 'New group'
-  old_group_value: 'Old group'
-  new_group_col_name: 'New_counts'
-  old_group_col_name: 'Old_counts'
-  new_group_plot_title: 'New groups counts'
-  old_group_plot_title: 'Old groups counts'
-
 LOGGER:
   logging_format: '[%(asctime)s] - %(levelname)s - %(message)s'
   logger_level: DEBUG
