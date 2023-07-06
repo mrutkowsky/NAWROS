@@ -4,12 +4,14 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import logging
 
+from copy import deepcopy
+
 logger = logging.getLogger(__file__)
 
 XLABEL = 'Counts'
 YLABEL = 'Category'
 
-NEW_GROUP_COLOR = '#69DB24'
+NEW_GROUP_COLOR = '#068FFF'
 OLD_GROUP_COLOR = '#A4A2AB'
 
 
@@ -124,12 +126,9 @@ def create_single_bar_barh(df,
     figsize = (8, len(df) / 5 + 1) if len(df) > 10 else (8, 6)
     fig, ax = plt.subplots(figsize=figsize)
 
+    bar_positions = np.arange(len(df))
     color = NEW_GROUP_COLOR if new_group else OLD_GROUP_COLOR
     plt.barh(df[label_col_name], df[vals_col_name], color=color)
-
-    bar_positions = np.arange(len(df))
-
-    logger.debug(f'bar_positions: {bar_positions}')
 
     for i, diff in enumerate(df[vals_col_name]):
         x = df[vals_col_name][i] + 1
@@ -145,49 +144,39 @@ def create_single_bar_barh(df,
     return fig
 
 
-def plot_group(df,
+def plot_group(comp_report_df: pd.DataFrame,
                vals_col_name: str,
                indicator_value: str,
                columns_for_label: list,
                indicator_col_name: str,
                plot_title: str,
-               no_topic_phrase: str
+               no_topic_phrase: str,
+               new_group: bool
                ) -> plt.figure:
 
-    logger.debug(df.head())
-
-    logger.debug(f'indicator_col_name: {indicator_col_name}, indicator_value: {indicator_value},\
-                  indicator_col_name: {indicator_col_name}')
-    
-
-    logger.debug(f'indicator value: {indicator_value}')
-    logger.debug(f'indicator_col_name: {indicator_col_name}')
-
-
-    df = df[columns_for_label + [vals_col_name, indicator_col_name]]
-
-
-    df.where(df[str(indicator_col_name)] == 'Old group', inplace=True)
-    
+    df = comp_report_df[columns_for_label + [vals_col_name, indicator_col_name]].copy()    
+    df.where(df[indicator_col_name] == indicator_value, inplace=True)
     df.dropna(inplace=True)
 
     df['Label'] = df[columns_for_label].apply(
         lambda x: combine_words(x, no_topic_phrase), axis=1
         )
-
-    # df[vals_col_name] = pd.to_numeric(df[vals_col_name], errors='coerce')
-    # df.dropna(inplace=True)
+    
+    df[vals_col_name] = pd.to_numeric(df[vals_col_name], errors='coerce')
+    df.dropna(inplace=True)
+    
     df[vals_col_name] = df[vals_col_name].astype(int)
-    df.reset_index(inplace=True)
 
-    logger.debug(f'df: {df.head()}')
+    df.reset_index(inplace=True)
 
     df = df[['Label'] + [vals_col_name]]
  
     fig = create_single_bar_barh(df,
                                  vals_col_name=vals_col_name,
                                  label_col_name='Label',
-                                 plot_title=plot_title)
+                                 plot_title=plot_title,
+                                 new_group=new_group
+                                 )
     
     return fig
 
@@ -243,6 +232,7 @@ def create_pdf_comaprison_report(
     """
     Calls all plot generation functions and saves the plots to a pdf file.
     """
+
     df_changed = create_df_for_barh(df,
                                     indicator_col_name=indicator_col_name,
                                     indicator_value_for_new=new_col_value,
@@ -259,27 +249,28 @@ def create_pdf_comaprison_report(
                                              indicator_col_name)    
     
     fig_new_group = plot_group(df,
-                               vals_col_name=old_col_name,
+                               vals_col_name=new_col_name,
                                indicator_value=new_col_value,
                                columns_for_label=cols_for_label,
                                indicator_col_name=indicator_col_name,
                                plot_title=new_group_plot_title,
-                               no_topic_phrase=no_topic_phrase)
+                               no_topic_phrase=no_topic_phrase,
+                               new_group=True)
     
     fig_old_group = plot_group(df,
-                               vals_col_name=new_col_name,
+                               vals_col_name=old_col_name,
                                indicator_value=old_col_value,
                                columns_for_label=cols_for_old_label,
                                indicator_col_name=indicator_col_name,
                                plot_title=old_group_plot_title,
-                               no_topic_phrase=no_topic_phrase)
+                               no_topic_phrase=no_topic_phrase,
+                               new_group=False)
 
     table = create_table(df)
 
     logger.info('Creating comparison report PDF...')
 
     fig_list = [fig_changed_groups, fig_new_group, fig_old_group, table]
-    logger.debug(f'{fig_list}')
 
     save_to_pdf(fig_list,
                 output_file_path)
