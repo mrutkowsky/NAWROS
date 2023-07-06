@@ -1091,6 +1091,9 @@ def compare_selected_reports():
 
     if any(not file_ for file_ in [filename1, filename2]):
         return redirect(url_for("show_clusters", message=f"Chosing both files is required"))
+    
+    if filename1 == filename2:
+        return redirect(url_for("show_clusters", message=f"Chosen files must be different"))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
