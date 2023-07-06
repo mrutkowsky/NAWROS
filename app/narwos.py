@@ -1,7 +1,7 @@
 import os
 import shutil
 import pandas as pd
-from flask import Flask, request, render_template, send_file, redirect, url_for, make_response
+from flask import Flask, request, render_template, send_file, redirect, url_for, make_response, jsonify
 import logging
 from utils.module_functions import \
     validate_file, \
@@ -32,6 +32,7 @@ from utils.reports import compare_reports, find_latest_two_reports, \
     find_latested_n_exec_report
 from utils.comparison_pdf_report import create_pdf_comaprison_report
 from copy import copy
+import datetime
 
 app = Flask(__name__)
 
@@ -129,6 +130,7 @@ CARDINALITIES_COLUMN = REPORT_CONFIG.get('cardinalities_column', 'counts')
 SENTIMENT_COLUMN = REPORT_CONFIG.get('sentiment_column', 'sentiment')
 FILENAME_COLUMN = REPORT_CONFIG.get('filename_column', 'filename')
 ORIGINAL_CONTENT = REPORT_CONFIG.get('original_content')
+DATE_COLUMN = REPORT_CONFIG.get('date_column')
 CLUSTER_SUMMARY_COLUMN = REPORT_CONFIG.get('cluster_summary_column', 'cluster_summary')
 
 COMPARING_RAPORT_DOWNLOAD_NAME = REPORT_CONFIG.get('download_name')
@@ -550,6 +552,8 @@ def show_clusters():
         columns_unique_values_dict = {
             col: list(df[col].unique()) for col in ALL_DETAILED_REPORT_COLUMNS
         }
+        
+        date_column = DATE_COLUMN
 
         reports = os.listdir(PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
 
@@ -561,6 +565,7 @@ def show_clusters():
         logger.debug(f'Report to show: {reports_to_show}')
         
         fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
+        json_columns = json.dumps(str(columns_unique_values_dict))
 
         return render_template("cluster_viz_chartjs.html", 
                                 figure=fig_json, 
@@ -572,7 +577,9 @@ def show_clusters():
                                 update_clusters_existing_file_message=update_clusters_existing_file_message,
                                 update_clusters_existing_file_no_file_message=update_clusters_existing_file_no_file_message,
                                 update_clusters_new_file_no_file_message=update_clusters_new_file_no_file_message,
-                                reports=reports_to_show)
+                                reports=reports_to_show,
+                                json_columns=json_columns,
+                                date_column=date_column)
     
     return 'Nothing to show here'
 
@@ -587,6 +594,30 @@ def apply_filter():
     # filtered_df = filtered_df.astype(str)
 
     logger.info(filtered_df)
+
+    # Find elements with columns 'DataFrom' and 'DataTo'
+    for item in filters:
+        if item['column'] == 'DataFrom':
+            data_from = item['value']
+        elif item['column'] == 'DataTo':
+            data_to = item['value']
+
+    data_from = datetime.datetime.strptime(data_from, '%Y-%m-%d %H:%M:%S')
+    data_from_date_only = data_from.date()
+
+    data_to = datetime.datetime.strptime(data_to, '%Y-%m-%d %H:%M:%S')
+    data_to_date_only = data_to.date()
+
+    # filtered_df[DATE_COLUMN] = pd.to_datetime(filtered_df[DATE_COLUMN]) 
+
+    # mask = (filtered_df[DATE_COLUMN] > data_from) & (filtered_df[DATE_COLUMN] <= data_to)
+
+    # filtered_df = filtered_df.loc[mask]
+    # Print the values
+    logger.info(f"Filtering from {data_from} to {data_to}")
+
+    # Remove elements with columns 'DataFrom' and 'DataTo' from the array
+    filters = [item for item in filters if item['column'] not in ['DataFrom', 'DataTo']]
 
     logger.info(
         f"""{filters} Columns of df to filter:{filtered_df.columns}""")
@@ -607,10 +638,7 @@ def apply_filter():
     # filtered_df_excluded = show_columns_for_filtering(PATH_TO_CURRENT_DF)
     message = f"{filters} filters has been applied successfully."
 
-    return render_template(
-        'filtering.html', 
-        columns=ALL_DETAILED_REPORT_COLUMNS, 
-        message=message)
+    return redirect(url_for("show_clusters", messsage=message))
 
 @app.route('/get_exec_filtered_report', methods=['POST'])
 def get_exec_filtered_report():
@@ -1195,6 +1223,16 @@ def compare_with_last_report():
     ))
 
     return response
+
+@app.route('/get_items', methods=['GET'])
+def get_items():
+    selected_column = request.args.get('column')
+    logger.info(selected_column)
+    df = read_file(PATH_TO_CURRENT_DF)
+
+    response = {'items': list(df[selected_column].unique()) }
+    logger.info(response)
+    return jsonify(response)
 
 if __name__ == '__main__':
     app.run(debug=True)

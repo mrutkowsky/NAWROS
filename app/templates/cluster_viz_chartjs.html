@@ -142,20 +142,38 @@
     <div class="Plot" style="margin-bottom: 10px;">
     <!--<canvas id="myChart"></canvas>-->
     </div>
+    <div style="display: flex; justify-content: center;">
+    {% if message %}
+    <h3 style="color:  rgb(250, 89, 89); align-items: center; margin-bottom: 20px;">{{ message }}</h3>
+    {% endif %}
+    </div>
     <div style="padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px; display: flex; justify-content: center; flex-direction: column; width: 1280px;  margin: auto;">
         <h2 style="text-align: center;">Download clustering reports</h2>
             <div class="Report">
                 <div style="margin-right: 10px;">
                     <form action="/get_last_cluster_exec_report"  method="post">
-                            <div style="float: left;">
-                            <input type="submit" value="Get summary exec report" style="margin-right: 10px; margin-top: 30px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
+                            <div>
+                            <input type="submit" value="Get summary exec report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
                             </div>    
-                            <div style="float: right;margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
+                            <div style="margin-top: 30px; margin-right: 10px; margin-top: 17px;  height: 35px;">
                                 <select id="last_report_type" name="last_report_type"  style="display: inline-block;">
                                     <option value="excel">Excel</option>
                                     <option value="csv">CSV</option>
                                 </select>
                             </div>
+                    </form>
+                </div>
+                    <div style="display: flex; flex-direction: row; justify-content: center;">
+                    <form action="/get_detailed_cluster_exec_report"  method="post">
+                        <div >
+                            <input type="submit" value="Get detailed exec report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
+                        </div>
+                        <div style="margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
+                            <select id="report_type_exec" name="report_type_exec">
+                                <option value="excel">Excel</option>
+                                <option value="csv">CSV</option>
+                            </select>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -165,22 +183,10 @@
                 </div>
             </div>
             <div id="download-report-select" name="download-report-select" style="display: none;">
-                <div style="display: flex; flex-direction: row; justify-content: center;">
-                    <form action="/get_detailed_cluster_exec_report"  method="post">
-                        <div style="float: left;">
-                            <input type="submit" value="Get detailed exec report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
-                        </div>
-                        <div style="float: right;margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
-                            <select id="report_type_exec" name="report_type_exec">
-                                <option value="excel">Excel</option>
-                                <option value="csv">CSV</option>
-                            </select>
-                        </div>
-                    </form>
-                </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr;">
                     <div>
-                    <form style="box-shadow: 0px 0px 0px #999;" class="form-style" action="/get_chosen_cluster_exec_report" method="post">
+                    <h3 style="margin-bottom: 10px;">Download optional report</h3>
+                    <form style="padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px;" class="form-style" action="/get_chosen_cluster_exec_report" method="post">
                         <label for="chosen_report_name">Choose another report to download</label>
                         <select id="chosen_report_name" name="chosen_report_name" required>
                         <option value="" selected disabled hidden>(Choose file)</option>
@@ -188,41 +194,47 @@
                             <option value="{{ report }}.parquet.gzip">{{ report }}</option>
                         {% endfor %}
                         </select>
+                        <br><br>
                         <label style="margin-top: 5px;" for="chosen_report_type">Choose report type</label>
-                        <select style="margin-top: 10px;" id="chosen_report_type" name="chosen_report_type" required>
+                        <select style="margin-top: 10px;margin-bottom: 15px;" id="chosen_report_type" name="chosen_report_type" required>
                             <option value="excel">Excel</option>
                             <option value="csv">CSV</option>
                         </select>
-                        <br><br>
                         <input type="submit" value="Download report">
+                        <br>
                     </form>
                     </div> 
-                    <div class="Report" style="flex-direction: column;" >
-                        <div style="margin-right: 8px;display: grid; grid-template-columns: 1fr 1fr;">
-                            <form action="/get_detailed_filtered_report"  method="post">
-                                <div style="float: left;">
-                                    <input type="submit" value="Get filtered detailed report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
-                                </div>
-                                <div style="float: right;margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
-                                    <select id="detailed_filtered_report_type" name="detailed_filtered_report_type">
-                                        <option value="excel">Excel</option>
-                                        <option value="csv">CSV</option>
-                                    </select>
-                                </div>
-                            </form>
-                        </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr;">
-                            <form action="/get_exec_filtered_report"  method="post">
-                                <div style="float: left;">
-                                    <input type="submit" value="Get summary filtered report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
-                                </div>
-                                <div style="float: right;margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
-                                    <select id="filtered_exec_report_type" name="filtered_exec_report_type">
-                                        <option value="excel">Excel</option>
-                                        <option value="csv">CSV</option>
-                                    </select>
-                                </div>
-                            </form>
+                    <div>
+                        <h3 style="margin-bottom: 10px;">Download filtered report</h3>
+                        <div class="form-style" style="min-height: 450; flex-direction: column;padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px;" >
+                            <div style="margin-right: 8px;" >
+                                <p>Download detailed report</p>
+                                <form  action="/get_detailed_filtered_report"  method="post">
+                                    <div>
+                                        <input type="submit" value="Get filtered detailed report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px;  font-size: 14px; text-align: center;">
+                                    </div>
+                                    <div style="margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 20px; height: 35px;">
+                                        <select id="detailed_filtered_report_type" name="detailed_filtered_report_type">
+                                            <option value="excel">Excel</option>
+                                            <option value="csv">CSV</option>
+                                        </select>
+                                    </div>
+                                </form>
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <p>Download summary report</p>
+                                <form action="/get_exec_filtered_report"  method="post">
+                                    <div>
+                                        <input type="submit" value="Get summary filtered report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px;  font-size: 14px; text-align: center;">
+                                    </div>
+                                    <div style="margin-top: 10px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
+                                        <select id="filtered_exec_report_type" name="filtered_exec_report_type">
+                                            <option value="excel">Excel</option>
+                                            <option value="csv">CSV</option>
+                                        </select>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -307,7 +319,7 @@
                 <form class="form-style" method="post" action="/compare_with_last_report" style="height: 250px;">
                     
                     <label for="file-format">File Format:</label><br>
-
+                    <!--
                     <input type="radio" id="csv" name="file-format" value="csv">
                     <label for="csv">CSV</label>
 
@@ -321,15 +333,20 @@
                     <label for="pdf">PDF</label>
 
                     <input type="radio" id="powerpoint" name="file-format" value="powerpoint">
-                    <label for="powerpoint">PowerPoint</label>
-
+                    <label for="powerpoint">PowerPoint</label>-->
+                    <select id="file-format" name="file-format">
+                        <option value="excel">Excel</option>
+                        <option value="csv">CSV</option>
+                        <option value="html">HTML</option>
+                        <option value="pdf">PDF</option>
+                    </select>
                     <input type="submit" style="text-align: center;" value="Compare report with last">
                 </form>
                 <div class="Compare-reports">
                     <div class="mt-20" style="margin-top: 20px;">
                         <form class="form-style" method="post" action="/compare_selected_reports" style="height:340px;">
                                 <label for="file-format">File Format:</label><br>
-
+                                <!--
                                 <input type="radio" id="csv" name="file-format" value="csv">
                                 <label for="csv">CSV</label>
 
@@ -343,8 +360,13 @@
                                 <label for="pdf">PDF</label>
 
                                 <input type="radio" id="powerpoint" name="file-format" value="powerpoint">
-                                <label for="powerpoint">PowerPoint</label>
-                                
+                                <label for="powerpoint">PowerPoint</label>-->
+                                <select id="file-format" name="file-format">
+                                    <option value="excel">Excel</option>
+                                    <option value="csv">CSV</option>
+                                    <option value="html">HTML</option>
+                                    <option value="pdf">PDF</option>
+                                </select>
                                 <br><br>
 
                                 <label for="chosen_files">Choose reports to compare:</label>
@@ -369,29 +391,44 @@
         </div>
         <div class="Filter" style="margin-top: 20px; margin-right: 20px; margin-left: 20px;">
             <button id="filter-button" class="button-36" style="width: 400px;">Filter results</button>
-            <div id="filter" name="filter" style="display: none; box-shadow: 0px 0px 10px #999; border-radius: 10px; padding: 20px; width: 400px;height: 610px;">
+            <div id="filter" name="filter" style="display: none; box-shadow: 0px 0px 10px #999; border-radius: 10px; padding: 20px; width: 400px;min-height: 610px;">
                 <div>
                     <p style="text-align: left;">Filter by date</p>
                     <label for="filter-from-date">From</label>
-                    <input style="width: 30%;" type="text" class="filter-from-date">
-                    <label for="filter-from-date">to</label>
-                    <input style="width: 30%;" type="text" class="filter-to-date">
+                    <select class="filter-from-date" id="filter-from-date">
+                        {% for date in columns[date_column] %}
+                            <option value="{{ date }}">{{ date}}</option>
+                        {% endfor %}
+                    </select>
+                    <label for="filter-to-date">to</label>
+                    <select class="filter-to-date" id="filter-to-date">
+                        {% for date in columns[date_column] %}
+                            <option value="{{ date }}">{{ date}}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div id="filter-container">
                     <div>
                         <p style="text-align: left; margin-top: 20px ;">Filter by other atributes</p>
                         <label for="column">Select a column:</label>
-                        <select class="filter-column">
+                        <select class="filter-column" id="filter-column">
                             {% for column, unique_values in columns.items() %}
                                 <option value="{{ column }}">{{ column}}</option>
+                                {% set selected_column = column %}
                             {% endfor %}
                         </select>
-                        <label style="margin-top: 10px;" for="value">Enter a value:</label>
-                        <input type="text" class="filter-value">
-                        <button class="delete" onclick="deleteFilter(this)">Delete filter</button>
+                        <label style="margin-top: 10px;" for="value">Select a value:</label>
+                        <select class="filter-value" id="filter-value">
+                            <!--
+                            {% for value  in columns['OS'] %}
+                                    <option value="{{ value }}">{{ value}}</option> 
+                            {% endfor %}
+                            -->
+                        </select>
+                        <!-- <button class="delete" onclick="deleteFilter(this)">Delete filter</button> --> 
                     </div>
                 </div>
-                <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="addFilter()">Add Filter</button>
+                <!-- <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="addFilter()">Add Filter</button> -->
                 <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="applyFilters()">Apply Filters</button>
             </div>
         </div>
@@ -405,13 +442,17 @@
         var filterDiv = document.createElement("div");
         filterDiv.innerHTML = `
             <label for="column">Select a column:</label>
-            <select class="filter-column">
+            <select class="filter-column" id="filter-column">
                 {% for column in columns %}
                 <option value="{{ column }}">{{ column }}</option>
                 {% endfor %}
             </select>
-            <label for="value">Enter a value:</label>
-            <input type="text" class="filter-value">
+            <label style="margin-top: 10px;" for="value">Select a value:</label>
+                    <select class="filter-value" id="filter-value">
+                        {% for value  in columns['OS'] %}
+                                <option value="{{ value }}">{{ value}}</option> 
+                        {% endfor %}
+                    </select> 
             <button class="delete" onclick="deleteFilter(this)">Delete filter</button>
         `;
         
@@ -428,6 +469,8 @@
         var filterColumns = document.getElementsByClassName("filter-column");
         var filterValues = document.getElementsByClassName("filter-value");
         //var reportType = document.getElementById("reportTypeInput").value;
+        var filterDataFrom = document.getElementsByClassName("filter-from-date");
+        var filterDataTo = document.getElementsByClassName("filter-to-date");
         
         for (var i = 0; i < filterColumns.length; i++) {
             var column = filterColumns[i].value;
@@ -435,7 +478,11 @@
             
             filters.push({ column: column, value: value });
         }
-        
+        var dataFromValue = filterDataFrom[0].value;
+        var dataToValue = filterDataTo[0].value;
+
+        filters.push({ column: 'DataFrom', value: dataFromValue });
+        filters.push({ column: 'DataTo', value: dataToValue });
         console.log("Filters:", filters); // Print filters to the console
         
         // Make a POST request to the Flask route with the filters
@@ -544,7 +591,39 @@
             }
         };
     </script>
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      $(document).ready(function() {
+        // Event listener for the first select element
+        $('#filter-column').change(function() {
+          var selectedColumn = $(this).val();
+          var filterItemsSelect = $('#filter-value');
+    
+          // Send an AJAX GET request to fetch associated items
+          $.ajax({
+            url: '/get_items', // Replace with your server-side endpoint
+            method: 'GET',
+            data: { column: selectedColumn },
+            success: function(response) {
+              // Clear the second select element
+              filterItemsSelect.empty();
+    
+              // Add options to the second select element based on the received items
+              $.each(response.items, function(index, item) {
+                filterItemsSelect.append($('<option>').text(item).attr('value', item));
+              });
+            },
+            error: function(xhr, status, error) {
+              // Handle the error gracefully
+              console.error(error);
+            }
+          });
+        });
+      });
+    </script>
+    <script>
+        var container = document.getElementById('filter-column');
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
     <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>

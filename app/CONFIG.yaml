@@ -70,6 +70,7 @@ REPORT_SETTINGS:
   cluster_exec_filename_ext: .parquet.gzip
   filtered_filename_prefix: filtered
   filtered_filename_ext: .parquet.gzip
+  date_column: 'Questioned_Date'
 
 LOGGER:
   logging_format: '[%(asctime)s] - %(levelname)s - %(message)s'
