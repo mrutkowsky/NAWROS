@@ -1135,6 +1135,8 @@ def compare_selected_reports():
     
     if filename1 == filename2:
         return redirect(url_for("show_clusters", message=f"Chosen files must be different"))
+    
+    logger.debug(f'{report_format_form=}')
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -1153,23 +1155,30 @@ def compare_selected_reports():
     comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
     path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR, f"{comparison_report_filename}{report_ext}")
 
-    if report_ext in ['.csv', '.xlsx', 'html', '.txt']:
-        create_pdf_comaprison_report(
-            df=comparison_result_df,
-            old_col_name=OLD_COL_NAME,
-            new_col_name=NEW_COL_NAME,
-            cols_for_label=COLS_FOR_LABEL,
-            cols_for_old_label=COLS_FOR_OLD_LABEL,
-            output_file_path=path_to_new_report,
+    logger.debug(f'{report_ext=}')
 
-        )
-    elif report_ext == '.pdf':
+    if report_ext in ['.csv', '.xlsx', '.html']:
+
         save_df_to_file(
             df=comparison_result_df,
             filename=comparison_report_filename,
             path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
             file_ext=report_ext
         )
+       
+    elif report_ext == '.pdf':
+
+        create_pdf_comaprison_report(
+            df=comparison_result_df,
+            old_col_name=OLD_COL_NAME,
+            new_col_name=NEW_COL_NAME,
+            cols_for_label=COLS_FOR_LABEL,
+            cols_for_old_label=COLS_FOR_OLD_LABEL,
+            output_file_path=path_to_new_report
+        )
+
+        logger.debug(f'Report ext is .pdf')
+
     else:
         raise ValueError(f"Report extension {report_ext} is not supported")   
 
