@@ -142,6 +142,11 @@
     <div class="Plot" style="margin-bottom: 10px;">
     <!--<canvas id="myChart"></canvas>-->
     </div>
+    <div style="display: flex; justify-content: center;">
+    {% if message %}
+    <h3 style="color:  rgb(250, 89, 89); align-items: center; margin-bottom: 20px;">{{ message }}</h3>
+    {% endif %}
+    </div>
     <div style="padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px; display: flex; justify-content: center; flex-direction: column; width: 1280px;  margin: auto;">
         <h2 style="text-align: center;">Download clustering reports</h2>
             <div class="Report">
