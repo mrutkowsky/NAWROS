@@ -28,7 +28,9 @@ from utils.cluster import get_clusters_for_choosen_files, \
     cluster_recalculation_needed, \
     cns_after_clusterization, \
     save_cluster_exec_report
-from utils.reports import compare_reports, find_latest_two_reports, find_latested_n_exec_report
+from utils.reports import compare_reports, find_latest_two_reports, \
+    find_latested_n_exec_report
+from utils.comparison_pdf_report import create_pdf_comaprison_report
 from copy import copy
 
 app = Flask(__name__)
@@ -149,6 +151,17 @@ DETAILED_CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('detailed_cluster_exec
 
 FILTERED_REPORT_PREFIX = REPORT_CONFIG.get('filtered_filename_prefix')
 FILTERED_FILENAME_EXT = REPORT_CONFIG.get('filtered_filename_ext')
+
+COLS_FOR_LABEL = REPORT_CONFIG.get('cols_for_label')
+COLS_FOR_OLD_LABEL = REPORT_CONFIG.get('cols_for_old_label')
+NO_TOPIC_PHRASE = REPORT_CONFIG.get('no_topic_phrase')
+INDICATOR_COL_NAME = REPORT_CONFIG.get('indicator_col')
+OLD_COL_VALUE = REPORT_CONFIG.get('old_group_value')
+NEW_COL_VALUE = REPORT_CONFIG.get('new_group_value')
+OLD_COL_NAME = REPORT_CONFIG.get('old_group_col_name')
+NEW_COL_NAME = REPORT_CONFIG.get('new_group_col_name')
+OLD_GROUP_PLOT_TITLE = REPORT_CONFIG.get('old_group_plot_title')
+NEW_GROUP_PLOT_TITLE = REPORT_CONFIG.get('new_group_plot_title')
 
 REPORT_FORMATS_MAPPING = get_report_ext(
     ALLOWED_REPORT_EXT_DIR,
@@ -1094,15 +1107,33 @@ def compare_selected_reports():
     logger.debug(comparison_result_df)
 
     comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
-
-    save_df_to_file(
-        df=comparison_result_df,
-        filename=comparison_report_filename,
-        path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
-        file_ext=report_ext
-    )
-
     path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR, f"{comparison_report_filename}{report_ext}")
+
+    if report_ext != '.pdf':
+        save_df_to_file(
+            df=comparison_result_df,
+            filename=comparison_report_filename,
+            path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
+            file_ext=report_ext
+        )
+    else:
+        create_pdf_comaprison_report(
+            df=comparison_result_df,
+            old_col_name=OLD_COL_NAME,
+            new_col_name=NEW_COL_NAME,
+            old_col_value=OLD_COL_VALUE,
+            new_col_value=NEW_COL_VALUE,
+            cols_for_label=COLS_FOR_LABEL,
+            cols_for_old_label=COLS_FOR_OLD_LABEL,
+            indicator_col_name=INDICATOR_COL_NAME,
+            new_group_plot_title=NEW_GROUP_PLOT_TITLE,
+            old_group_plot_title=OLD_GROUP_PLOT_TITLE,
+            no_topic_phrase=NO_TOPIC_PHRASE,
+            output_file_path=path_to_new_report,
+
+        )
+
+    
 
     response = make_response(send_file(
         path_to_new_report,
