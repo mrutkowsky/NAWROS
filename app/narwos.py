@@ -35,6 +35,7 @@ app = Flask(__name__)
 
 USED_AS_BASE_KEY = "used_as_base"
 ONLY_CLASSIFIED_KEY = "only_classified"
+TOPICS_CONCAT_FOR_VIZ = 'topics'
 
 DEFAULT_REPORT_FORMAT_SETTINGS = {
     "ext": ".csv", "mimetype": "text/csv"
@@ -489,6 +490,7 @@ def choose_files_for_clusters():
         topic_df_file_name=TOPICS_DF_FILE,
         current_df_filename=CURRENT_DF_FILE,
         topic_preffix_name=TOPIC_COLUMN_PREFIX,
+        topics_concat_viz_col=TOPICS_CONCAT_FOR_VIZ,
         stop_words=STOP_WORDS,
         labels_column=LABELS_COLUMN,
         cardinalities_column=CARDINALITIES_COLUMN,
@@ -521,7 +523,7 @@ def show_clusters():
             data_frame=df,
             x='x',
             y='y',
-            color=LABELS_COLUMN
+            color=TOPICS_CONCAT_FOR_VIZ
         )
 
         files_to_filter = list(df[FILENAME_COLUMN].unique())
@@ -842,6 +844,7 @@ def update_clusters_new_file():
                     current_df_filename=CURRENT_DF_FILE,
                     stop_words=STOP_WORDS,
                     topic_preffix_name=TOPIC_COLUMN_PREFIX,
+                    topics_concat_viz_col=TOPICS_CONCAT_FOR_VIZ,
                     labels_column=LABELS_COLUMN,
                     cardinalities_column=CARDINALITIES_COLUMN,
                     cluster_exec_filename_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
@@ -899,6 +902,7 @@ def update_clusters_new_file():
                     path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
                     path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
                     topic_df_file_name=TOPICS_DF_FILE,
+                    topics_concat_viz_col=TOPICS_CONCAT_FOR_VIZ,
                     current_df_filename=CURRENT_DF_FILE,
                     stop_words=STOP_WORDS,
                     topic_preffix_name=TOPIC_COLUMN_PREFIX,
@@ -1019,6 +1023,7 @@ def update_clusters_existing_file():
             path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
             current_df_filename=CURRENT_DF_FILE,
             topic_preffix_name=TOPIC_COLUMN_PREFIX,
+            topics_concat_viz_col=TOPICS_CONCAT_FOR_VIZ,
             stop_words=STOP_WORDS,
             labels_column=LABELS_COLUMN,
             cardinalities_column=CARDINALITIES_COLUMN,
@@ -1067,6 +1072,7 @@ def update_clusters_existing_file():
             topic_df_file_name=TOPICS_DF_FILE,
             current_df_filename=CURRENT_DF_FILE,
             topic_preffix_name=TOPIC_COLUMN_PREFIX,
+            topics_concat_viz_col=TOPICS_CONCAT_FOR_VIZ,
             stop_words=STOP_WORDS,
             labels_column=LABELS_COLUMN,
             cardinalities_column=CARDINALITIES_COLUMN,

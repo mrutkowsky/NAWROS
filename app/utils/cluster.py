@@ -563,7 +563,7 @@ def get_cluster_labels_for_new_file(
     dimensions_2d = np.round(reducer_2d.transform(vector_embeddings), decimals=2)
     logger.info(f"Applied UMAP model for getting 2D coridinates for vizualization")
 
-    labels_for_new_file = perform_soft_clustering(
+    labels_for_new_file, _ = perform_soft_clustering(
         clusterer=hdbscan_loaded_model,
         original_labels=None,
         new_points=clusterable_embeddings,
@@ -713,6 +713,7 @@ def cns_after_clusterization(
         content_column_name: str = 'preprocessed_content',
         labels_column: str = 'labels',
         cardinalities_column: str = 'counts',
+        topics_concat_viz_col: str = 'topics',
         no_topic_token: str = '-',
         cluster_exec_filename_prefix: str = 'cluster_exec',
         cluster_exec_filename_ext: str = '.parquet.gzip'):
@@ -739,7 +740,7 @@ def cns_after_clusterization(
         clusters_topics_df = clusters_topics_df.merge(
             only_summaries_df,
             on=labels_column,
-            how='inner'
+            how='left'
         ).sort_values(by=labels_column)
 
         logger.debug(f'Joined cluster summaries to topic_df')
@@ -759,6 +760,9 @@ def cns_after_clusterization(
         )
 
         logger.debug('Joined topics to new current_df')
+
+        new_current_df[topics_concat_viz_col] = \
+            new_current_df[[f"{topic_preffix_name}_{i}" for i in range(1, 4)]].apply(lambda x: ', '.join([str(v) for v in x]), axis=1)
 
         new_current_df.to_parquet(
             index=False, 
