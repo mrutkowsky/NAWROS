@@ -299,6 +299,8 @@ def get_clusters_for_choosen_files(
         n_components=2,
         random_state=random_state)
     
+    dimensions_2d = np.round(dimensions_2d, decimals=2)
+    
     save_model(
         model=dim_reducer_2d,
         path_to_current_df_dir=path_to_current_df_dir,
@@ -365,6 +367,7 @@ def get_cluster_labels_for_new_file(
         path_to_faiss_vetors_dir: str,
         required_columns: list,
         outlier_treshold: float = 0.1,
+        topic_df_filename: str = 'topics_df.csv',
         clusterer_model_name: str = 'clusterer.pkl',
         umap_model_name: str = 'umap_reducer.pkl',
         reducer_2d_model_name: str = 'dim_reducer_2d.pkl',
@@ -403,7 +406,7 @@ def get_cluster_labels_for_new_file(
     clusterable_embeddings = umap_reducer.transform(vector_embeddings)
     logger.info(f"Applied UMAP model for getting clusterable_embeddings")
 
-    dimensions_2d = reducer_2d.transform(vector_embeddings)
+    dimensions_2d = np.round(reducer_2d.transform(vector_embeddings), decimals=2)
     logger.info(f"Applied UMAP model for getting 2D coridinates for vizualization")
 
     labels_for_new_file = perform_soft_clustering(
@@ -416,8 +419,7 @@ def get_cluster_labels_for_new_file(
     logger.info(f'Successfully calculated labels for new file {filename}')
     
     new_file_df = read_file(
-        os.path.join(path_to_cleared_files_dir, f'{os.path.splitext(filename)[0]}{cleared_files_ext}'), 
-        columns=None)
+        os.path.join(path_to_cleared_files_dir, f'{os.path.splitext(filename)[0]}{cleared_files_ext}'))
         
     new_file_df[filename_column] = filename
 
@@ -429,11 +431,23 @@ def get_cluster_labels_for_new_file(
 
     new_file_df = pd.concat([new_file_df, cords_and_labels_df], axis=1)
 
-    logger.info(f'Prepared df {filename} for concatenation with current_df')
+    logger.debug(f'Concateneted new_file_df with cords_and_labels_df')
+
+    topics_df = read_file(os.path.join(path_to_current_df_dir, topic_df_filename))
+
+    new_file_df = join_topics_to_df(
+        detailed_df=new_file_df,
+        topics_df=topics_df,
+        joining_column=label_column
+    )
+
+    logger.debug(f'Joined topics df to {filename}')
 
     current_df = read_file(
         file_path=path_to_current_df
     )
+
+    logger.debug(f'Prepared df {filename} for concatenation with current_df')
 
     new_current_df = concat_new_df_to_current_df(
         new_file_df=new_file_df.astype({col: str for col in required_columns}),
@@ -481,8 +495,15 @@ def join_topics_to_df(
         topics_df: pd.DataFrame,
         joining_column: str = 'labels') -> pd.DataFrame:
 
+        operate_topics_df = topics_df.copy()
+
+        logger.debug(f'Detailed df Columns: {list(detailed_df.columns)}')
+
+        if joining_column not in operate_topics_df.columns:
+            operate_topics_df[joining_column] = np.arange(-1, len(operate_topics_df) - 1)
+
         joined_topics_df = detailed_df.join(
-            topics_df.set_index(joining_column),
+            operate_topics_df.set_index(joining_column),
             on=joining_column,
             how='left'
         )
@@ -557,6 +578,14 @@ def cns_after_clusterization(
 
         logger.debug('Extracted topics from DataFrame')
 
+        clusters_topics_df.to_csv(
+            os.path.join(path_to_current_df_dir, topic_df_file_name),
+            index=False
+        )
+
+        logger.debug('Saved topic df on disk')
+
+
         new_current_df = join_topics_to_df(
             detailed_df=new_current_df,
             topics_df=clusters_topics_df,
@@ -570,13 +599,6 @@ def cns_after_clusterization(
             path=os.path.join(path_to_current_df_dir, current_df_filename))
         
         logger.debug('Saved current_df on disk')
-
-        clusters_topics_df.to_csv(
-            os.path.join(path_to_current_df_dir, topic_df_file_name),
-            index=False
-        )
-
-        logger.debug('Saved topic df on disk')
 
     else:
 
