@@ -32,26 +32,38 @@
             cursor: pointer;
         }
 
-        .container {  display: grid;
-        grid-template-columns: 1fr 1fr;
+        .container {  /*display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
         grid-template-rows: 1fr;
         grid-auto-rows: 1fr;
-        gap: 3px 3px;
+        gap: 3px 3px ;
         grid-auto-flow: row;
         grid-template-areas:
-            "Compare Filter";
+            "Cluster Compare Filter"; */
+        display: flex;
+        flex-direction: row;
+        justify-content: center
         }
 
         /*.Plot { grid-area: Plot; }*/
-
-        .Compare { 
-            grid-area: Compare;
+        .Cluster {/* grid-area: Cluster; /*
             display: flex;
             justify-content: center;
             align-items: center; 
-            flex-direction: column;}
+            flex-direction: column; */}
 
-        .Filter { grid-area: Filter; }
+        .Compare { /*
+            grid-area: Compare; /*
+            display: flex;
+            justify-content: center;
+            align-items: center; 
+            flex-direction: column; */}
+
+        .Filter {  /*grid-area: Filter; 
+            display: flex;
+            justify-content: center;
+            align-items: center; 
+            flex-direction: column; */}
 
         /*.Report { grid-area: Report; }*/
 
@@ -65,6 +77,7 @@
         cursor: pointer;
         width: 100%;
         }
+
         .Report {
         display: flex;
         padding-bottom: 10px;
@@ -96,7 +109,7 @@
         }
 
         .button-36:hover {
-        box-shadow: rgba(80, 63, 205, 0.5) 0 1px 30px;
+        box-shadow: rgba(79, 77, 212, 0.5) 0 1px 30px;
         transition-duration: .1s;
         }
 
@@ -126,51 +139,103 @@
         </div>
     </nav>    
     <div id="scatter" style="align-items: center;"></div> <!-- Add this div element with the ID 'scatter' -->
-    <div class="Plot">
+    <div class="Plot" style="margin-bottom: 10px;">
     <!--<canvas id="myChart"></canvas>-->
     </div>
-    <div style="padding: 20px;margin-left: 25%;margin-right: 25%; margin-top: 20px; box-shadow: 0px 0px 10px #999; border-radius: 10px; display: flex; justify-content: center; flex-direction: column;">
-        <h2>Download clustering reports</h2>
+    <div style="padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px; display: flex; justify-content: center; flex-direction: column; width: 1280px;  margin: auto;">
+        <h2 style="text-align: center;">Download clustering reports</h2>
             <div class="Report">
                 <div style="margin-right: 10px;">
-                    <form action="/get_detailed_cluster_exec_report"  method="post">
-                        <input type="submit" value="Get detailed report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
-                        <select id="report_type_exec" name="report_type_exec">
-                            <option value="excel">Excel</option>
-                            <option value="csv">CSV</option>
-                        </select>
+                    <form action="/get_last_cluster_exec_report"  method="post">
+                            <div style="float: left;">
+                            <input type="submit" value="Get summary exec report" style="margin-right: 10px; margin-top: 30px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
+                            </div>    
+                            <div style="float: right;margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
+                                <select id="last_report_type" name="last_report_type"  style="display: inline-block;">
+                                    <option value="excel">Excel</option>
+                                    <option value="csv">CSV</option>
+                                </select>
+                            </div>
                     </form>
                 </div>
             </div>
             <div style="display: inline-flex; justify-content: center;">
                 <div>
-                    <button  id="download-report-select-button" class="button-36" >More download options...</button>
+                    <button  id="download-report-select-button" class="button-36" style="width: 295px;margin-right: 20px;">More download options...</button>
                 </div>
             </div>
             <div id="download-report-select" name="download-report-select" style="display: none;">
-                <form style="box-shadow: 0px 0px 0px #999;" class="form-style" action="/get_chosen_cluster_exec_report" method="post">
-                    <label for="chosen_report_name">Choose another report to download</label>
-                    <select id="chosen_report_name" name="chosen_report_name" required>
-                      <option value="" selected disabled hidden>(Choose file)</option>
-                      {% for report in reports %}
-                          <option value="{{ report }}.parquet.gzip">{{ report }}</option>
-                      {% endfor %}
-                    </select>
-                    <label style="margin-top: 5px;" for="chosen_report_type">Choose report type</label>
-                    <select style="margin-top: 10px;" id="chosen_report_type" name="chosen_report_type" required>
-                        <option value="excel">Excel</option>
-                        <option value="csv">CSV</option>
-                      </select>
-                    <br><br>
-                    <input type="submit" value="Download report">
-                  </form>
+                <div style="display: flex; flex-direction: row; justify-content: center;">
+                    <form action="/get_detailed_cluster_exec_report"  method="post">
+                        <div style="float: left;">
+                            <input type="submit" value="Get detailed exec report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
+                        </div>
+                        <div style="float: right;margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
+                            <select id="report_type_exec" name="report_type_exec">
+                                <option value="excel">Excel</option>
+                                <option value="csv">CSV</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr;">
+                    <div>
+                    <form style="box-shadow: 0px 0px 0px #999;" class="form-style" action="/get_chosen_cluster_exec_report" method="post">
+                        <label for="chosen_report_name">Choose another report to download</label>
+                        <select id="chosen_report_name" name="chosen_report_name" required>
+                        <option value="" selected disabled hidden>(Choose file)</option>
+                        {% for report in reports %}
+                            <option value="{{ report }}.parquet.gzip">{{ report }}</option>
+                        {% endfor %}
+                        </select>
+                        <label style="margin-top: 5px;" for="chosen_report_type">Choose report type</label>
+                        <select style="margin-top: 10px;" id="chosen_report_type" name="chosen_report_type" required>
+                            <option value="excel">Excel</option>
+                            <option value="csv">CSV</option>
+                        </select>
+                        <br><br>
+                        <input type="submit" value="Download report">
+                    </form>
+                    </div> 
+                    <div class="Report" style="flex-direction: column;" >
+                        <div style="margin-right: 8px;display: grid; grid-template-columns: 1fr 1fr;">
+                            <form action="/get_detailed_filtered_report"  method="post">
+                                <div style="float: left;">
+                                    <input type="submit" value="Get filtered detailed report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
+                                </div>
+                                <div style="float: right;margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
+                                    <select id="detailed_filtered_report_type" name="detailed_filtered_report_type">
+                                        <option value="excel">Excel</option>
+                                        <option value="csv">CSV</option>
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr;">
+                            <form action="/get_exec_filtered_report"  method="post">
+                                <div style="float: left;">
+                                    <input type="submit" value="Get summary filtered report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
+                                </div>
+                                <div style="float: right;margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
+                                    <select id="filtered_exec_report_type" name="filtered_exec_report_type">
+                                        <option value="excel">Excel</option>
+                                        <option value="csv">CSV</option>
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </div>
+        </div>
     </div>
     <div class="container" >
-        <div class="Compare" style="margin-top: 20px;">
-            <button id="quick-clustering-button" class="button-36">Quick clustering</button>
+        <div class="Cluster" style="margin-top: 20px; margin-right: 20px;margin-left: 20px;">
+            <div>
+                <button id="quick-clustering-button" class="button-36" style="width: 400px;">Quick clustering</button>
+            </div>
             <div class="quick-clustering" id="quick-clustering" style="display: none;">
-                <form class="form-style" action="/update_clusters_new_file"  method="post" enctype="multipart/form-data">
+                <form class="form-style" action="/update_clusters_new_file"  method="post" enctype="multipart/form-data" style="height: 250px;">
                     <label>Load new file:</label>
                     <input type="file" name="file">
                     <br>
@@ -200,7 +265,7 @@
                     <p style="color:  rgb(250, 89, 89)">{{ update_clusters_new_file_no_file_message }}</p>
                     {% endif %}
                 </form>
-                <form class="form-style" style="margin-top: 20px;" action="/update_clusters_existing_file"  method="post">
+                <form class="form-style" style="margin-top: 20px; height:340px;" action="/update_clusters_existing_file"  method="post">
                     <p>Choose exisitng file for clustering</p>
                     <select class="ex_file_update" name="ex_file_update" required>
                         <option value="" selected disabled hidden>(select file)</option>
@@ -235,117 +300,101 @@
                     {% endif %}
                 </form>
             </div>
-            <button id="compare-button" class="button-36" style="margin-top: 40px;">Compare reports</button>
-        <div id="compare" style="display: none;">
-        <form class="form-style" method="post" action="/compare_with_last_report">
-            
-            <label for="file-format">File Format:</label><br>
-
-            <input type="radio" id="csv" name="file-format" value="csv">
-            <label for="csv">CSV</label>
-
-            <input type="radio" id="excel" name="file-format" value="excel">
-            <label for="excel">Excel</label>
-
-            <input type="radio" id="html" name="file-format" value="html">
-            <label for="html">HTML</label>
-
-            <input type="radio" id="pdf" name="file-format" value="pdf">
-            <label for="pdf">PDF</label>
-
-            <input type="radio" id="powerpoint" name="file-format" value="powerpoint">
-            <label for="powerpoint">PowerPoint</label>
-
-            <input type="submit" style="text-align: center;" value="Compare report with last">
-        </form>
-        <div class="Compare-reports">
-            <div class="mt-20" style="margin-top: 20px;">
-                <form class="form-style" method="post" action="/compare_selected_reports">
-                        <label for="file-format">File Format:</label><br>
-
-                        <input type="radio" id="csv" name="file-format" value="csv">
-                        <label for="csv">CSV</label>
-
-                        <input type="radio" id="excel" name="file-format" value="excel">
-                        <label for="excel">Excel</label>
-
-                        <input type="radio" id="html" name="file-format" value="html">
-                        <label for="html">HTML</label>
-
-                        <input type="radio" id="pdf" name="file-format" value="pdf">
-                        <label for="pdf">PDF</label>
-
-                        <input type="radio" id="powerpoint" name="file-format" value="powerpoint">
-                        <label for="powerpoint">PowerPoint</label>
-                        
-                        <br><br>
-
-                        <label for="chosen_files">Choose reports to compare:</label>
-                        <select name="raport-1" id="raport-1" required>
-                            <option value="" selected disabled hidden>(select file)</option>
-                            {% for raport in reports %}
-                                <option value="{{ raport }}.parquet.gzip">{{ raport }}</option>
-                            {% endfor %}
-                        </select>
-                        <select name="raport-2"  id="raport-2" required>
-                            <option value="" selected disabled hidden>(select file)</option>
-                            {% for raport in reports %}
-                                <option value="{{ raport }}.parquet.gzip">{{ raport }}</option>
-                            {% endfor %}
-                        </select>
-                        <br>
-                    <input type="submit" value="Compare reports">
-                </form>
-            </div>
-            </div>
         </div>
-    </div>
-    <div class="Filter" style="margin-top: 20px;">
-        <h3>Filter results</h3>
-            <div>
-                <p style="text-align: left;">Filter by date</p>
-                <label for="filter-from-date">From</label>
-                <input style="width: 30%;" type="text" class="filter-from-date">
-                <label for="filter-from-date">to</label>
-                <input style="width: 30%;" type="text" class="filter-to-date">
-            </div>
-            <div id="filter-container">
-                <div>
-                    <p style="text-align: left; margin-top: 20px ;">Filter by other atributes</p>
-                    <label for="column">Select a column:</label>
-                    <select class="filter-column">
-                        {% for column, unique_values in columns.items() %}
-                            <option value="{{ column }}">{{ column}}</option>
-                        {% endfor %}
-                    </select>
-                    <label style="margin-top: 10px;" for="value">Enter a value:</label>
-                    <input type="text" class="filter-value">
-                    <button class="delete" onclick="deleteFilter(this)">Delete filter</button>
+        <div class="Compare" style="margin-top: 20px; margin-right: 20px; margin-left: 20px;">
+            <button id="compare-button" class="button-36" style="width: 400px;">Compare reports</button>
+            <div id="compare" style="display: none;">
+                <form class="form-style" method="post" action="/compare_with_last_report" style="height: 250px;">
+                    
+                    <label for="file-format">File Format:</label><br>
+
+                    <input type="radio" id="csv" name="file-format" value="csv">
+                    <label for="csv">CSV</label>
+
+                    <input type="radio" id="excel" name="file-format" value="excel">
+                    <label for="excel">Excel</label>
+
+                    <input type="radio" id="html" name="file-format" value="html">
+                    <label for="html">HTML</label>
+
+                    <input type="radio" id="pdf" name="file-format" value="pdf">
+                    <label for="pdf">PDF</label>
+
+                    <input type="radio" id="powerpoint" name="file-format" value="powerpoint">
+                    <label for="powerpoint">PowerPoint</label>
+
+                    <input type="submit" style="text-align: center;" value="Compare report with last">
+                </form>
+                <div class="Compare-reports">
+                    <div class="mt-20" style="margin-top: 20px;">
+                        <form class="form-style" method="post" action="/compare_selected_reports" style="height:340px;">
+                                <label for="file-format">File Format:</label><br>
+
+                                <input type="radio" id="csv" name="file-format" value="csv">
+                                <label for="csv">CSV</label>
+
+                                <input type="radio" id="excel" name="file-format" value="excel">
+                                <label for="excel">Excel</label>
+
+                                <input type="radio" id="html" name="file-format" value="html">
+                                <label for="html">HTML</label>
+
+                                <input type="radio" id="pdf" name="file-format" value="pdf">
+                                <label for="pdf">PDF</label>
+
+                                <input type="radio" id="powerpoint" name="file-format" value="powerpoint">
+                                <label for="powerpoint">PowerPoint</label>
+                                
+                                <br><br>
+
+                                <label for="chosen_files">Choose reports to compare:</label>
+                                <select name="raport-1" id="raport-1" required>
+                                    <option value="" selected disabled hidden>(select file)</option>
+                                    {% for raport in reports %}
+                                        <option value="{{ raport }}.parquet.gzip">{{ raport }}</option>
+                                    {% endfor %}
+                                </select>
+                                <select name="raport-2"  id="raport-2" required>
+                                    <option value="" selected disabled hidden>(select file)</option>
+                                    {% for raport in reports %}
+                                        <option value="{{ raport }}.parquet.gzip">{{ raport }}</option>
+                                    {% endfor %}
+                                </select>
+                                <br>
+                            <input type="submit" value="Compare reports">
+                        </form>
+                    </div>
                 </div>
             </div>
-        <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="addFilter()">Add Filter</button>
-        <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="applyFilters()">Apply Filters</button>
-        <div class="Report" style="justify-content: left;">
-            <div style="margin-right: 8px;">
-                <form action="/get_detailed_filtered_report"  method="post">
-                    <input type="submit" value="Get filtered detailed report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
-                    <select id="detailed_filtered_report_type" name="detailed_filtered_report_type">
-                        <option value="excel">Excel</option>
-                        <option value="csv">CSV</option>
-                    </select>
-                </form>
-            </div>
-            <div>
-                <form action="/get_exec_filtered_report"  method="post">
-                    <input type="submit" value="Get summary filtered report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px; width: 200px; height: 40px; font-size: 14px; text-align: center;">
-                    <select id="filtered_exec_report_type" name="filtered_exec_report_type">
-                        <option value="excel">Excel</option>
-                        <option value="csv">CSV</option>
-                    </select>
-                </form>
+        </div>
+        <div class="Filter" style="margin-top: 20px; margin-right: 20px; margin-left: 20px;">
+            <button id="filter-button" class="button-36" style="width: 400px;">Filter results</button>
+            <div id="filter" name="filter" style="display: none; box-shadow: 0px 0px 10px #999; border-radius: 10px; padding: 20px; width: 400px;height: 610px;">
+                <div>
+                    <p style="text-align: left;">Filter by date</p>
+                    <label for="filter-from-date">From</label>
+                    <input style="width: 30%;" type="text" class="filter-from-date">
+                    <label for="filter-from-date">to</label>
+                    <input style="width: 30%;" type="text" class="filter-to-date">
+                </div>
+                <div id="filter-container">
+                    <div>
+                        <p style="text-align: left; margin-top: 20px ;">Filter by other atributes</p>
+                        <label for="column">Select a column:</label>
+                        <select class="filter-column">
+                            {% for column, unique_values in columns.items() %}
+                                <option value="{{ column }}">{{ column}}</option>
+                            {% endfor %}
+                        </select>
+                        <label style="margin-top: 10px;" for="value">Enter a value:</label>
+                        <input type="text" class="filter-value">
+                        <button class="delete" onclick="deleteFilter(this)">Delete filter</button>
+                    </div>
+                </div>
+                <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="addFilter()">Add Filter</button>
+                <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="applyFilters()">Apply Filters</button>
             </div>
         </div>
-    </div>
     </div>
 <script>
     var filters = [];
@@ -474,6 +523,19 @@
     
         button.onclick = function() {
             var div = document.getElementById('download-report-select');
+            if (div.style.display !== 'none') {
+                div.style.display = 'none';
+            }
+            else {
+                div.style.display = 'block';
+            }
+        };
+    </script>
+    <script>
+        var button = document.getElementById('filter-button');
+    
+        button.onclick = function() {
+            var div = document.getElementById('filter');
             if (div.style.display !== 'none') {
                 div.style.display = 'none';
             }
