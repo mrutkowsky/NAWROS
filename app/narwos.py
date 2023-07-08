@@ -1167,14 +1167,20 @@ def compare_selected_reports():
         )
        
     elif report_ext == '.pdf':
-
+        try:
+            filenames = [filename1.split('.')[0], filename2.split('.')[0]]
+        except Exception as e:
+            logger.error(e)
+            filenames = ['old', 'new']
+            
         create_pdf_comaprison_report(
             df=comparison_result_df,
             old_col_name=OLD_COL_NAME,
             new_col_name=NEW_COL_NAME,
             cols_for_label=COLS_FOR_LABEL,
             cols_for_old_label=COLS_FOR_OLD_LABEL,
-            output_file_path=path_to_new_report
+            output_file_path=path_to_new_report,
+            filenames=filenames
         )
 
         logger.debug(f'Report ext is .pdf')
@@ -1224,13 +1230,20 @@ def compare_with_last_report():
             file_ext=report_ext
         )
     elif report_ext == '.pdf':
+        try:
+            filenames = [filename1.split('.')[0], filename2.split('.')[0]]
+        except Exception as e:
+            logger.error(e)
+            filenames = ['old', 'new']
+
         create_pdf_comaprison_report(
             df=comparison_result_df,
             old_col_name=OLD_COL_NAME,
             new_col_name=NEW_COL_NAME,
             cols_for_label=COLS_FOR_LABEL,
             cols_for_old_label=COLS_FOR_OLD_LABEL,
-            output_file_path=path_to_new_report
+            output_file_path=path_to_new_report,
+            filenames=filenames
         )
     else:
         redirect(url_for("show_clusters",

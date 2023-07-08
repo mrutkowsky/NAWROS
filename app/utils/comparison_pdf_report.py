@@ -69,7 +69,8 @@ def create_df_for_barh(df: pd.DataFrame,
 def plot_changed_groups(df_changed: pd.DataFrame,
                         old_col_name: str,
                         new_col_name: str,
-                        indicator_col: str) -> plt.figure:
+                        indicator_col: str,
+                        filenames: list) -> plt.figure:
     """
     Plot a barh plot of changed groups.
     
@@ -85,6 +86,8 @@ def plot_changed_groups(df_changed: pd.DataFrame,
     """
     df_changed = df_changed.sort_values(by=new_col_name, ascending=True)
     df_changed.reset_index(inplace=True)
+
+    logger.info(f'Size of dataframe with changed groups: {df_changed.shape}')
     
     bar_positions = np.arange(len(df_changed))
     bar_height = 0.4
@@ -106,14 +109,21 @@ def plot_changed_groups(df_changed: pd.DataFrame,
     ax.set_yticks(bar_positions + bar_height)
     ax.set_yticklabels(df_changed[LABEL])
 
-    y_top, y_bottom = (1.1, 1.05) if len(df_changed) > 16 else (1.2, 1.1)
+    if len(df_changed) > 46:
+        y_top, y_bottom = (1.05, 1.02)
+    elif len(df_changed) > 26:
+        y_top, y_bottom = (1.1, 1.05)
+    else:
+        y_top, y_bottom = (1.2, 1.1)
 
-    plt.text(0.5, y_top, s=f'Comparison Report',\
-             transform=ax.transAxes, fontsize=22, verticalalignment='top',\
-                ha='right')
-    plt.text(0.5, y_bottom, 'The groups that have changed',\
+    plt.text(0, y_top, s=f'Comparison Report',\
+             transform=ax.transAxes, fontsize=26, verticalalignment='top',\
+                ha='left')
+    plt.text(0, y_bottom, f'{filenames[0]} vs {filenames[1]}',\
             transform=ax.transAxes, fontsize=12, verticalalignment='top',\
-                ha='right')
+                ha='left')
+    # plt.title('Comparison Report', fontsize=32, pad=20, loc='left', )
+    # plt.subtitle('The groups that have changed', fontsize=16, pad=20, loc='left')
     plt.xlabel(XLABEL)
     plt.ylabel(YLABEL)
     plt.tight_layout()
@@ -266,6 +276,7 @@ def create_pdf_comaprison_report(
         output_file_path: str,
         cols_for_label: list,
         cols_for_old_label: list,
+        filenames: list,
         old_col_value: str=OLD_GROUP_VAL,
         new_col_value: str=NEW_GROUP_VAL,
         indicator_col_name: str=INDICATOR_COL,
@@ -289,7 +300,8 @@ def create_pdf_comaprison_report(
     fig_changed_groups = plot_changed_groups(df_changed,
                                              old_col_name,
                                              new_col_name,
-                                             indicator_col_name
+                                             indicator_col_name,
+                                             filenames
                                              )    
     
     fig_new_group = plot_group(df,
