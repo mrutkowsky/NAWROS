@@ -1214,15 +1214,28 @@ def compare_with_last_report():
     logger.debug(comparison_result_df)
 
     comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
-
-    save_df_to_file(
-        df=comparison_result_df,
-        filename=comparison_report_filename,
-        path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
-        file_ext=report_ext
-    )
-
     path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR, f"{comparison_report_filename}{report_ext}")
+
+    if report_ext in ['.csv', '.xlsx', '.html']:
+        save_df_to_file(
+            df=comparison_result_df,
+            filename=comparison_report_filename,
+            path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
+            file_ext=report_ext
+        )
+    elif report_ext == '.pdf':
+        create_pdf_comaprison_report(
+            df=comparison_result_df,
+            old_col_name=OLD_COL_NAME,
+            new_col_name=NEW_COL_NAME,
+            cols_for_label=COLS_FOR_LABEL,
+            cols_for_old_label=COLS_FOR_OLD_LABEL,
+            output_file_path=path_to_new_report
+        )
+    else:
+        redirect(url_for("show_clusters",
+                         message=f"Report extension {report_ext} is not supported"))
+
 
     response = make_response(send_file(
         path_to_new_report,
