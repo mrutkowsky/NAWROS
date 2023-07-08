@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import logging
 
-from copy import deepcopy
-
 logger = logging.getLogger(__file__)
 
 LABEL = 'Label'
