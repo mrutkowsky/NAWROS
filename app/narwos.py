@@ -40,6 +40,7 @@ USED_AS_BASE_KEY = "used_as_base"
 ONLY_CLASSIFIED_KEY = "only_classified"
 TOPICS_CONCAT_FOR_VIZ = 'topics'
 MIN_CLUSTER_SAMPLES = 15
+ZIP_EXT = '.zip'
 
 DEFAULT_REPORT_FORMAT_SETTINGS = {
     "ext": ".csv", "mimetype": "text/csv"
@@ -68,6 +69,7 @@ VALID_FILES_DIR = DIRECTORIES.get('valid_files')
 TMP_DIR = DIRECTORIES.get('tmp')
 EMBEDDINGS_DIR = DIRECTORIES.get('embeddings')
 EMPTY_CONTENT_DIR = DIRECTORIES.get('empty_content')
+EMPTY_CONTENT_ARCHIVE_DIR = DIRECTORIES.get('empty_content_archive')
 FAISS_VECTORS_DIR = DIRECTORIES.get('faiss_vectors')
 CLUSTER_EXEC_REPORTS_DIR = DIRECTORIES.get('cluster_exec_reports')
 COMPARING_REPORTS_DIR = DIRECTORIES.get('comparing_reports')
@@ -182,6 +184,11 @@ PATH_TO_CLEARED_FILES = os.path.join(
 PATH_TO_EMPTY_CONTENTS = os.path.join(
     DATA_FOLDER,
     EMPTY_CONTENT_DIR
+)
+
+PATH_TO_EMPTY_ARCHIVE = os.path.join(
+    DATA_FOLDER,
+    EMPTY_CONTENT_ARCHIVE_DIR
 )
 
 PATH_TO_TMP_DIR = os.path.join(
@@ -541,6 +548,28 @@ def choose_files_for_clusters():
     n_clusters = len(new_current_df[LABELS_COLUMN].unique())
 
     return redirect(url_for("index", cluster_message=f"{n_clusters} clusters have been created successfully."))
+
+@app.route('/get_empty_contents', methods=['GET'])
+def get_empty_contents():
+
+    full_filename = get_report_name_with_timestamp(
+        filename_prefix=EMPTY_CONTENTS_SUFFIX.lstrip('_')
+    )
+
+    filepath = os.path.join(PATH_TO_EMPTY_ARCHIVE, full_filename)
+    
+    shutil.make_archive(
+        filepath, 
+        'zip', 
+        PATH_TO_EMPTY_CONTENTS)
+    
+    # Clear the folder
+    for file_ in os.listdir(PATH_TO_EMPTY_CONTENTS):
+        if file_.split('.')[0].endswith(EMPTY_CONTENTS_SUFFIX):
+            os.remove(os.path.join(PATH_TO_EMPTY_CONTENTS, file_))
+    
+    # Return the ZIP file to the user
+    return send_file(f"{filepath}{ZIP_EXT}", as_attachment=True, download_name=f"{full_filename}{ZIP_EXT}")
 
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
