@@ -376,24 +376,6 @@ def process_data_from_choosen_files(
 
     logger.info(f'Language detection model {lang_detection_model_name} loaded successfully')
 
-    if translate_content:
-
-        translation_models_dict = {}
-
-        for lang, model_name in currently_serviced_langs.items():
-
-            current_trans_model_dict = load_translation_model(
-                model_name=model_name,
-                device=DEVICE
-            )
-
-            translation_models_dict[lang] = current_trans_model_dict
-
-            # translation_model = current_trans_model_dict.get('model')
-            # translation_tokenizer = current_trans_model_dict.get('tokenizer')
-
-            logger.info(f'Translation model {model_name} for {lang.upper()} loaded successfully')
-
     logger.info(
         f"""Loading data from chosen files:{chosen_files}""")
     
@@ -461,6 +443,24 @@ def process_data_from_choosen_files(
                 known_langs = [en_code]
 
                 if translate_content:
+
+                    translation_models_dict = {}
+
+                    langs_to_service = list(df[detected_language_column_name].unique())
+
+                    for lang, model_name in currently_serviced_langs.items():
+
+                        if lang not in langs_to_service:
+                            continue
+
+                        current_trans_model_dict = load_translation_model(
+                            model_name=model_name,
+                            device=DEVICE
+                        )
+
+                        translation_models_dict[lang] = current_trans_model_dict
+
+                        logger.info(f'Translation model {model_name} for {lang.upper()} loaded successfully')
 
                     for lang, lang_model_dict in translation_models_dict.items():
 
