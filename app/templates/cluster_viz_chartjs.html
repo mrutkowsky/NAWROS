@@ -188,7 +188,6 @@
                     <div>
                     <h3 style="margin-bottom: 10px;">Clusterization exec reports</h3>
                     <form style="padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px;" class="form-style" action="/get_chosen_cluster_exec_report" method="post">
-                        <br>
                         <label for="chosen_report_name">Choose specified report to download</label>
                         <select id="chosen_report_name" name="chosen_report_name" required>
                         <option value="" selected disabled hidden>(Choose file)</option>
@@ -196,15 +195,18 @@
                             <option value="{{ report }}.parquet.gzip">{{ report }}</option>
                         {% endfor %}
                         </select>
-                        <br><br>
-                        <label style="margin-top: 5px;" for="chosen_report_type">Choose report type</label>
                         <select style="margin-top: 10px;margin-bottom: 10px;" id="chosen_report_type" name="chosen_report_type" required>
                             <option value="excel">Excel</option>
                             <option value="csv">CSV</option>
                         </select>
-                        <input type="submit" value="Download specified exec report" style="margin-right: 10px; margin-top: 6px; margin-bottom: 20px;  font-size: 15px; text-align: center;">
-                        <br>
+                        <input type="submit" value="Download specified exec report" style="margin-right: 10px; margin-top: 6px; margin-bottom: 20px;  font-size: 15px; text-align: center;">  
                     </form>
+                    <br>
+                    <form style="padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px;" class="form-style" action="/get_empty_contents" method="get">
+                        <p>Get empty content indexes</p>
+                        <input type="submit" value="Download empty content indexes files" style="margin-right: 10px; margin-top: 6px; margin-bottom: 20px;  font-size: 15px; text-align: center;">  
+                    </form>
+                    
                     </div> 
                     <div>
                         <h3 style="margin-bottom: 10px;">Filtered reports</h3>

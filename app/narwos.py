@@ -557,6 +557,11 @@ def get_empty_contents():
     )
 
     filepath = os.path.join(PATH_TO_EMPTY_ARCHIVE, full_filename)
+
+    if len(set(list(os.listdir(PATH_TO_EMPTY_CONTENTS))).difference(set([GITKEEP_FILE]))) == 0:
+        return redirect(url_for("show_clusters", message=f'Currently no empty content files are available!'))
+    
+    logger.debug(f'Empty content dir: {os.listdir(PATH_TO_EMPTY_CONTENTS)}')
     
     shutil.make_archive(
         filepath, 
