@@ -565,7 +565,7 @@ def get_empty_contents():
     
     shutil.make_archive(
         filepath, 
-        ZIP_EXT.rstrip('.'), 
+        ZIP_EXT.lstrip('.'), 
         PATH_TO_EMPTY_CONTENTS)
     
     # Clear the folder
