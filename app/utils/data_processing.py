@@ -56,40 +56,27 @@ def read_file(
         df = pd.read_parquet(file_path, columns=columns)
     else:
 
-        df1 = pd.read_csv(
-            file_path, 
-            usecols=columns,
-            nrows=1)
+        for sep in [',', ';']:
+
+            try:
+
+                df_one_col = pd.read_csv(
+                    file_path, 
+                    usecols=columns,
+                    sep=sep,
+                    nrows=1)
         
-        df2 = pd.read_csv(
-            file_path, 
-            usecols=columns,
-            nrows=1,
-            sep=';')
-        
-        n_cols_df1 = len(df1.columns)
-        n_cols_df2 = len(df2.columns)
+            except ValueError:
+                continue
 
-        if n_cols_df1 == n_cols_df2:
-
-            df = pd.read_csv(
-                    filepath_or_buffer=file_path, 
-                    usecols=columns)
-            
-        else:
-
-            if n_cols_df1 > n_cols_df2:
-
-                df = pd.read_csv(
-                    filepath_or_buffer=file_path, 
-                    usecols=columns)
-            
             else:
 
                 df = pd.read_csv(
                     filepath_or_buffer=file_path, 
                     usecols=columns,
-                    sep=';')
+                    sep=sep)
+
+                break
 
     logger.debug(f'df: {df}')
 
