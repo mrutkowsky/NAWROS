@@ -34,7 +34,7 @@ class MyDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
-
+    
 def read_file(
         file_path: str, 
         columns: list = None) -> pd.DataFrame:
@@ -55,9 +55,41 @@ def read_file(
     elif file_path.endswith('.parquet.gzip'):
         df = pd.read_parquet(file_path, columns=columns)
     else:
-        df = pd.read_csv(
+
+        df1 = pd.read_csv(
             file_path, 
-            usecols=columns)
+            usecols=columns,
+            nrows=1)
+        
+        df2 = pd.read_csv(
+            file_path, 
+            usecols=columns,
+            nrows=1,
+            sep=';')
+        
+        n_cols_df1 = len(df1.columns)
+        n_cols_df2 = len(df2.columns)
+
+        if n_cols_df1 == n_cols_df2:
+
+            df = pd.read_csv(
+                    filepath_or_buffer=file_path, 
+                    usecols=columns)
+            
+        else:
+
+            if n_cols_df1 > n_cols_df2:
+
+                df = pd.read_csv(
+                    filepath_or_buffer=file_path, 
+                    usecols=columns)
+            
+            else:
+
+                df = pd.read_csv(
+                    filepath_or_buffer=file_path, 
+                    usecols=columns,
+                    sep=';')
 
     logger.debug(f'df: {df}')
 
@@ -386,7 +418,7 @@ def process_data_from_choosen_files(
         
         logger.info(f'Sentiment setup loaded successfully.')
 
-    rows_cardinalities = {}
+    zero_length_after_processing = []
 
     for file_ in chosen_files:
 
@@ -415,6 +447,10 @@ def process_data_from_choosen_files(
                     empty_content_ext=empty_content_ext,
                     content_column_name=content_column_name,
                     dropped_indexes_column_name=dropped_indexes_column_name)
+                
+                if len(df) == 0:
+                    zero_length_after_processing.append(file_)
+                    continue
                 
                 logger.info(f'Cleaned {file_}')
 
@@ -483,6 +519,10 @@ def process_data_from_choosen_files(
                     path_to_dir=path_to_empty_content_dir,
                     file_ext=empty_content_ext
                 )
+
+                if len(df) == 0:
+                    zero_length_after_processing.append(file_)
+                    continue
 
                 if get_sentiment:
 
@@ -563,10 +603,7 @@ def process_data_from_choosen_files(
 
                 logger.info(f'File with embeddings saved for {file_}')
 
-        if isinstance(df, pd.DataFrame):
-            rows_cardinalities[file_] = len(df)
-
-    return rows_cardinalities
+    return zero_length_after_processing
 
 def get_stopwords(
         path_to_dir_with_stopwords: str) -> list:

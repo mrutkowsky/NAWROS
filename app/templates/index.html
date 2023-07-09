@@ -82,11 +82,11 @@
             </select>
             <br><br>
             <input style="background-color: rgb(250, 89, 89)" type="submit" value="Delete">
-            {% if delete_message %}
-              <p style="color: rgb(80, 187, 80)">{{ delete_message }}</h4>
+            {% if delete_success_message %}
+              <p style="color: rgb(80, 187, 80)">{{ delete_success_message }}</h4>
             {% endif %}
-            {% if delete_no_file_message %}
-            <p style="color: rgb(250, 89, 89)">{{ delete_no_file_message }}</h4>
+            {% if delete_failed_message %}
+              <p style="color: rgb(250, 89, 89)">{{ delete_failed_message }}</h4>
             {% endif %}
           </form>
         </div>
@@ -122,10 +122,10 @@
               </div>
             </div>
             {% if cluster_message %}
-            <p style="color: rgb(80, 187, 80)">{{ cluster_message }}</h4>
+              <p style="color: rgb(80, 187, 80)">{{ cluster_message }}</h4>
             {% endif %}
-            {% if cluster_no_file_message %}
-            <p style="color: rgb(250, 89, 89)">{{ cluster_no_file_message }}</h4>
+            {% if cluster_failed_message %}
+              <p style="color: rgb(250, 89, 89)">{{ cluster_failed_message }}</h4>
             {% endif %}
           </form>
         </div>
