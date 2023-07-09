@@ -1200,10 +1200,15 @@ def compare_selected_reports():
 @app.route('/compare_with_last_report', methods=['POST'])
 def compare_with_last_report():
     
-    filename1, filename2 = find_latested_n_exec_report(
-        path_to_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
-        cluster_exec_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
-        n_reports=2)
+    try:
+        filename1, filename2 = find_latested_n_exec_report(
+            path_to_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
+            cluster_exec_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
+            n_reports=2)
+    except ValueError:
+        logger.error(f"Couldn't find latested n reports")
+        return redirect(url_for("show_clusters",
+                                message=f"No enough reports to compare"))
     
     report_format_form = request.form.get('file-format')
 
@@ -1219,8 +1224,12 @@ def compare_with_last_report():
 
     logger.debug(comparison_result_df)
 
-    comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
-    path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR, f"{comparison_report_filename}{report_ext}")
+    comparison_report_filename = f"{filename1.split('.')[0]}__\
+        {filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
+    path_to_new_report = os.path.join(
+        PATH_TO_COMPARING_REPORTS_DIR,
+        f"{comparison_report_filename}{report_ext}"
+        )
 
     if report_ext in ['.csv', '.xlsx', '.html']:
         save_df_to_file(

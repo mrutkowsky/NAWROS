@@ -111,9 +111,13 @@ def plot_changed_groups(df_changed: pd.DataFrame,
         y_top, y_bottom = (1.05, 1.02)
     elif len(df_changed) > 26:
         y_top, y_bottom = (1.1, 1.05)
-    else:
+    elif len(df_changed) > 12:
         y_top, y_bottom = (1.2, 1.1)
-
+    elif len(df_changed) > 6:
+        y_top, y_bottom = (1.8, 1.2)
+    else:
+        y_top, y_bottom = (2, 1.4)
+        
     plt.text(0, y_top, s=f'Comparison Report',\
              transform=ax.transAxes, fontsize=26, verticalalignment='top',\
                 ha='left')
