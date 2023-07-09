@@ -713,3 +713,18 @@ def create_response_report(
 
     return resp
 
+def filter_date(
+    df: pd.DataFrame,
+    date1: datetime.date,
+    date2: datetime.date,
+    date_column: str):
+
+    dates = [date1, date2]
+    sorted_dates = sorted(dates)
+
+    df[date_column] = pd.to_datetime(df[date_column])
+
+    interval_df = df.loc[(df[date_column] >= sorted_dates[0])
+                     & (df[date_column] < sorted_dates[1])]
+    
+    return interval_df

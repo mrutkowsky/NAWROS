@@ -19,7 +19,8 @@ from utils.data_processing import process_data_from_choosen_files, \
     get_n_of_rows_df, \
     find_filename_in_dir, \
     get_report_name_with_timestamp, \
-    create_response_report
+    create_response_report, \
+    filter_date
 import plotly.express as px
 import json
 import plotly
@@ -591,52 +592,46 @@ def apply_filter():
     filters = request.get_json()
 
     filtered_df = read_file(PATH_TO_CURRENT_DF, columns=ALL_DETAILED_REPORT_COLUMNS)
-    # filtered_df = filtered_df.astype(str)
 
     logger.info(filtered_df)
 
     # Find elements with columns 'DataFrom' and 'DataTo'
     for item in filters:
         if item['column'] == 'DataFrom':
-            data_from = item['value']
+            data_from = pd.to_datetime(item['value'])
+
         elif item['column'] == 'DataTo':
-            data_to = item['value']
+            data_to = pd.to_datetime(item['value'])
 
-    data_from = datetime.datetime.strptime(data_from, '%Y-%m-%d %H:%M:%S')
-    data_from_date_only = data_from.date()
 
-    data_to = datetime.datetime.strptime(data_to, '%Y-%m-%d %H:%M:%S')
-    data_to_date_only = data_to.date()
+    filtered_df = filter_date(
+        filtered_df, 
+        data_from,
+        data_to,
+        DATE_COLUMN)
 
-    # filtered_df[DATE_COLUMN] = pd.to_datetime(filtered_df[DATE_COLUMN]) 
-
-    # mask = (filtered_df[DATE_COLUMN] > data_from) & (filtered_df[DATE_COLUMN] <= data_to)
-
-    # filtered_df = filtered_df.loc[mask]
-    # Print the values
-    logger.info(f"Filtering from {data_from} to {data_to}")
+    logger.info('Dataframe is now filtered by date')
 
     # Remove elements with columns 'DataFrom' and 'DataTo' from the array
     filters = [item for item in filters if item['column'] not in ['DataFrom', 'DataTo']]
 
     logger.info(
         f"""{filters} Columns of df to filter:{filtered_df.columns}""")
-    
-    query_string = ' & '.join(
-        [f"{filter_dict.get('column')} in '{filter_dict.get('value')}'" for filter_dict in filters]
-    )
-
-    logger.info(f"{query_string}")
-
-    filtered_df = filtered_df.query(query_string)
-
-    logger.info(filtered_df)
+    for item in filters:
+        if item['column'] != 'none' and item['value'] != '':
+            query_string = ' & '.join(
+                [f"{filter_dict.get('column')} in '{filter_dict.get('value')}'" for filter_dict in filters]
+            )
+            logger.info(f"{query_string}")
+            filtered_df = filtered_df.query(query_string)
+            logger.info(filtered_df)
+            message = f"{filters} filters has been applied successfully."
+        else:
+            message = f"Only date filter has been applied"
 
     filtered_df.to_parquet(
         index=False, 
         path=PATH_TO_FILTERED_DF)
-    # filtered_df_excluded = show_columns_for_filtering(PATH_TO_CURRENT_DF)
-    message = f"{filters} filters has been applied successfully."
 
     return redirect(url_for("show_clusters", messsage=message))
 

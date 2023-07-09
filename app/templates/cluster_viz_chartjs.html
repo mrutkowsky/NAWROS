@@ -396,13 +396,13 @@
                     <p style="text-align: left;">Filter by date</p>
                     <label for="filter-from-date">From</label>
                     <select class="filter-from-date" id="filter-from-date">
-                        {% for date in columns[date_column] %}
+                        {% for date in columns[date_column]|sort %}
                             <option value="{{ date }}">{{ date}}</option>
                         {% endfor %}
                     </select>
                     <label for="filter-to-date">to</label>
                     <select class="filter-to-date" id="filter-to-date">
-                        {% for date in columns[date_column] %}
+                        {% for date in columns[date_column]|sort(reverse=true) %}
                             <option value="{{ date }}">{{ date}}</option>
                         {% endfor %}
                     </select>
@@ -412,10 +412,12 @@
                         <p style="text-align: left; margin-top: 20px ;">Filter by other atributes</p>
                         <label for="column">Select a column:</label>
                         <select class="filter-column" id="filter-column">
+                            <option value="none"></option>
                             {% for column, unique_values in columns.items() %}
+                                {% if column != date_column %}
                                 <option value="{{ column }}">{{ column}}</option>
-                                {% set selected_column = column %}
-                            {% endfor %}
+                                {% endif %}
+                           {% endfor %}
                         </select>
                         <label style="margin-top: 10px;" for="value">Select a value:</label>
                         <select class="filter-value" id="filter-value">
