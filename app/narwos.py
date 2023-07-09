@@ -617,17 +617,16 @@ def apply_filter():
 
     logger.info(
         f"""{filters} Columns of df to filter:{filtered_df.columns}""")
-    for item in filters:
-        if item['column'] != 'none' and item['value'] != '':
-            query_string = ' & '.join(
-                [f"{filter_dict.get('column')} in '{filter_dict.get('value')}'" for filter_dict in filters]
-            )
-            logger.info(f"{query_string}")
-            filtered_df = filtered_df.query(query_string)
-            logger.info(filtered_df)
-            message = f"{filters} filters has been applied successfully."
-        else:
-            message = f"Only date filter has been applied"
+
+    query_string = ' & '.join(
+        [f"{filter_dict.get('column')} in '{filter_dict.get('value')}'" for filter_dict in filters ] 
+    ) if any(filter_dict.get('column') != 'none' and filter_dict.get('value') != '' for filter_dict in filters) else ''
+    
+    logger.info(f"{query_string}")
+
+    filtered_df = filtered_df.query(query_string) if query_string else filtered_df.copy()
+    logger.info(filtered_df)
+    message = f"{filters} filters has been applied successfully."
 
     filtered_df.to_parquet(
         index=False, 

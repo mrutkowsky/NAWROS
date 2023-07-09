@@ -14,3 +14,4 @@ app/embeddings/embeddings.json
 /app/data/comparing_reports/
 data-sample
 *.pkl
+/app/data/current_df
