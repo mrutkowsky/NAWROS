@@ -42,6 +42,11 @@ TOPICS_CONCAT_FOR_VIZ = 'topics'
 MIN_CLUSTER_SAMPLES = 15
 ZIP_EXT = '.zip'
 
+ALLOWED_EXTENSIONS = [
+    ".csv",
+    ".xlsx"
+]
+
 DEFAULT_REPORT_FORMAT_SETTINGS = {
     "ext": ".csv", "mimetype": "text/csv"
 }
@@ -103,7 +108,6 @@ ETL_SETTINGS = CONFIGURATION.get('ETL_SETTINGS')
 TRANSLATE_CONTENT = ETL_SETTINGS.get('translate')
 GET_SENTIMENT = ETL_SETTINGS.get('sentiment')
 
-ALLOWED_EXTENSIONS = INPUT_FILES_SETTINGS.get('allowed_extensions')
 REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 
 EMBEDDINGS_MODEL = ML.get('embeddings').get('model_name')
