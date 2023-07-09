@@ -11,8 +11,6 @@ import logging
 
 logger = logging.getLogger(__file__)
 
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
-
 def load_lang_detector(
     model_name: str,
     device: str = "cpu"):

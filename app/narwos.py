@@ -39,6 +39,7 @@ app = Flask(__name__)
 USED_AS_BASE_KEY = "used_as_base"
 ONLY_CLASSIFIED_KEY = "only_classified"
 TOPICS_CONCAT_FOR_VIZ = 'topics'
+MIN_CLUSTER_SAMPLES = 15
 
 DEFAULT_REPORT_FORMAT_SETTINGS = {
     "ext": ".csv", "mimetype": "text/csv"
@@ -315,13 +316,15 @@ def upload_and_validate_files(
 def index():
 
     cluster_message = request.args.get("cluster_message")
+    cluster_failed_message = request.args.get("cluster_failed_message")
+
     success_upload = request.args.get("success_upload")
     failed_upload = request.args.get("failed_upload")
-    delete_message = request.args.get("delete_message")
+
+    delete_success_message = request.args.get("delete_success_message")
     upload_message = request.args.get("upload_message")
-    cluster_no_file_message = request.args.get("cluster_no_file_message")
     upload_no_file_message = request.args.get("upload_no_file_message")
-    delete_no_file_message = request.args.get("delete_no_file_message")
+    delete_failed_message = request.args.get("delete_failed_message")
  
     if success_upload is not None:
         success_upload = json.loads(success_upload)
@@ -341,13 +344,13 @@ def index():
         "index.html", 
         files=validated_files_to_show,
         upload_message=upload_message,
-        delete_message=delete_message,
+        delete_success_message=delete_success_message,
         cluster_message=cluster_message,
+        cluster_failed_message=cluster_failed_message,
         success_upload=success_upload, 
         failed_upload=failed_upload,
         upload_no_file_message=upload_no_file_message,
-        delete_no_file_message=delete_no_file_message,
-        cluster_no_file_message=cluster_no_file_message)
+        delete_failed_message=delete_failed_message)
 
 @app.route('/upload_file', methods=['POST'])
 def upload_file():
@@ -376,65 +379,69 @@ def delete_file():
     filename = request.form.get('to_delete')
 
     if not filename:
-        return redirect(url_for("index", delete_no_file_message=f'No file has been selected for deletion!'))
+        return redirect(url_for("index", delete_failed_message=f'No file has been selected for deletion!'))
 
     base_filename = os.path.splitext(filename)[0]
 
     logger.debug(f'Filename: {filename}, base name: {base_filename}')
 
+    file_path = os.path.join(
+        PATH_TO_VALID_FILES, 
+        filename)
+    
+    if not os.path.exists(file_path):
+
+        logger.debug(f'File {filename} does not exist in File Storage.')
+        return redirect(url_for("index", delete_failed_message=f'File {filename} does not exist in File Storage.'))
+    
     try:
-        file_path = os.path.join(
-            PATH_TO_VALID_FILES, 
-            filename)
-    except OSError:
-        return redirect(url_for("index", message=f'File {filename} does not exist.'))
-    else:
-
         os.remove(file_path)
+    except Exception as e:
+        return redirect(url_for("index", delete_failed_message=f'Can not delete {filename} from validated files dir!'))
 
-        for data_dir in [PATH_TO_CLEARED_FILES, PATH_TO_FAISS_VECTORS_DIR]:
+    for data_dir in [PATH_TO_CLEARED_FILES, PATH_TO_FAISS_VECTORS_DIR]:
 
-            logger.debug(f'Current data dir: {data_dir}')
+        logger.debug(f'Current data dir: {data_dir}')
 
-            filename_search_dir = {os.path.splitext(file_)[0]: file_ for file_ in os.listdir(data_dir)}
+        filename_search_dir = {os.path.splitext(file_)[0]: file_ for file_ in os.listdir(data_dir)}
 
-            logger.debug(f'Current {data_dir} search dir: {filename_search_dir}')
+        logger.debug(f'Current {data_dir} search dir: {filename_search_dir}')
 
-            if base_filename in filename_search_dir:
+        if base_filename in filename_search_dir:
 
-                logger.debug(f'File name with extension from dict: {filename_search_dir.get(base_filename)}')
+            logger.debug(f'File name with extension from dict: {filename_search_dir.get(base_filename)}')
 
-                file_path = os.path.join(
-                    data_dir, 
-                    filename_search_dir.get(base_filename))
+            file_path = os.path.join(
+                data_dir, 
+                filename_search_dir.get(base_filename))
 
-                if os.path.exists(file_path):
+            if os.path.exists(file_path):
 
-                    try:
-                        os.remove(file_path)
-                    except Exception as e:
-                        logger.error(f'Can not del {filename} from {data_dir} dir! - {e}')
-                        return redirect(url_for("index", delete_message=f'Can not del {filename} from {data_dir} dir!'))
-                    else:
-                        logger.info(f'Successfully deleted file from {data_dir}')
+                try:
+                    os.remove(file_path)
+                except Exception as e:
+                    logger.error(f'Can not del {filename} from {data_dir} dir! - {e}')
+                    return redirect(url_for("index", delete_failed_message=f'Can not del {filename} from {data_dir} dir!'))
+                else:
+                    logger.info(f'Successfully deleted file from {data_dir}')
 
-                        if data_dir == PATH_TO_FAISS_VECTORS_DIR:
- 
-                            deleted_successfully_from_json = del_file_from_embeded(
-                                filename_to_del=filename,
-                                path_to_embeddings_file=os.path.join(EMBEDDINGS_DIR, EMBEDDED_JSON)
-                            )
+                    if data_dir == PATH_TO_FAISS_VECTORS_DIR:
 
-                            if deleted_successfully_from_json:
+                        deleted_successfully_from_json = del_file_from_embeded(
+                            filename_to_del=filename,
+                            path_to_embeddings_file=os.path.join(EMBEDDINGS_DIR, EMBEDDED_JSON)
+                        )
 
-                                logger.info(f'Successfully deleted {filename} from JSON file')
+                        if deleted_successfully_from_json:
 
-                            else:
+                            logger.info(f'Successfully deleted {filename} from JSON file')
 
-                                logger.error(f'Failed to delete {filename} from JSON file')
-                                return redirect(url_for("index", delete_message=f'Failed to delete {filename} from JSON file.'))
-        
-        return redirect(url_for("index", delete_message=f'File {filename} deleted successfully.'))
+                        else:
+
+                            logger.error(f'Failed to delete {filename} from JSON file')
+                            return redirect(url_for("index", delete_failed_message=f'Failed to delete {filename} from JSON file.'))
+    
+    return redirect(url_for("index", delete_success_message=f'File {filename} deleted successfully.'))
     
 @app.route('/choose_files_for_clusters', methods=['POST', 'GET'])
 def choose_files_for_clusters():
@@ -442,11 +449,14 @@ def choose_files_for_clusters():
     files_for_clustering = request.form.getlist('chosen_files')
 
     if not files_for_clustering:
-        return redirect(url_for("index", cluster_no_file_message=f'No file has been selected for clustering!'))
+        return redirect(url_for("index", cluster_failed_message=f'No file has been selected for clustering.'))
+    
+    if not all(False for file_ in files_for_clustering if file_ not in os.listdir(PATH_TO_VALID_FILES)):
+        return redirect(url_for("index", cluster_failed_message=f'At least one file is not present in File Storage.'))
     
     logger.debug(f'Chosen files: {files_for_clustering}')
 
-    process_data_from_choosen_files(
+    zero_length_after_processing = process_data_from_choosen_files(
         chosen_files=files_for_clustering,
         path_to_valid_files=PATH_TO_VALID_FILES,
         path_to_cleared_files=PATH_TO_CLEARED_FILES,
@@ -468,6 +478,16 @@ def choose_files_for_clusters():
         empty_content_ext=EMPTY_CONTENTS_EXT,
         batch_size=BATCH_SIZE,
         seed=SEED)
+    
+    if zero_length_after_processing:
+
+        files_for_clustering = [
+            file_ for file_ in files_for_clustering 
+            if file_ not in zero_length_after_processing
+        ]
+
+    if not files_for_clustering:
+        return redirect(url_for("index", cluster_failed_message=f"After cleaning no files are suitable for clusterization."))
 
     new_current_df = get_clusters_for_choosen_files(
         chosen_files=files_for_clustering,
@@ -492,7 +512,12 @@ def choose_files_for_clusters():
         min_samples=HDBSCAN_SETTINGS.get('min_samples'),
         metric=HDBSCAN_SETTINGS.get('metric'),                      
         cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
-    ).astype({col: str for col in REQUIRED_COLUMNS})
+    )
+
+    if not isinstance(new_current_df, pd.DataFrame):
+        return redirect(url_for("index", cluster_failed_message=new_current_df))
+    
+    new_current_df = new_current_df.astype({col: str for col in REQUIRED_COLUMNS})
     
     cns_after_clusterization(
         new_current_df=new_current_df,
@@ -795,7 +820,7 @@ def update_clusters_new_file():
     filename = uploaded_file.filename
 
     if filename == '':
-        return redirect(url_for("show_clusters", update_clusters_new_file_no_file_message=f'No file has been selected for uploading!'))
+        return redirect(url_for("show_clusters", message=f'No file has been selected for uploading!'))
 
     logger.debug(f"Uploaded file: {filename}")
 
@@ -812,7 +837,7 @@ def update_clusters_new_file():
 
         if success_upload:
 
-            rows_cards_for_preprocessed = process_data_from_choosen_files(
+            zero_length_after_processing = process_data_from_choosen_files(
                 chosen_files=[filename],
                 path_to_valid_files=PATH_TO_VALID_FILES,
                 path_to_cleared_files=PATH_TO_CLEARED_FILES,
@@ -835,7 +860,22 @@ def update_clusters_new_file():
                 batch_size=BATCH_SIZE,
                 seed=SEED)
             
-            n_of_rows_for_new_file = rows_cards_for_preprocessed.get(filename)
+            if zero_length_after_processing:
+                return redirect(url_for("show_clusters", message=f"After preprocessing the file {filename} no samples have left."))
+            
+            filename_in_cleared_files = find_filename_in_dir(
+                path_to_dir=PATH_TO_CLEARED_FILES) \
+                    .get(os.path.splitext(filename)[0])
+            
+            logger.debug(filename_in_cleared_files)
+
+            n_of_rows_for_new_file = get_n_of_rows_df(
+                os.path.join(PATH_TO_CLEARED_FILES, filename_in_cleared_files),
+                loaded_column=ORIGINAL_CONTENT_COLUMN,
+            )
+
+            if n_of_rows_for_new_file < MIN_CLUSTER_SAMPLES:
+                return redirect(url_for("show_clusters", update_clusters_new_file_message=f"Number of samples for clusterization after preprocessing should be at least {MIN_CLUSTER_SAMPLES}."))
 
             rows_cardinalities_current_df = get_rows_cardinalities(
                 path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES
@@ -858,6 +898,7 @@ def update_clusters_new_file():
                     path_to_cleared_files_dir=PATH_TO_CLEARED_FILES,
                     path_to_faiss_vetors_dir=PATH_TO_FAISS_VECTORS_DIR,
                     required_columns=REQUIRED_COLUMNS,
+                    n_of_samples=n_of_rows_for_new_file,
                     topic_df_filename=TOPICS_DF_FILE,
                     outlier_treshold=OUTLIER_TRESHOLD,
                     clusterer_model_name=HDBSCAN_MODEL_NAME,
@@ -865,6 +906,9 @@ def update_clusters_new_file():
                     reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
                     cleared_files_ext=CLEARED_FILE_EXT
                 )
+
+                if not isinstance(new_current_df, pd.DataFrame):
+                    return redirect(url_for("show_clusters", update_clusters_new_file_message=new_current_df))
 
                 rows_cardinalities_current_df[ONLY_CLASSIFIED_KEY][filename] = n_of_rows_for_new_file
                 set_rows_cardinalities(
@@ -932,7 +976,12 @@ def update_clusters_new_file():
                     min_samples=HDBSCAN_SETTINGS.get('min_samples'),
                     metric=HDBSCAN_SETTINGS.get('metric'),                      
                     cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
-                ).astype({col: str for col in REQUIRED_COLUMNS})
+                )
+
+                if not isinstance(new_current_df, pd.DataFrame):
+                    return redirect(url_for("show_clusters", update_clusters_new_file_message=new_current_df))
+                
+                new_current_df = new_current_df.astype({col: str for col in REQUIRED_COLUMNS})
                 
                 path_to_exec_report, destination_filename = cns_after_clusterization(
                     new_current_df=new_current_df,
@@ -972,13 +1021,15 @@ def update_clusters_new_file():
 def update_clusters_existing_file():
     
     existing_file_for_update = request.form.get('ex_file_update')
-    logger.info(existing_file_for_update)
+    logger.debug(existing_file_for_update)
 
+    if not existing_file_for_update:
+        return redirect(url_for("show_clusters", message=f"No file has been selected!"))
 
     if not os.path.exists(os.path.join(PATH_TO_VALID_FILES, existing_file_for_update)):
-        return redirect(url_for("show_clusters", message=f"Selected file {existing_file_for_update} does not exist!"))
+        return redirect(url_for("show_clusters", message=f"Selected file {existing_file_for_update} does not exist in File Storage!"))
 
-    rows_cards_for_preprocessed = process_data_from_choosen_files(
+    zero_length_after_processing = process_data_from_choosen_files(
         chosen_files=[existing_file_for_update],
         path_to_valid_files=PATH_TO_VALID_FILES,
         path_to_cleared_files=PATH_TO_CLEARED_FILES,
@@ -1001,28 +1052,31 @@ def update_clusters_existing_file():
         batch_size=BATCH_SIZE,
         seed=SEED)
     
-    if rows_cards_for_preprocessed:
-        n_of_rows_for_new_file = rows_cards_for_preprocessed.get(existing_file_for_update)
-    else:
+    if zero_length_after_processing:
+        return redirect(url_for("show_clusters", message=f"After preprocessing the file {existing_file_for_update} no samples have left."))
+    
+    logger.debug(existing_file_for_update)
 
-        logger.debug(existing_file_for_update)
+    filename_in_cleared_files = find_filename_in_dir(
+        path_to_dir=PATH_TO_CLEARED_FILES) \
+            .get(os.path.splitext(existing_file_for_update)[0])
+    
+    logger.debug(filename_in_cleared_files)
 
-        filename_in_cleared_files = find_filename_in_dir(
-            path_to_dir=PATH_TO_CLEARED_FILES) \
-                .get(os.path.splitext(existing_file_for_update)[0])
-        
-        logger.debug(filename_in_cleared_files)
+    n_of_rows_existing_file = get_n_of_rows_df(
+        os.path.join(PATH_TO_CLEARED_FILES, filename_in_cleared_files),
+        loaded_column=ORIGINAL_CONTENT_COLUMN,
+    )
 
-        n_of_rows_for_new_file = get_n_of_rows_df(
-            os.path.join(PATH_TO_CLEARED_FILES, filename_in_cleared_files)
-        )
+    if n_of_rows_existing_file < MIN_CLUSTER_SAMPLES:
+        return redirect(url_for("show_clusters", message=f"Number of samples for clusterization after preprocessing should be at least {MIN_CLUSTER_SAMPLES}."))
 
     rows_cardinalities_current_df = get_rows_cardinalities(
         path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES
     )
 
     need_to_recalculate = cluster_recalculation_needed(
-        n_of_rows=n_of_rows_for_new_file,
+        n_of_rows=n_of_rows_existing_file,
         rows_cardinalities_current_df=rows_cardinalities_current_df,
         recalculate_treshold=RECALCULATE_CLUSTERS_TRESHOLD
     )
@@ -1046,7 +1100,10 @@ def update_clusters_existing_file():
             cleared_files_ext=CLEARED_FILE_EXT
         )
 
-        rows_cardinalities_current_df[ONLY_CLASSIFIED_KEY][existing_file_for_update] = n_of_rows_for_new_file
+        if not isinstance(new_current_df, pd.DataFrame):
+            return redirect(url_for("show_clusters", message=new_current_df))
+
+        rows_cardinalities_current_df[ONLY_CLASSIFIED_KEY][existing_file_for_update] = n_of_rows_existing_file
         set_rows_cardinalities(
             path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES,
             updated_cardinalities=rows_cardinalities_current_df
@@ -1100,7 +1157,12 @@ def update_clusters_existing_file():
             min_samples=HDBSCAN_SETTINGS.get('min_samples'),
             metric=HDBSCAN_SETTINGS.get('metric'),                      
             cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
-        ).astype({col: str for col in REQUIRED_COLUMNS})
+        )
+
+        if not isinstance(new_current_df, pd.DataFrame):
+            return redirect(url_for("show_clusters", message=new_current_df))
+
+        new_current_df = new_current_df.astype({col: str for col in REQUIRED_COLUMNS})
         
         cns_after_clusterization(
             new_current_df=new_current_df,
