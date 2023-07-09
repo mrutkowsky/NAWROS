@@ -1167,14 +1167,20 @@ def compare_selected_reports():
         )
        
     elif report_ext == '.pdf':
-
+        try:
+            filenames = [filename1.split('.')[0], filename2.split('.')[0]]
+        except Exception as e:
+            logger.error(e)
+            filenames = ['old', 'new']
+            
         create_pdf_comaprison_report(
             df=comparison_result_df,
             old_col_name=OLD_COL_NAME,
             new_col_name=NEW_COL_NAME,
             cols_for_label=COLS_FOR_LABEL,
             cols_for_old_label=COLS_FOR_OLD_LABEL,
-            output_file_path=path_to_new_report
+            output_file_path=path_to_new_report,
+            filenames=filenames
         )
 
         logger.debug(f'Report ext is .pdf')
@@ -1194,10 +1200,15 @@ def compare_selected_reports():
 @app.route('/compare_with_last_report', methods=['POST'])
 def compare_with_last_report():
     
-    filename1, filename2 = find_latested_n_exec_report(
-        path_to_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
-        cluster_exec_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
-        n_reports=2)
+    try:
+        filename1, filename2 = find_latested_n_exec_report(
+            path_to_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
+            cluster_exec_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
+            n_reports=2)
+    except ValueError:
+        logger.error(f"Couldn't find latested n reports")
+        return redirect(url_for("show_clusters",
+                                message=f"No enough reports to compare"))
     
     report_format_form = request.form.get('file-format')
 
@@ -1213,16 +1224,40 @@ def compare_with_last_report():
 
     logger.debug(comparison_result_df)
 
-    comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
+    comparison_report_filename = f"{filename1.split('.')[0]}__\
+        {filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
+    path_to_new_report = os.path.join(
+        PATH_TO_COMPARING_REPORTS_DIR,
+        f"{comparison_report_filename}{report_ext}"
+        )
 
-    save_df_to_file(
-        df=comparison_result_df,
-        filename=comparison_report_filename,
-        path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
-        file_ext=report_ext
-    )
+    if report_ext in ['.csv', '.xlsx', '.html']:
+        save_df_to_file(
+            df=comparison_result_df,
+            filename=comparison_report_filename,
+            path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
+            file_ext=report_ext
+        )
+    elif report_ext == '.pdf':
+        try:
+            filenames = [filename1.split('.')[0], filename2.split('.')[0]]
+        except Exception as e:
+            logger.error(e)
+            filenames = ['old', 'new']
 
-    path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR, f"{comparison_report_filename}{report_ext}")
+        create_pdf_comaprison_report(
+            df=comparison_result_df,
+            old_col_name=OLD_COL_NAME,
+            new_col_name=NEW_COL_NAME,
+            cols_for_label=COLS_FOR_LABEL,
+            cols_for_old_label=COLS_FOR_OLD_LABEL,
+            output_file_path=path_to_new_report,
+            filenames=filenames
+        )
+    else:
+        redirect(url_for("show_clusters",
+                         message=f"Report extension {report_ext} is not supported"))
+
 
     response = make_response(send_file(
         path_to_new_report,
