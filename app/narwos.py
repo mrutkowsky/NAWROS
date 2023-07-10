@@ -736,7 +736,7 @@ def get_exec_filtered_report():
     except Exception as e:
 
         logger.error(f'Error while creating filtered exec report: {e}')
-        response = redirect(url_for('show_clusters',
+        return redirect(url_for('show_clusters',
                             message='Can not save filtered report, file may be invalid'))
 
     try:
@@ -784,8 +784,8 @@ def get_detailed_filtered_report():
 
     except Exception as e:
         logger.error(f'Error while reading filtered df: {e}')
-        response = redirect(url_for('show_clusters',
-                            message='Can not read filtered df, file may be invalid'))
+        return redirect(url_for('show_clusters',
+                            message='Currently DataFrame for filtering is not available'))
         
     try:
 
@@ -800,7 +800,7 @@ def get_detailed_filtered_report():
     except Exception as e:
 
         logger.error(f'Error while creating response report: {e}')
-        response = redirect(url_for('show_clusters',
+        return redirect(url_for('show_clusters',
                             message='Creation of detailed filtered report response failed, file may be invalid'))
 
     return response
@@ -854,7 +854,7 @@ def get_last_cluster_exec_report():
     except Exception as e:
 
         logger.error(f'Creating response report failed. {e}')
-        response = redirect(url_for("show_clusters", message=f"""
+        return redirect(url_for("show_clusters", message=f"""
             Could not create cluster exec report {latest_exec_report}. File may be invalid"""))
 
     return response
