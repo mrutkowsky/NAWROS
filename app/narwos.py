@@ -631,7 +631,7 @@ def apply_filter():
         index=False, 
         path=PATH_TO_FILTERED_DF)
 
-    return redirect(url_for("show_clusters", messsage='Filters applied successfully'))
+    return redirect(url_for("show_clusters", message='Filters applied successfully'))
 
 @app.route('/get_exec_filtered_report', methods=['POST'])
 def get_exec_filtered_report():
@@ -1237,7 +1237,7 @@ def get_items():
     return jsonify(response)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
 
 
 

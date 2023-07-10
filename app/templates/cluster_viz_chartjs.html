@@ -392,46 +392,53 @@
         <div class="Filter" style="margin-top: 20px; margin-right: 20px; margin-left: 20px;">
             <button id="filter-button" class="button-36" style="width: 400px;">Filter results</button>
             <div id="filter" name="filter" style="display: none; box-shadow: 0px 0px 10px #999; border-radius: 10px; padding: 20px; width: 400px;min-height: 610px;">
-                <div>
-                    <p style="text-align: left;">Filter by date</p>
-                    <label for="filter-from-date">From</label>
-                    <select class="filter-from-date" id="filter-from-date">
-                        {% for start_date in dates_for_filtering|sort %}
-                            <option value="{{ start_date }}">{{ start_date }}</option>
-                        {% endfor %}
-                    </select>
-                    <label for="filter-to-date">to</label>
-                    <select class="filter-to-date" id="filter-to-date">
-                        {% for end_date in dates_for_filtering|sort(reverse=true) %}
-                            <option value="{{ end_date }}">{{ end_date}}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div id="filter-container">
+                <form  method="post" action="/apply_filter">
                     <div>
-                        <p style="text-align: left; margin-top: 20px ;">Filter by other atributes</p>
-                        <label for="column">Select a column:</label>
-                        <select class="filter-column" id="filter-column">
-                            <option value="none"></option>
-                            {% for column, unique_values in columns.items() %}
-                                {% if column != date_column %}
-                                <option value="{{ column }}">{{ column}}</option>
-                                {% endif %}
-                           {% endfor %}
-                        </select>
-                        <label style="margin-top: 10px;" for="value">Select a value:</label>
-                        <select class="filter-value" id="filter-value">
-                            <!--
-                            {% for value  in columns['OS'] %}
-                                    <option value="{{ value }}">{{ value}}</option> 
+                        <p style="text-align: left;">Filter by date</p>
+                        <label for="filtered_date_from">From</label>
+                        <select name="filtered_date_from" id="filtered_date_from">
+                            {% for start_date in dates_for_filtering|sort %}
+                                <option value="{{ start_date }}">{{ start_date }}</option>
                             {% endfor %}
-                            -->
                         </select>
-                        <!-- <button class="delete" onclick="deleteFilter(this)">Delete filter</button> --> 
+                        <label for="filtered_date_to">to</label>
+                        <select name="filtered_date_to" id="filtered_date_to">
+                            {% for end_date in dates_for_filtering|sort(reverse=true) %}
+                                <option value="{{ end_date }}">{{ end_date}}</option>
+                            {% endfor %}
+                        </select>
                     </div>
-                </div>
+                    <div id="filter-container">
+                        <div>
+                            <p style="text-align: left; margin-top: 20px ;">Filter by other atributes</p>
+                            <label for="column">Filter by file:</label>
+                            <select name="filtered_files" id="filtered_files">
+                                <option value="none"></option>
+                                {% for value in files_for_filtering %}
+                                    <option value="{{ value }}">{{ value}}</option>
+                            {% endfor %}
+                            </select>
+                            <label for="column">Filter by topics:</label>
+                            <select name="filtered_topics" id="filtered_topics">
+                                <option value="none"></option>
+                                {% for value in topics_for_filtering %}
+                                    <option value="{{ value }}">{{ value}}</option>
+                            {% endfor %}
+                            </select>
+                            <label for="column">Filter by sentiment:</label>
+                            <select name="filtered_sentiment" id="filtered_sentiment">
+                                <option value="none"></option>
+                                {% for value in sentiment_for_filtering %}
+                                    <option value="{{ value }}">{{ value}}</option>
+                            {% endfor %}
+                            </select>
+                            <!-- <button class="delete" onclick="deleteFilter(this)">Delete filter</button> --> 
+                        </div>
+                    </div>
+                    <input type="submit" value="Apply filters">
+                </form>
                 <!-- <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="addFilter()">Add Filter</button> -->
-                <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="applyFilters()">Apply Filter</button>
+                <!-- <button class="my-button" style="margin-right: 10px;margin-top: 20px;width: 200px;height: 40px;font-size: 14px;text-align: center;" onclick="applyFilters()">Apply Filter</button> -->
             </div>
         </div>
     </div>
@@ -451,9 +458,6 @@
             </select>
             <label style="margin-top: 10px;" for="value">Select a value:</label>
                     <select class="filter-value" id="filter-value">
-                        {% for value  in columns['OS'] %}
-                                <option value="{{ value }}">{{ value}}</option> 
-                        {% endfor %}
                     </select> 
             <button class="delete" onclick="deleteFilter(this)">Delete filter</button>
         `;
@@ -592,36 +596,6 @@
                 div.style.display = 'block';
             }
         };
-    </script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-      $(document).ready(function() {
-        // Event listener for the first select element
-        $('#filter-column').change(function() {
-          var selectedColumn = $(this).val();
-          var filterItemsSelect = $('#filter-value');
-    
-          // Send an AJAX GET request to fetch associated items
-          $.ajax({
-            url: '/get_items', // Replace with your server-side endpoint
-            method: 'GET',
-            data: { column: selectedColumn },
-            success: function(response) {
-              // Clear the second select element
-              filterItemsSelect.empty();
-    
-              // Add options to the second select element based on the received items
-              $.each(response.items, function(index, item) {
-                filterItemsSelect.append($('<option>').text(item).attr('value', item));
-              });
-            },
-            error: function(xhr, status, error) {
-              // Handle the error gracefully
-              console.error(error);
-            }
-          });
-        });
-      });
     </script>
     <script>
         var container = document.getElementById('filter-column');
