@@ -616,8 +616,13 @@ def get_swearwords(
 
 def get_rows_cardinalities(path_to_cardinalities_file: str) -> dict:
 
-    with open(path_to_cardinalities_file, 'r', encoding='utf-8') as cards_json:
-        return json.load(cards_json)
+    try:
+        with open(path_to_cardinalities_file, 'r', encoding='utf-8') as cards_json:
+            cards = json.load(cards_json)
+    except FileNotFoundError:
+        return {}
+    else:
+        return cards
 
 def set_rows_cardinalities(
     path_to_cardinalities_file: str,
