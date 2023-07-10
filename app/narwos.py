@@ -636,7 +636,8 @@ def show_clusters():
                                 update_clusters_new_file_message=update_clusters_new_file_message,
                                 update_clusters_existing_file_message=update_clusters_existing_file_message,
                                 update_clusters_existing_file_no_file_message=update_clusters_existing_file_no_file_message,
-                                update_clusters_new_file_no_file_message=update_clusters_new_file_no_file_message)
+                                update_clusters_new_file_no_file_message=update_clusters_new_file_no_file_message,
+                                sentiment_column=GET_SENTIMENT)
     
     return 'Nothing to show here'
 
