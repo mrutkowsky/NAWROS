@@ -684,6 +684,8 @@ def apply_filter():
         PATH_TO_CURRENT_DF, 
         columns=ALL_DETAILED_REPORT_COLUMNS)
     
+    logger.debug(f'Filter_df before applying filters (only current_df) {filtered_df}')
+    
     TOPIC_COLUMNS = tuple(f"{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE)
     
     filters_dict = {
@@ -699,6 +701,8 @@ def apply_filter():
         date_column=DATE_COLUMN,
         date_format=DATE_FILTER_FORMAT
     )
+
+    logger.debug(f'Filter_df after applying filters {filtered_df}')
 
     filtered_df.to_parquet(
         index=False, 

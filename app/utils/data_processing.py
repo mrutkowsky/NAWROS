@@ -849,11 +849,11 @@ def create_filter_query(
 
                     if (start_date) and (validate_date_format(start_date, date_format=date_format)):
 
-                         current_query.append(f"({column_name} >= '{start_date}')")
+                         current_query.append(f"({column_name}.dt.strftime({date_format}) >= '{start_date}')")
 
                     if (end_date) and (validate_date_format(end_date, date_format=date_format)):
 
-                        current_query.append(f"({column_name} <= '{end_date}')")
+                        current_query.append(f"({column_name}.dt.strftime({date_format}) <= '{end_date}')")
 
                     if current_query:
                         current_query = " & ".join(current_query)
