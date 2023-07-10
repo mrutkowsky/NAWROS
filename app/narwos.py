@@ -19,7 +19,10 @@ from utils.data_processing import process_data_from_choosen_files, \
     get_n_of_rows_df, \
     find_filename_in_dir, \
     get_report_name_with_timestamp, \
-    create_response_report
+    create_response_report, \
+    prepare_filters, \
+    prepare_reports_to_chose, \
+    apply_filters_on_df
 import plotly.express as px
 import json
 import plotly
@@ -36,6 +39,7 @@ import datetime
 
 app = Flask(__name__)
 
+DATE_FILTER_FORMAT = '%Y-%m-%d'
 USED_AS_BASE_KEY = "used_as_base"
 ONLY_CLASSIFIED_KEY = "only_classified"
 TOPICS_CONCAT_FOR_VIZ = 'topics'
@@ -147,7 +151,7 @@ COMPARING_REPORT_SUFFIX = REPORT_CONFIG.get('comparing_report_suffix')
 TOPIC_COLUMN_PREFIX = REPORT_CONFIG.get('topic_column_prefix')
 
 TOPICS_RANGE = range(1, 6)
-ALL_DETAILED_REPORT_COLUMNS = BASE_REPORT_COLUMNS + [
+ALL_DETAILED_REPORT_COLUMNS = [DATE_COLUMN] + BASE_REPORT_COLUMNS + [
     ORIGINAL_CONTENT_COLUMN,
     PREPROCESSED_CONTENT_COLUMN,
     LABELS_COLUMN,  
@@ -609,49 +613,50 @@ def show_clusters():
             color=TOPICS_CONCAT_FOR_VIZ
         )
 
-        files_to_filter = list(df[FILENAME_COLUMN].unique())
+        df[DATE_COLUMN] = pd.to_datetime(df[DATE_COLUMN])
 
-        logger.debug(f'Files for filtering {files_to_filter}')
+        possible_values_for_filters = prepare_filters(
+            df=df,
+            date_column=DATE_COLUMN,
+            date_filter_format=DATE_FILTER_FORMAT,
+            filename_column=FILENAME_COLUMN,
+            sentiment_column=SENTIMENT_COLUMN if GET_SENTIMENT else None,
+            topic_colum_prefix=TOPIC_COLUMN_PREFIX,
+            topics_range=TOPICS_RANGE
+        )
 
-        available_for_update = list(
-            set(os.listdir(PATH_TO_VALID_FILES)).difference(
-                set(files_to_filter)))
-        
-        available_for_update = list(filter(lambda x: x != GITKEEP_FILE, available_for_update))
-        
-        logger.debug(f'available_for_update {available_for_update}')
+        files_for_filtering = possible_values_for_filters.get('files_filter')
+        dates_for_filtering = possible_values_for_filters.get('dates_filter')
+        topics_for_filtering = possible_values_for_filters.get('topics_filter')
+        sentiment_for_filtering = possible_values_for_filters.get('sentiment_filter')
 
-        columns_unique_values_dict = {
-            col: list(df[col].unique()) for col in ALL_DETAILED_REPORT_COLUMNS
-        }
-        
-        date_column = DATE_COLUMN
+        reports_to_choose = prepare_reports_to_chose(
+            path_to_cluster_exec_reports_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
+            path_to_valid_files=PATH_TO_VALID_FILES,
+            files_for_filtering=files_for_filtering,
+            gitkeep_file=GITKEEP_FILE,
+            exec_report_ext=CLUSTER_EXEC_FILENAME_EXT,
+        )
 
-        reports = os.listdir(PATH_TO_CLUSTER_EXEC_REPORTS_DIR)
-
-        reports_to_show = [
-            report.split('.')[0] for report in reports 
-            if os.path.splitext(report)[-1] == '.gzip'
-        ]
-
-        logger.debug(f'Report to show: {reports_to_show}')
+        exec_reports_to_show = reports_to_choose.get('exec_reports_to_show')
+        available_for_update = reports_to_choose.get('available_for_update')
         
         fig_json = json.dumps(scatter_plot, cls=plotly.utils.PlotlyJSONEncoder)
-        json_columns = json.dumps(str(columns_unique_values_dict))
 
         return render_template("cluster_viz_chartjs.html", 
                                 figure=fig_json, 
-                                columns=columns_unique_values_dict, 
-                                files_for_filtering=files_to_filter,
+                                files_for_filtering=files_for_filtering,
+                                dates_for_filtering=dates_for_filtering,
+                                topics_for_filtering=topics_for_filtering,
+                                sentiment_for_filtering=sentiment_for_filtering,
                                 available_for_update=available_for_update,
+                                reports_to_show=exec_reports_to_show,
                                 message=message,
                                 update_clusters_new_file_message=update_clusters_new_file_message,
                                 update_clusters_existing_file_message=update_clusters_existing_file_message,
                                 update_clusters_existing_file_no_file_message=update_clusters_existing_file_no_file_message,
                                 update_clusters_new_file_no_file_message=update_clusters_new_file_no_file_message,
-                                reports=reports_to_show,
-                                json_columns=json_columns,
-                                date_column=date_column)
+                                sentiment_column=GET_SENTIMENT)
     
     return 'Nothing to show here'
 
@@ -660,57 +665,46 @@ def apply_filter():
 
     logger.debug(f'Report columns: {ALL_DETAILED_REPORT_COLUMNS}')
 
-    filters = request.get_json()
+    filtered_files = request.form.getlist('filtered_files')
+    logger.debug(f'{filtered_files=}')
 
-    filtered_df = read_file(PATH_TO_CURRENT_DF, columns=ALL_DETAILED_REPORT_COLUMNS)
-    # filtered_df = filtered_df.astype(str)
+    filtered_date_from = request.form.get('filtered_date_from')
+    logger.debug(f'{filtered_date_from=}')
 
-    logger.info(filtered_df)
+    filtered_date_to = request.form.get('filtered_date_to')
+    logger.debug(f"{filtered_date_to=}")
 
-    # Find elements with columns 'DataFrom' and 'DataTo'
-    for item in filters:
-        if item['column'] == 'DataFrom':
-            data_from = item['value']
-        elif item['column'] == 'DataTo':
-            data_to = item['value']
+    filtered_topics = request.form.getlist('filtered_topics')
+    logger.debug(f'{filtered_topics=}')
 
-    data_from = datetime.datetime.strptime(data_from, '%Y-%m-%d %H:%M:%S')
-    data_from_date_only = data_from.date()
+    filtered_sentiment = request.form.getlist('filtered_sentiment')
+    logger.debug(f'{filtered_sentiment=}')
 
-    data_to = datetime.datetime.strptime(data_to, '%Y-%m-%d %H:%M:%S')
-    data_to_date_only = data_to.date()
-
-    # filtered_df[DATE_COLUMN] = pd.to_datetime(filtered_df[DATE_COLUMN]) 
-
-    # mask = (filtered_df[DATE_COLUMN] > data_from) & (filtered_df[DATE_COLUMN] <= data_to)
-
-    # filtered_df = filtered_df.loc[mask]
-    # Print the values
-    logger.info(f"Filtering from {data_from} to {data_to}")
-
-    # Remove elements with columns 'DataFrom' and 'DataTo' from the array
-    filters = [item for item in filters if item['column'] not in ['DataFrom', 'DataTo']]
-
-    logger.info(
-        f"""{filters} Columns of df to filter:{filtered_df.columns}""")
+    filtered_df = read_file(
+        PATH_TO_CURRENT_DF, 
+        columns=ALL_DETAILED_REPORT_COLUMNS)
     
-    query_string = ' & '.join(
-        [f"{filter_dict.get('column')} in '{filter_dict.get('value')}'" for filter_dict in filters]
+    TOPIC_COLUMNS = tuple(f"{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE)
+    
+    filters_dict = {
+        FILENAME_COLUMN: filtered_files,
+        DATE_COLUMN: [filtered_date_from, filtered_date_to],
+        TOPIC_COLUMNS: filtered_topics,
+        SENTIMENT_COLUMN: filtered_sentiment
+    }
+
+    filtered_df = apply_filters_on_df(
+        df=filtered_df,
+        filters_dict=filters_dict,
+        date_column=DATE_COLUMN,
+        date_format=DATE_FILTER_FORMAT
     )
-
-    logger.info(f"{query_string}")
-
-    filtered_df = filtered_df.query(query_string)
-
-    logger.info(filtered_df)
 
     filtered_df.to_parquet(
         index=False, 
         path=PATH_TO_FILTERED_DF)
-    # filtered_df_excluded = show_columns_for_filtering(PATH_TO_CURRENT_DF)
-    message = f"{filters} filters has been applied successfully."
 
-    return redirect(url_for("show_clusters", messsage=message))
+    return redirect(url_for("show_clusters", message='Filters applied successfully'))
 
 @app.route('/get_exec_filtered_report', methods=['POST'])
 def get_exec_filtered_report():

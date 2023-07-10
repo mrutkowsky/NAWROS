@@ -21,6 +21,7 @@ from utils.embeddings_module import load_transformer_model, get_embeddings
 from utils.etl import preprocess_text
 from utils.sentiment_analysis import load_sentiment_model, predict_sentiment, offensive_language
 from utils.translation import load_lang_detector, load_translation_model, detect_lang, translate_text
+from dateutil import parser
 
 logger = logging.getLogger(__file__)
 
@@ -742,3 +743,176 @@ def create_response_report(
 
     return resp
 
+def validate_date_format(
+        date_str: str,
+        date_format: str):
+
+    try:
+
+        parsed_date = parser.parse(date_str)
+        return parsed_date.strftime(date_format) == date_str
+    
+    except ValueError:
+        return False
+
+def prepare_filters(
+        df: pd.DataFrame,
+        date_column: str,
+        date_filter_format: str,
+        filename_column: str,
+        topic_colum_prefix: str,
+        topics_range: range,
+        sentiment_column: str = None) -> dict[str, list]:
+
+    files_for_filtering = list(df[filename_column].unique())
+
+    dates_for_filtering = list(
+        set([datetime.strftime(date, date_filter_format) 
+            for date in df[date_column].unique()]))
+    
+    if sentiment_column is not None:
+        sentiment_for_filtering = list(set(df[sentiment_column].unique()))
+    else:
+        sentiment_for_filtering = None
+
+    topics_for_filtering = []
+
+    for topic_col in [f'{topic_colum_prefix}_{i}' for i in topics_range]:
+        topics_for_filtering.extend(list(set(df[topic_col].unique())))
+
+    topics_for_filtering = list(set(topics_for_filtering)) 
+
+    return {
+        'files_filter': files_for_filtering,
+        'dates_filter': dates_for_filtering,
+        'sentiment_filter': sentiment_for_filtering,
+        'topics_filter': topics_for_filtering
+    }
+
+def prepare_reports_to_chose(
+    path_to_cluster_exec_reports_dir: str,
+    path_to_valid_files: str,
+    files_for_filtering: list,
+    gitkeep_file: str = '.gitkeep',
+    exec_report_ext: str = '.gzip') -> dict[str, list]:
+
+    
+    reports = os.listdir(path_to_cluster_exec_reports_dir)
+
+    reports_to_show = [
+        report.split('.')[0] for report in reports 
+        if report.endswith(exec_report_ext) 
+    ]
+
+    logger.debug(f'Report to show: {reports_to_show}')
+
+    available_for_update = list(
+        set(os.listdir(path_to_valid_files)).difference(
+            set(files_for_filtering)))
+    
+    available_for_update = list(filter(lambda x: x != gitkeep_file, available_for_update))
+    logger.debug(f'available_for_update {available_for_update}')
+
+    return {
+        'exec_reports_to_show': reports_to_show,
+        'available_for_update': available_for_update
+    }
+
+def create_filter_query(
+    date_column: str,
+    filters_dict: dict[str, list],
+    date_format: str) -> str:
+
+    filter_query = []
+
+    for column_name, filter_values in filters_dict.items():
+
+        if not filter_values:
+            continue
+
+        current_query = ''
+
+        if isinstance(column_name, str):
+
+            if column_name == date_column:
+
+                try:
+                    start_date, end_date = filter_values
+                except ValueError:
+                    logger.error(f'Can not unpack dates for filtering, skipping operation')
+                    continue
+                except TypeError:
+                    continue
+                else:
+
+                    current_query = []
+
+                    if (start_date) and (validate_date_format(start_date, date_format=date_format)):
+
+                         current_query.append(f"({column_name} >= '{start_date}')")
+
+                    if (end_date) and (validate_date_format(end_date, date_format=date_format)):
+
+                        current_query.append(f"({column_name} <= '{end_date}')")
+
+                    if current_query:
+                        current_query = " & ".join(current_query)
+                    else:
+                        continue
+                    
+            else:
+
+                current_query = f"({column_name} in {filter_values})"
+        
+        elif isinstance(column_name, tuple):
+
+            current_query = ' | '.join([f"{sub_col} in {filter_values}" for sub_col in column_name])
+            current_query = f"({current_query})"
+
+        else:
+            continue
+
+        filter_query.append(current_query)
+
+    if not filter_query:
+
+        logger.debug('No chosen values for filtering')
+        return None
+
+    logger.debug(f'Filter query: {" & ".join(filter_query)}')
+
+    return " & ".join(filter_query)
+
+def apply_filters_on_df(
+    df: pd.DataFrame,
+    filters_dict: dict[str, list],
+    date_column: str,
+    date_format: str) -> pd.DataFrame:
+
+    filter_query = create_filter_query(
+        date_column=date_column,
+        filters_dict=filters_dict,
+        date_format=date_format
+    )
+
+    if not filter_query:
+        return df
+
+    try:
+
+        df = df.query(
+            filter_query
+        )
+    
+    except Exception as e:
+
+        logger.error(f'Failed to apply filters on DataFrame: {e}')
+
+    else:
+
+        logger.info('Successfully aplied filters on DataFrame')
+        return df
+    
+
+
+    

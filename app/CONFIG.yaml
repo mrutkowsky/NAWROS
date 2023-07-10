@@ -41,6 +41,7 @@ ETL_SETTINGS:
   sentiment: false
 
 REPORT_SETTINGS:
+  date_column: 'Questioned_Date'
   original_content_column: content
   preprocessed_content_column: preprocessed_content
   labels_column: labels
@@ -49,7 +50,6 @@ REPORT_SETTINGS:
   filename_column: filename
   cluster_summary_column: cluster_summary
   base_columns:
-    - Questioned_Date
     - Model_No
     - OS
     - SW_Version 
@@ -65,8 +65,7 @@ REPORT_SETTINGS:
   cluster_exec_filename_ext: .parquet.gzip
   filtered_filename_prefix: filtered
   filtered_filename_ext: .parquet.gzip
-  date_column: 'Questioned_Date'
-
+  
 LOGGER:
   logging_format: '[%(asctime)s] - %(levelname)s - %(message)s'
   logger_level: DEBUG
