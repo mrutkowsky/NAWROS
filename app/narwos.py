@@ -42,6 +42,11 @@ TOPICS_CONCAT_FOR_VIZ = 'topics'
 MIN_CLUSTER_SAMPLES = 15
 ZIP_EXT = '.zip'
 
+ALLOWED_EXTENSIONS = [
+    ".csv",
+    ".xlsx"
+]
+
 DEFAULT_REPORT_FORMAT_SETTINGS = {
     "ext": ".csv", "mimetype": "text/csv"
 }
@@ -103,7 +108,6 @@ ETL_SETTINGS = CONFIGURATION.get('ETL_SETTINGS')
 TRANSLATE_CONTENT = ETL_SETTINGS.get('translate')
 GET_SENTIMENT = ETL_SETTINGS.get('sentiment')
 
-ALLOWED_EXTENSIONS = INPUT_FILES_SETTINGS.get('allowed_extensions')
 REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 
 EMBEDDINGS_MODEL = ML.get('embeddings').get('model_name')
@@ -557,10 +561,15 @@ def get_empty_contents():
     )
 
     filepath = os.path.join(PATH_TO_EMPTY_ARCHIVE, full_filename)
+
+    if len(set(list(os.listdir(PATH_TO_EMPTY_CONTENTS))).difference(set([GITKEEP_FILE]))) == 0:
+        return redirect(url_for("show_clusters", message=f'Currently no empty content files are available!'))
+    
+    logger.debug(f'Empty content dir: {os.listdir(PATH_TO_EMPTY_CONTENTS)}')
     
     shutil.make_archive(
         filepath, 
-        'zip', 
+        ZIP_EXT.lstrip('.'), 
         PATH_TO_EMPTY_CONTENTS)
     
     # Clear the folder
