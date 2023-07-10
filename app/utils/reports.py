@@ -242,4 +242,10 @@ def find_latested_n_exec_report(
         logger.error(f'No cluster execution reports in {path_to_dir}!')
         return None
     else:
+
+        if (n_reports > 1) and n_reports != len(reports_to_return):
+
+            logger.error(f'Only one cluster execution report is avaiable currently')
+            return None
+        
         return reports_to_return

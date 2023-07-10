@@ -708,17 +708,25 @@ def get_exec_filtered_report():
 
     report_type = request.form.get('filtered_exec_report_type')
 
+    if not report_type:
+        return redirect(url_for("show_clusters"), message="No report type has been selected.")
+    
+    if report_type not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters"), message=f"Selected report type {report_type} is not allowed.")
+
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
-    if not PATH_TO_FILTERED_DF:
-        return redirect(url_for("show_clusters"), message="No filtered df found")
+    try:
 
-    filtered_df = read_file(
-        file_path=PATH_TO_FILTERED_DF,
-        columns=[LABELS_COLUMN]
-    )
+        filtered_df = read_file(
+            file_path=PATH_TO_FILTERED_DF,
+            columns=[LABELS_COLUMN]
+        )
+
+    except FileNotFoundError:
+        return redirect(url_for("show_clusters"), message=f"DataFrame for filtering is not currently available.")
 
     filtered_exec_report_name = get_report_name_with_timestamp(
         filename_prefix=FILTERED_REPORT_PREFIX
@@ -734,12 +742,15 @@ def get_exec_filtered_report():
             labels_column_name=LABELS_COLUMN,
             cardinalities_column_name=CARDINALITIES_COLUMN
         )
+
     except Exception as e:
+
         logger.error(f'Error while creating filtered exec report: {e}')
         response = redirect(url_for('show_clusters'),
-                            message='Cound\'t save report, choosen file may be invalid')
+                            message='Can not save filtered report, file may be invalid')
 
     try:
+
         response = create_response_report(
             df=summary_df,
             filename=filtered_exec_report_name,
@@ -747,10 +758,12 @@ def get_exec_filtered_report():
             mimetype=report_mimetype,
             file_format=report_type
         )
+
     except Exception as e:
+
         logger.error(f'Error while creating response report: {e}')
         response = redirect(url_for('show_clusters'),
-                            message='Creation resonse report failed, choosen file may be invalid')
+                            message='Creation of exec filtered report response failed, file may be invalid')
 
     return response
 
@@ -758,9 +771,12 @@ def get_exec_filtered_report():
 def get_detailed_filtered_report():
 
     report_type = request.form.get('detailed_filtered_report_type')
+
     if not report_type:
-        return redirect(url_for("show_clusters"),
-                        message="No report type selected")
+        return redirect(url_for("show_clusters"), message="No report type has been selected.")
+    
+    if report_type not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters"), message=f"Selected report type {report_type} is not allowed.")
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -775,16 +791,14 @@ def get_detailed_filtered_report():
             file_path=PATH_TO_FILTERED_DF,
             columns=ALL_DETAILED_REPORT_COLUMNS
         )
+
     except Exception as e:
         logger.error(f'Error while reading filtered df: {e}')
         response = redirect(url_for('show_clusters'),
-                            message='Cound\'t read filtered df, choosen file may be invalid')
+                            message='Can not read filtered df, file may be invalid')
         
-    if not report_ext in ['csv', 'xlsx', 'html']:
-        return redirect(url_for("show_clusters"),
-                        message="Invalid report type selected")
-
     try:
+
         response = create_response_report(
             df=filtered_df,
             filename=filtered_df_filename,
@@ -792,10 +806,12 @@ def get_detailed_filtered_report():
             mimetype=report_mimetype,
             file_format=report_type
         )
+
     except Exception as e:
+
         logger.error(f'Error while creating response report: {e}')
         response = redirect(url_for('show_clusters'),
-                            message='Creation resonse report failed, choosen file may be invalid')
+                            message='Creation of detailed filtered report response failed, file may be invalid')
 
     return response
 
@@ -805,35 +821,38 @@ def get_last_cluster_exec_report():
     report_type = request.form.get('last_report_type')
 
     if not report_type:
-        return redirect(url_for("show_clusters"),
-                        message="No report type selected")
+        return redirect(url_for("show_clusters"), message="No report type has been chosen.")
+    
+    if report_type not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters"), message=f"Selected report type {report_type} is not allowed.")
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
-    try:
-        latest_exec_report = find_latested_n_exec_report(
-            path_to_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
-            cluster_exec_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
-            n_reports=1
-        )
-    except Exception as e:
-        logger.error(e)
-        logger.error('No reports found.')
-        response = redirect(url_for("show_clusters", message="No reports found."))
+    latest_exec_report = find_latested_n_exec_report(
+        path_to_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
+        cluster_exec_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
+        n_reports=1
+    )
+
+    if latest_exec_report is None:
+        return redirect(url_for("show_clusters", message="No clusterization exec reports are currently available."))
 
     try:
+
         cluster_exec_df = read_file(
             file_path=os.path.join(PATH_TO_CLUSTER_EXEC_REPORTS_DIR, latest_exec_report)
         )
+
     except Exception as e:
-        logger.error(e)
-        logger.error('Reading report failed.')
-        response = redirect(url_for("show_clusters", message="Could not read report.\
-                                    Please try again. File may be invalid"))
+
+        logger.error(f'Can not read clusterizaton report {latest_exec_report} - {e}')
+        return redirect(url_for("show_clusters", message=f"""
+            Could not read cluster exec report {latest_exec_report}. File may be invalid"""))
 
     try :
+
         response = create_response_report(
             df=cluster_exec_df,
             filename=latest_exec_report.split('.')[0],
@@ -841,11 +860,12 @@ def get_last_cluster_exec_report():
             mimetype=report_mimetype,
             file_format=report_type
         )
+
     except Exception as e:
-        logger.error(e)
-        logger.error('Creating response report failed.')
-        response = redirect(url_for("show_clusters", message="Could not create report.\
-                                    Please try again. File may be invalid"))
+
+        logger.error(f'Creating response report failed. {e}')
+        response = redirect(url_for("show_clusters", message=f"""
+            Could not create cluster exec report {latest_exec_report}. File may be invalid"""))
 
     return response
 
@@ -855,13 +875,24 @@ def get_chosen_cluster_exec_report():
     chosen_report_name = request.form.get('chosen_report_name')
     report_type = request.form.get('chosen_report_type')
 
+    if not report_type:
+        return redirect(url_for("show_clusters"), message="No report type has been chosen.")
+    
+    if report_type not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters"), message=f"Selected report type {report_type} is not allowed.")
+    
+    try:
+
+        cluster_exec_df = read_file(
+            file_path=os.path.join(PATH_TO_CLUSTER_EXEC_REPORTS_DIR, chosen_report_name)
+        )
+
+    except FileNotFoundError:
+        return redirect(url_for("show_clusters"), message=f"Selected cluster exec report {chosen_report_name} does not exist in File Storage")
+    
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
-
-    cluster_exec_df = read_file(
-        file_path=os.path.join(PATH_TO_CLUSTER_EXEC_REPORTS_DIR, chosen_report_name)
-    )
 
     resp_report = create_response_report(
         df=cluster_exec_df,
@@ -878,6 +909,12 @@ def get_chosen_cluster_exec_report():
 def get_detailed_cluster_exec_report():
 
     report_type = request.form.get('report_type_exec')
+
+    if not report_type:
+        return redirect(url_for("show_clusters"), message="No report type has been chosen.")
+    
+    if report_type not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters"), message=f"Selected report type {report_type} is not allowed.")
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -1288,6 +1325,12 @@ def compare_selected_reports():
     if filename1 == filename2:
         return redirect(url_for("show_clusters",
                                 message=f"Chosen files must be different"))
+    
+    if not report_format_form:
+        return redirect(url_for("show_clusters"), message="No report type has been chosen.")
+    
+    if report_format_form not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters"), message=f"Selected report type {report_format_form} is not allowed.")
 
     logger.debug(f'{report_format_form=}')
 
@@ -1299,22 +1342,24 @@ def compare_selected_reports():
     logger.debug(filename1, filename2)
 
     try:
+
         comparison_result_df = compare_reports(
             first_report_name=filename1,
             second_report_name=filename2,
             path_to_reports_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR
         )
+
     except Exception as e:
-        logger.error(e)
-        logger.error('Comparing reports failed')
+
+        logger.error(f'Comparing reports failed, could not compare report {filename1} and {filename2} - {e}')
         return redirect(url_for("show_clusters",
-                                message=f"Error while comparing reports,\
-                                    files may be invalid."))
+                                message=f"""Error while trying to compare reports, files may be invalid."""))
 
     logger.debug(comparison_result_df)
 
     comparison_report_filename = f"{filename1.split('.')[0]}__\
         {filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
+    
     path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR,
                                       f"{comparison_report_filename}{report_ext}")
 
@@ -1330,12 +1375,9 @@ def compare_selected_reports():
         )
        
     elif report_ext == '.pdf':
-        try:
-            filenames = [filename1.split('.')[0], filename2.split('.')[0]]
-        except Exception as e:
-            logger.error(e)
-            filenames = ['old', 'new']
-        
+
+        filenames = [filename1.split('.')[0], filename2.split('.')[0]]
+    
         try:
             create_pdf_comaprison_report(
                 df=comparison_result_df,
@@ -1346,17 +1388,21 @@ def compare_selected_reports():
                 output_file_path=path_to_new_report,
                 filenames=filenames
             )
+
         except Exception as e:
-            logger.error(e)
-            logger.error('Creating pdf report failed')
+
+            logger.error(f'Creating pdf report failed for {filenames} - {e}')
             return redirect(url_for("show_clusters",
-                                    message=f"Error while creating pdf report."))
+                                    message=f"Could not create comparing pdf report"))
 
         logger.debug(f'Report ext is .pdf')
 
     else:
-        raise ValueError(f"Report extension {report_ext} is not supported")   
 
+        logger.error(f"Report extension {report_ext} is not supported")
+        return redirect(url_for("show_clusters", message=f"""
+            Could not create comparing report beacuse report extension {report_ext} is not supported"""))
+ 
     response = make_response(send_file(
         path_to_new_report,
         mimetype = report_mimetype,
@@ -1368,72 +1414,91 @@ def compare_selected_reports():
 
 @app.route('/compare_with_last_report', methods=['POST'])
 def compare_with_last_report():
-    
+
     try:
+
         filename1, filename2 = find_latested_n_exec_report(
             path_to_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
             cluster_exec_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
             n_reports=2)
+        
     except ValueError:
-        logger.error(f"Couldn't find latested n reports")
-        return redirect(url_for("show_clusters",
-                                message=f"No enough reports to compare"))
+
+        logger.error(f"Could not find latest reports to compare")
+        return redirect(url_for("show_clusters", message=f"Currently there are not enough cluster execution reports to compare"))
     
     report_format_form = request.form.get('file-format')
+
+    if not report_format_form:
+        return redirect(url_for("show_clusters"), message="No report type has been chosen.")
+    
+    if report_format_form not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters"), message=f"Selected report type {report_format_form} is not allowed.")
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
     try:
+
         comparison_result_df = compare_reports(
             first_report_name=filename1,
             second_report_name=filename2,
             path_to_reports_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR
         )
-    except Exception as e:
-        logger.error(e)
-        logger.error('Comparing reports failed')
-        return redirect(url_for("show_clusters",
-                                message=f"Error while comparing reports,\
-                                    files may be invalid."))
 
+    except Exception as e:
+
+        logger.error(f'Comparing reports failed, could not compare report {filename1} and {filename2} - {e}')
+        return redirect(url_for("show_clusters",
+                                message=f"""Error while trying to compare reports, files may be invalid."""))
     logger.debug(comparison_result_df)
 
     comparison_report_filename = f"{filename1.split('.')[0]}__\
         {filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
+    
     path_to_new_report = os.path.join(
         PATH_TO_COMPARING_REPORTS_DIR,
         f"{comparison_report_filename}{report_ext}"
-        )
+    )
 
     if report_ext in ['.csv', '.xlsx', '.html']:
+
         save_df_to_file(
             df=comparison_result_df,
             filename=comparison_report_filename,
             path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
             file_ext=report_ext
         )
+
     elif report_ext == '.pdf':
+
+        filenames = [filename1.split('.')[0], filename2.split('.')[0]]
+
         try:
-            filenames = [filename1.split('.')[0], filename2.split('.')[0]]
+
+            create_pdf_comaprison_report(
+                df=comparison_result_df,
+                old_col_name=OLD_COL_NAME,
+                new_col_name=NEW_COL_NAME,
+                cols_for_label=COLS_FOR_LABEL,
+                cols_for_old_label=COLS_FOR_OLD_LABEL,
+                output_file_path=path_to_new_report,
+                filenames=filenames
+            )
+
         except Exception as e:
-            logger.error(e)
-            filenames = ['old', 'new']
 
-        create_pdf_comaprison_report(
-            df=comparison_result_df,
-            old_col_name=OLD_COL_NAME,
-            new_col_name=NEW_COL_NAME,
-            cols_for_label=COLS_FOR_LABEL,
-            cols_for_old_label=COLS_FOR_OLD_LABEL,
-            output_file_path=path_to_new_report,
-            filenames=filenames
-        )
+            logger.error(f'Creating pdf report failed for {filenames} - {e}')
+            return redirect(url_for("show_clusters",
+                                    message=f"Could not create comparing pdf report"))
+
     else:
-        redirect(url_for("show_clusters",
-                         message=f"Report extension {report_ext} is not supported"))
-
+        
+        logger.error(f"Report extension {report_ext} is not supported")
+        return redirect(url_for("show_clusters", message=f"""
+            Could not create comparing report beacuse report extension {report_ext} is not supported"""))
+ 
 
     response = make_response(send_file(
         path_to_new_report,
@@ -1443,16 +1508,6 @@ def compare_with_last_report():
     ))
 
     return response
-
-@app.route('/get_items', methods=['GET'])
-def get_items():
-    selected_column = request.args.get('column')
-    logger.info(selected_column)
-    df = read_file(PATH_TO_CURRENT_DF)
-
-    response = {'items': list(df[selected_column].unique()) }
-    logger.info(response)
-    return jsonify(response)
 
 if __name__ == '__main__':
     app.run(debug=True)

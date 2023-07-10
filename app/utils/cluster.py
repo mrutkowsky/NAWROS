@@ -716,6 +716,7 @@ def save_cluster_exec_report(
        None
    """
     df = df.groupby(df[labels_column_name]).size().reset_index(name=cardinalities_column_name)
+    
     if len(df) == len(clusters_topics):
         df = pd.concat([df, clusters_topics.drop(columns=[labels_column_name])], axis=1) 
     else:
