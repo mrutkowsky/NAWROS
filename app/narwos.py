@@ -238,16 +238,6 @@ PATH_TO_FILTERED_DF = os.path.join(
     FILTERED_DF_FILE
 )
 
-PATH_TO_DETAILED_FILTERED_REPORTS = os.path.join(
-    DATA_FOLDER,
-    DETAILED_FILTERED_REPORTS
-)
-
-PATH_TO_DETAILED_CLUSTER_EXEC_REPORTS = os.path.join(
-    DATA_FOLDER,
-    DETAILED_CLUSTER_EXEC_REPORTS
-)
-
 PATH_TO_SWEARWORDS_DIR = os.path.join(
     DATA_FOLDER,
     SWEARWORDS_DIR,
@@ -1357,8 +1347,7 @@ def compare_selected_reports():
 
     logger.debug(comparison_result_df)
 
-    comparison_report_filename = f"{filename1.split('.')[0]}__\
-        {filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
+    comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
     
     path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR,
                                       f"{comparison_report_filename}{report_ext}")
@@ -1454,8 +1443,7 @@ def compare_with_last_report():
                                 message=f"""Error while trying to compare reports, files may be invalid."""))
     logger.debug(comparison_result_df)
 
-    comparison_report_filename = f"{filename1.split('.')[0]}__\
-        {filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
+    comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
     
     path_to_new_report = os.path.join(
         PATH_TO_COMPARING_REPORTS_DIR,
@@ -1494,7 +1482,7 @@ def compare_with_last_report():
                                     message=f"Could not create comparing pdf report"))
 
     else:
-        
+
         logger.error(f"Report extension {report_ext} is not supported")
         return redirect(url_for("show_clusters", message=f"""
             Could not create comparing report beacuse report extension {report_ext} is not supported"""))

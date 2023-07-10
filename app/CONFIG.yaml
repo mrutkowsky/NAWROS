@@ -4,8 +4,6 @@ DIRECTORIES:
   cleared_files: cleared_files
   valid_files: validated_files
   cluster_exec_reports: cluster_exec_reports
-  detailed_cluster_exec_reports: detailed_cluster_exec_reports
-  detailed_filtered_reports: detailed_filtered_reports
   comparing_reports: comparing_reports
   empty_content: empty_content
   empty_content_archive: empty_content_archive
