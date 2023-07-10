@@ -28,10 +28,6 @@ FILES:
   ext_mappings: mimetypes_formats.json
 
 INPUT_FILES_SETTINGS:
-  allowed_extensions:
-    - .csv 
-    - .txt
-    - .xlsx
   required_columns: 
     - Questioned_Date
     - Model_No
