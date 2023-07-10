@@ -684,6 +684,8 @@ def apply_filter():
         PATH_TO_CURRENT_DF, 
         columns=ALL_DETAILED_REPORT_COLUMNS)
     
+    filtered_df[DATE_COLUMN] = pd.to_datetime(filtered_df[DATE_COLUMN])
+    
     logger.debug(f'Filter_df before applying filters (only current_df) {filtered_df}')
     
     TOPIC_COLUMNS = tuple(f"{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE)
