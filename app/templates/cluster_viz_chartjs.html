@@ -380,14 +380,12 @@
                             <p style="text-align: left; margin-top: 20px ;">Filter by other atributes</p>
                             <label for="column">Filter by file:</label>
                             <select name="filtered_files" id="filtered_files" multiple>
-                                <option value=""></option>
                                 {% for value in files_for_filtering %}
                                     <option value="{{ value }}">{{ value}}</option>
                             {% endfor %}
                             </select>
                             <label for="column">Filter by topics:</label>
                             <select name="filtered_topics" id="filtered_topics" multiple>
-                                <option value=""></option>
                                 {% for value in topics_for_filtering %}
                                     <option value="{{ value }}">{{ value}}</option>
                             {% endfor %}
@@ -395,7 +393,6 @@
                             {% if sentiment_column == true %}
                             <label for="column">Filter by sentiment:</label>
                             <select name="filtered_sentiment" id="filtered_sentiment" multiple>
-                                <option value=""></option>
                                     {% for value in sentiment_for_filtering %}
                                         <option value="{{ value }}">{{ value}}</option>
                                     {% endfor %}
