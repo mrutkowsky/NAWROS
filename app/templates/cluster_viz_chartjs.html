@@ -190,7 +190,7 @@
                         <label for="chosen_report_name">Choose another report to download</label>
                         <select id="chosen_report_name" name="chosen_report_name" required>
                         <option value="" selected disabled hidden>(Choose file)</option>
-                        {% for report in reports %}
+                        {% for report in exec_reports_to_show %}
                             <option value="{{ report }}.parquet.gzip">{{ report }}</option>
                         {% endfor %}
                         </select>
@@ -372,13 +372,13 @@
                                 <label for="chosen_files">Choose reports to compare:</label>
                                 <select name="raport-1" id="raport-1" required>
                                     <option value="" selected disabled hidden>(select file)</option>
-                                    {% for raport in reports %}
+                                    {% for raport in exec_reports_to_show %}
                                         <option value="{{ raport }}.parquet.gzip">{{ raport }}</option>
                                     {% endfor %}
                                 </select>
                                 <select name="raport-2"  id="raport-2" required>
                                     <option value="" selected disabled hidden>(select file)</option>
-                                    {% for raport in reports %}
+                                    {% for raport in exec_reports_to_show %}
                                         <option value="{{ raport }}.parquet.gzip">{{ raport }}</option>
                                     {% endfor %}
                                 </select>
@@ -396,14 +396,14 @@
                     <p style="text-align: left;">Filter by date</p>
                     <label for="filter-from-date">From</label>
                     <select class="filter-from-date" id="filter-from-date">
-                        {% for date in columns[date_column]|sort %}
-                            <option value="{{ date }}">{{ date}}</option>
+                        {% for start_date in dates_for_filtering|sort %}
+                            <option value="{{ start_date }}">{{ start_date }}</option>
                         {% endfor %}
                     </select>
                     <label for="filter-to-date">to</label>
                     <select class="filter-to-date" id="filter-to-date">
-                        {% for date in columns[date_column]|sort(reverse=true) %}
-                            <option value="{{ date }}">{{ date}}</option>
+                        {% for end_date in dates_for_filtering|sort(reverse=true) %}
+                            <option value="{{ end_date }}">{{ end_date}}</option>
                         {% endfor %}
                     </select>
                 </div>

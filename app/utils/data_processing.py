@@ -728,3 +728,66 @@ def filter_date(
                      & (df[date_column] < sorted_dates[1])]
     
     return interval_df
+
+def prepare_filters(
+        df: pd.DataFrame,
+        date_column: str,
+        date_filter_format: str,
+        filename_column: str,
+        topic_colum_prefix: str,
+        topics_range: range,
+        sentiment_column: str = None) -> dict[str, list]:
+
+    files_for_filtering = list(df[filename_column].unique())
+
+    dates_for_filtering = list(
+        set([datetime.strftime(date, date_filter_format) 
+            for date in df[date_column].unique()]))
+    
+    if sentiment_column is not None:
+        sentiment_for_filtering = list(set(df[sentiment_column].unique()))
+    else:
+        sentiment_for_filtering = None
+
+    topics_for_filtering = []
+
+    for topic_col in [f'{topic_colum_prefix}_{i}' for i in topics_range]:
+        topics_for_filtering.extend(list(set(df[topic_col].unique())))
+
+    topics_for_filtering = list(set(topics_for_filtering)) 
+
+    return {
+        'files_filter': files_for_filtering,
+        'dates_filter': dates_for_filtering,
+        'sentiment_filter': sentiment_for_filtering,
+        'topics_filter': topics_for_filtering
+    }
+
+def prepare_reports_to_chose(
+    path_to_cluster_exec_reports_dir: str,
+    path_to_valid_files: str,
+    files_for_filtering: list,
+    gitkeep_file: str = '.gitkeep',
+    exec_report_ext: str = '.gzip') -> dict[str, list]:
+
+    
+    reports = os.listdir(path_to_cluster_exec_reports_dir)
+
+    reports_to_show = [
+        report.split('.')[0] for report in reports 
+        if report.endswith(exec_report_ext) 
+    ]
+
+    logger.debug(f'Report to show: {reports_to_show}')
+
+    available_for_update = list(
+        set(os.listdir(path_to_valid_files)).difference(
+            set(files_for_filtering)))
+    
+    available_for_update = list(filter(lambda x: x != gitkeep_file, available_for_update))
+    logger.debug(f'available_for_update {available_for_update}')
+
+    return {
+        'exec_reports_to_show': reports_to_show,
+        'available_for_update': available_for_update
+    }
