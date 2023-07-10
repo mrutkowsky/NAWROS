@@ -35,7 +35,7 @@ class MyDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
-
+    
 def read_file(
         file_path: str, 
         columns: list = None) -> pd.DataFrame:
@@ -56,9 +56,28 @@ def read_file(
     elif file_path.endswith('.parquet.gzip'):
         df = pd.read_parquet(file_path, columns=columns)
     else:
-        df = pd.read_csv(
-            file_path, 
-            usecols=columns)
+
+        for sep in [',', ';']:
+
+            try:
+
+                df_one_col = pd.read_csv(
+                    file_path, 
+                    usecols=columns,
+                    sep=sep,
+                    nrows=1)
+        
+            except ValueError:
+                continue
+
+            else:
+
+                df = pd.read_csv(
+                    filepath_or_buffer=file_path, 
+                    usecols=columns,
+                    sep=sep)
+
+                break
 
     logger.debug(f'df: {df}')
 
@@ -358,24 +377,6 @@ def process_data_from_choosen_files(
 
     logger.info(f'Language detection model {lang_detection_model_name} loaded successfully')
 
-    if translate_content:
-
-        translation_models_dict = {}
-
-        for lang, model_name in currently_serviced_langs.items():
-
-            current_trans_model_dict = load_translation_model(
-                model_name=model_name,
-                device=DEVICE
-            )
-
-            translation_models_dict[lang] = current_trans_model_dict
-
-            # translation_model = current_trans_model_dict.get('model')
-            # translation_tokenizer = current_trans_model_dict.get('tokenizer')
-
-            logger.info(f'Translation model {model_name} for {lang.upper()} loaded successfully')
-
     logger.info(
         f"""Loading data from chosen files:{chosen_files}""")
     
@@ -387,7 +388,7 @@ def process_data_from_choosen_files(
         
         logger.info(f'Sentiment setup loaded successfully.')
 
-    rows_cardinalities = {}
+    zero_length_after_processing = []
 
     for file_ in chosen_files:
 
@@ -417,6 +418,10 @@ def process_data_from_choosen_files(
                     content_column_name=content_column_name,
                     dropped_indexes_column_name=dropped_indexes_column_name)
                 
+                if len(df) == 0:
+                    zero_length_after_processing.append(file_)
+                    continue
+                
                 logger.info(f'Cleaned {file_}')
 
                 dataloader = create_dataloader(
@@ -439,6 +444,24 @@ def process_data_from_choosen_files(
                 known_langs = [en_code]
 
                 if translate_content:
+
+                    translation_models_dict = {}
+
+                    langs_to_service = list(df[detected_language_column_name].unique())
+
+                    for lang, model_name in currently_serviced_langs.items():
+
+                        if lang not in langs_to_service:
+                            continue
+
+                        current_trans_model_dict = load_translation_model(
+                            model_name=model_name,
+                            device=DEVICE
+                        )
+
+                        translation_models_dict[lang] = current_trans_model_dict
+
+                        logger.info(f'Translation model {model_name} for {lang.upper()} loaded successfully')
 
                     for lang, lang_model_dict in translation_models_dict.items():
 
@@ -484,6 +507,10 @@ def process_data_from_choosen_files(
                     path_to_dir=path_to_empty_content_dir,
                     file_ext=empty_content_ext
                 )
+
+                if len(df) == 0:
+                    zero_length_after_processing.append(file_)
+                    continue
 
                 if get_sentiment:
 
@@ -564,10 +591,7 @@ def process_data_from_choosen_files(
 
                 logger.info(f'File with embeddings saved for {file_}')
 
-        if isinstance(df, pd.DataFrame):
-            rows_cardinalities[file_] = len(df)
-
-    return rows_cardinalities
+    return zero_length_after_processing
 
 def get_stopwords(
         path_to_dir_with_stopwords: str) -> list:

@@ -2,6 +2,5 @@
     "csv": {"ext": ".csv", "mimetype": "text/csv"},
     "excel": {"ext": ".xlsx", "mimetype": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
     "pdf": {"ext": ".pdf", "mimetype": "application/pdf"},
-    "powerpoint": {"ext": ".ppt", "mimetype": "application/vnd.ms-powerpoint"},
     "html": {"ext": ".html", "mimetype": "text/html"}
 }

@@ -4,10 +4,9 @@ DIRECTORIES:
   cleared_files: cleared_files
   valid_files: validated_files
   cluster_exec_reports: cluster_exec_reports
-  detailed_cluster_exec_reports: detailed_cluster_exec_reports
-  detailed_filtered_reports: detailed_filtered_reports
   comparing_reports: comparing_reports
   empty_content: empty_content
+  empty_content_archive: empty_content_archive
   tmp: tmp
   embeddings: embeddings
   faiss_vectors: faiss_vectors
@@ -27,10 +26,6 @@ FILES:
   ext_mappings: mimetypes_formats.json
 
 INPUT_FILES_SETTINGS:
-  allowed_extensions:
-    - .csv 
-    - .txt
-    - .xlsx
   required_columns: 
     - Questioned_Date
     - Model_No
@@ -43,7 +38,7 @@ INPUT_FILES_SETTINGS:
 
 ETL_SETTINGS:
   translate: true
-  sentiment: true
+  sentiment: false
 
 REPORT_SETTINGS:
   date_column: 'Questioned_Date'
@@ -51,7 +46,7 @@ REPORT_SETTINGS:
   preprocessed_content_column: preprocessed_content
   labels_column: labels
   cardinalities_column: counts
-  sentiment_column: sentiment
+  # sentiment_column: sentiment
   filename_column: filename
   cluster_summary_column: cluster_summary
   base_columns:
@@ -95,8 +90,6 @@ ML:
     n_neighbors: 15
     min_dist: 0.0
     n_components: 5
-  topics:
-    - 2
   sentiment:
     model_name: 'cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual'
     
@@ -110,12 +103,10 @@ ML:
     cluster_selection_method: ['eom']
 
   translation_models:
-    pl: Helsinki-NLP/opus-mt-pl-en
+    # pl: Helsinki-NLP/opus-mt-pl-en
     de: Helsinki-NLP/opus-mt-de-en
     es: Helsinki-NLP/opus-mt-es-en
     ko: Helsinki-NLP/opus-mt-ko-en
 
   lang_detection_model: papluca/xlm-roberta-base-language-detection
-
-FILTERING:
   

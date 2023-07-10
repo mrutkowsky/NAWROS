@@ -69,16 +69,39 @@ def preprocess_text(text):
     # Remove newlines
     text = re.sub(r'\n+', ' ', text)
     
+    # text = re.sub('email_address_masked', '', text)
+    text = re.sub(r'application version \d+(\.\d+)+', '', text)
+    text = re.sub(r'error code #\d+-\d+', '', text)
+    text = re.sub(
+        'explain the details of the problem youre having. this can help us figure out what\'s going wrong.',
+        '', text)
+
     # Remove unknown signs, but keep dots, commas, question marks, exclamation marks and hashtags
-    text = re.sub(r'[^a-ząćęłńóśźż\s.,!?()\'\"]|\-(?!\w)|(?<!\w)\-', '', text)
+    text = re.sub(r'[^a-ząćęłńóśźż\s.,!?\'\"]|\-(?!\w)|(?<!\w)\-', '', text)
+    text = re.sub(r'[0-9]+', '', text)
     text = re.sub(r'([?!.,])\1+', r'\1', text)
     
-    text = re.sub(r'(?<![a-z0-9])-|-(?![a-z0-9])', '', text)
+    text = re.sub(r'(?<![a-z])-|-(?![a-z])', '', text)
     text = re.sub(r'([\'"])([^\1]*)\1', r'\2', text)
     text = re.sub(r'(?<!\w)([\'"])([^\1]*)\b\1', r'\2', text)
     text = re.sub(r'\((?!\s*\))|(?<!\()\s*\)', '', text)
     text = re.sub(r'\t+', ' ', text)
     text = re.sub(r' {2,}', ' ', text)
+
+    text = re.sub('emailaddressmasked', '', text)
+    text = re.sub('phonenumbermasked', '', text)
+    
+    text = re.sub('device type', '', text)
+    
+    
+    text = re.sub('smarttag', '', text)
+    text = re.sub(r', ,', ',', text)
+    text = re.sub(r'\. \.', ',', text)
+    text = re.sub(r' \.', '.', text)
+    text = re.sub(r' \?', '?', text)
+    text = re.sub(r' \!', '!', text)
+
+    
     
     return text.strip()
 

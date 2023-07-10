@@ -394,6 +394,7 @@ def get_clusters_for_choosen_files(
        pd.DataFrame: Dataframe with labels and 2D coordinates for each sentence.
     """
 
+    MIN_SAMPLES = 15
     PATH_TO_JSON_EMBEDDED_FILES = os.path.join(path_to_embeddings_dir, embedded_files_filename)
     PATH_TO_FAISS_VECTORS = os.path.join(path_to_embeddings_dir, faiss_vectors_dirname)
 
@@ -411,20 +412,63 @@ def get_clusters_for_choosen_files(
         used_as_base_key=used_as_base_key,
         only_classified_key=only_classified_key)
     
-    umap_dim_reducer, clusterable_embeddings = dimension_reduction(
-        all_vectors,
-        n_neighbors=n_neighbors,
-        min_dist=min_dist,
-        n_components=n_components,
-        random_state=random_state)
+    n_of_samples = sum(rows_cardinalities_dict.get(used_as_base_key, {}).values())
+    if n_of_samples < MIN_SAMPLES:
+        return f'Number of samples should be at least {MIN_SAMPLES} to perform clusterization.'
     
-    save_model(
-        model=umap_dim_reducer,
-        path_to_current_df_dir=path_to_current_df_dir,
-        model_name=umap_model_name
-    )
+    try:
+    
+        umap_dim_reducer, clusterable_embeddings = dimension_reduction(
+            all_vectors,
+            n_neighbors=n_neighbors,
+            min_dist=min_dist,
+            n_components=n_components,
+            random_state=random_state)
+        
+    except (TypeError, ValueError):
+        return f'Number of samples is to small ({n_of_samples}) to use it with current settings.'
+    
+    else:
+    
+        save_model(
+            model=umap_dim_reducer,
+            path_to_current_df_dir=path_to_current_df_dir,
+            model_name=umap_model_name
+        )
     
     logger.info(f"Applied UMAP to reduce dimensions of embeddings to {n_components}")
+
+    try:
+
+        clusterer = cluster_sentences(
+            clusterable_embeddings,
+            coverage_with_best=coverage_with_best,
+            min_cluster_size=min_cluster_size,
+            min_samples=min_samples,
+            metric=metric,                      
+            cluster_selection_method=cluster_selection_method)
+        
+    except (TypeError, ValueError):
+        return f'Number of samples is to small ({n_of_samples}) to use it with current settings.'
+    
+    else:
+
+        logger.info(f"Successfully clustered embeddings")
+
+        save_model(
+            model=clusterer,
+            path_to_current_df_dir=path_to_current_df_dir,
+            model_name=clusterer_model_name
+        )
+    
+    cluster_labels, closest_cluster_prob = perform_soft_clustering(
+        clusterer=clusterer,
+        original_labels=clusterer.labels_,
+        new_points=None,
+        outlier_treshold=outlier_treshold
+    )
+
+    logger.info(f"Clusters calculated successfully, number of clusters: {len(set(cluster_labels))}")
     
     dim_reducer_2d, dimensions_2d = dimension_reduction(
         all_vectors, 
@@ -442,31 +486,6 @@ def get_clusters_for_choosen_files(
     )
     
     logger.info(f"Applied UMAP to reduce dimensions for visualization")
-
-    clusterer = cluster_sentences(
-        clusterable_embeddings,
-        coverage_with_best=coverage_with_best,
-        min_cluster_size=min_cluster_size,
-        min_samples=min_samples,
-        metric=metric,                      
-        cluster_selection_method=cluster_selection_method)
-    
-    logger.info(f"Successfully clustered embeddings")
-
-    save_model(
-        model=clusterer,
-        path_to_current_df_dir=path_to_current_df_dir,
-        model_name=clusterer_model_name
-    )
-    
-    cluster_labels, closest_cluster_prob = perform_soft_clustering(
-        clusterer=clusterer,
-        original_labels=clusterer.labels_,
-        new_points=None,
-        outlier_treshold=outlier_treshold
-    )
-
-    logger.info(f"Clusters calculated successfully, number of clusters: {len(set(cluster_labels))}")
 
     df = pd.DataFrame({
         'x': dimensions_2d[:, 0],
@@ -529,7 +548,7 @@ def get_cluster_labels_for_new_file(
         index_ext: str = '.index',
         filename_column: str = 'filename',
         label_column: str = 'labels'):
-
+    
     hdbscan_loaded_model = load_model(
         path_to_current_df_dir=path_to_current_df_dir,
         model_name=clusterer_model_name
@@ -557,20 +576,30 @@ def get_cluster_labels_for_new_file(
 
     logger.debug(f'Successuffly laoded embeddings for {filename}')
 
-    clusterable_embeddings = umap_reducer.transform(vector_embeddings)
-    logger.info(f"Applied UMAP model for getting clusterable_embeddings")
+    try:
+        clusterable_embeddings = umap_reducer.transform(vector_embeddings)
+    except (TypeError, ValueError):
+        return f'Number of samples is to small to use it with current settings.'
+    else:
+        logger.info(f"Applied UMAP model for getting clusterable_embeddings")
 
     dimensions_2d = np.round(reducer_2d.transform(vector_embeddings), decimals=2)
     logger.info(f"Applied UMAP model for getting 2D coridinates for vizualization")
 
-    labels_for_new_file, _ = perform_soft_clustering(
-        clusterer=hdbscan_loaded_model,
-        original_labels=None,
-        new_points=clusterable_embeddings,
-        outlier_treshold=outlier_treshold
-    )
+    try:
+
+        labels_for_new_file, _ = perform_soft_clustering(
+            clusterer=hdbscan_loaded_model,
+            original_labels=None,
+            new_points=clusterable_embeddings,
+            outlier_treshold=outlier_treshold
+        )
     
-    logger.info(f'Successfully calculated labels for new file {filename}')
+    except (TypeError, ValueError):
+        return f'Number of samples is to small to use it with current settings.'
+    
+    else:
+        logger.info(f'Successfully calculated labels for new file {filename}')
     
     new_file_df = read_file(
         os.path.join(path_to_cleared_files_dir, f'{os.path.splitext(filename)[0]}{cleared_files_ext}'))
@@ -687,6 +716,7 @@ def save_cluster_exec_report(
        None
    """
     df = df.groupby(df[labels_column_name]).size().reset_index(name=cardinalities_column_name)
+    
     if len(df) == len(clusters_topics):
         df = pd.concat([df, clusters_topics.drop(columns=[labels_column_name])], axis=1) 
     else:

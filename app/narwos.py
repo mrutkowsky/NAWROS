@@ -43,6 +43,13 @@ DATE_FILTER_FORMAT = '%Y-%m-%d'
 USED_AS_BASE_KEY = "used_as_base"
 ONLY_CLASSIFIED_KEY = "only_classified"
 TOPICS_CONCAT_FOR_VIZ = 'topics'
+MIN_CLUSTER_SAMPLES = 15
+ZIP_EXT = '.zip'
+
+ALLOWED_EXTENSIONS = [
+    ".csv",
+    ".xlsx"
+]
 
 DEFAULT_REPORT_FORMAT_SETTINGS = {
     "ext": ".csv", "mimetype": "text/csv"
@@ -71,6 +78,7 @@ VALID_FILES_DIR = DIRECTORIES.get('valid_files')
 TMP_DIR = DIRECTORIES.get('tmp')
 EMBEDDINGS_DIR = DIRECTORIES.get('embeddings')
 EMPTY_CONTENT_DIR = DIRECTORIES.get('empty_content')
+EMPTY_CONTENT_ARCHIVE_DIR = DIRECTORIES.get('empty_content_archive')
 FAISS_VECTORS_DIR = DIRECTORIES.get('faiss_vectors')
 CLUSTER_EXEC_REPORTS_DIR = DIRECTORIES.get('cluster_exec_reports')
 COMPARING_REPORTS_DIR = DIRECTORIES.get('comparing_reports')
@@ -104,7 +112,6 @@ ETL_SETTINGS = CONFIGURATION.get('ETL_SETTINGS')
 TRANSLATE_CONTENT = ETL_SETTINGS.get('translate')
 GET_SENTIMENT = ETL_SETTINGS.get('sentiment')
 
-ALLOWED_EXTENSIONS = INPUT_FILES_SETTINGS.get('allowed_extensions')
 REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 
 EMBEDDINGS_MODEL = ML.get('embeddings').get('model_name')
@@ -187,6 +194,11 @@ PATH_TO_EMPTY_CONTENTS = os.path.join(
     EMPTY_CONTENT_DIR
 )
 
+PATH_TO_EMPTY_ARCHIVE = os.path.join(
+    DATA_FOLDER,
+    EMPTY_CONTENT_ARCHIVE_DIR
+)
+
 PATH_TO_TMP_DIR = os.path.join(
     DATA_FOLDER,
     TMP_DIR
@@ -228,16 +240,6 @@ PATH_TO_FILTERED_DF = os.path.join(
     DATA_FOLDER,
     FILTERED_DF_DIR,
     FILTERED_DF_FILE
-)
-
-PATH_TO_DETAILED_FILTERED_REPORTS = os.path.join(
-    DATA_FOLDER,
-    DETAILED_FILTERED_REPORTS
-)
-
-PATH_TO_DETAILED_CLUSTER_EXEC_REPORTS = os.path.join(
-    DATA_FOLDER,
-    DETAILED_CLUSTER_EXEC_REPORTS
 )
 
 PATH_TO_SWEARWORDS_DIR = os.path.join(
@@ -319,13 +321,15 @@ def upload_and_validate_files(
 def index():
 
     cluster_message = request.args.get("cluster_message")
+    cluster_failed_message = request.args.get("cluster_failed_message")
+
     success_upload = request.args.get("success_upload")
     failed_upload = request.args.get("failed_upload")
-    delete_message = request.args.get("delete_message")
+
+    delete_success_message = request.args.get("delete_success_message")
     upload_message = request.args.get("upload_message")
-    cluster_no_file_message = request.args.get("cluster_no_file_message")
     upload_no_file_message = request.args.get("upload_no_file_message")
-    delete_no_file_message = request.args.get("delete_no_file_message")
+    delete_failed_message = request.args.get("delete_failed_message")
  
     if success_upload is not None:
         success_upload = json.loads(success_upload)
@@ -345,13 +349,13 @@ def index():
         "index.html", 
         files=validated_files_to_show,
         upload_message=upload_message,
-        delete_message=delete_message,
+        delete_success_message=delete_success_message,
         cluster_message=cluster_message,
+        cluster_failed_message=cluster_failed_message,
         success_upload=success_upload, 
         failed_upload=failed_upload,
         upload_no_file_message=upload_no_file_message,
-        delete_no_file_message=delete_no_file_message,
-        cluster_no_file_message=cluster_no_file_message)
+        delete_failed_message=delete_failed_message)
 
 @app.route('/upload_file', methods=['POST'])
 def upload_file():
@@ -380,65 +384,69 @@ def delete_file():
     filename = request.form.get('to_delete')
 
     if not filename:
-        return redirect(url_for("index", delete_no_file_message=f'No file has been selected for deletion!'))
+        return redirect(url_for("index", delete_failed_message=f'No file has been selected for deletion!'))
 
     base_filename = os.path.splitext(filename)[0]
 
     logger.debug(f'Filename: {filename}, base name: {base_filename}')
 
+    file_path = os.path.join(
+        PATH_TO_VALID_FILES, 
+        filename)
+    
+    if not os.path.exists(file_path):
+
+        logger.debug(f'File {filename} does not exist in File Storage.')
+        return redirect(url_for("index", delete_failed_message=f'File {filename} does not exist in File Storage.'))
+    
     try:
-        file_path = os.path.join(
-            PATH_TO_VALID_FILES, 
-            filename)
-    except OSError:
-        return redirect(url_for("index", message=f'File {filename} does not exist.'))
-    else:
-
         os.remove(file_path)
+    except Exception as e:
+        return redirect(url_for("index", delete_failed_message=f'Can not delete {filename} from validated files dir!'))
 
-        for data_dir in [PATH_TO_CLEARED_FILES, PATH_TO_FAISS_VECTORS_DIR]:
+    for data_dir in [PATH_TO_CLEARED_FILES, PATH_TO_FAISS_VECTORS_DIR]:
 
-            logger.debug(f'Current data dir: {data_dir}')
+        logger.debug(f'Current data dir: {data_dir}')
 
-            filename_search_dir = {os.path.splitext(file_)[0]: file_ for file_ in os.listdir(data_dir)}
+        filename_search_dir = {os.path.splitext(file_)[0]: file_ for file_ in os.listdir(data_dir)}
 
-            logger.debug(f'Current {data_dir} search dir: {filename_search_dir}')
+        logger.debug(f'Current {data_dir} search dir: {filename_search_dir}')
 
-            if base_filename in filename_search_dir:
+        if base_filename in filename_search_dir:
 
-                logger.debug(f'File name with extension from dict: {filename_search_dir.get(base_filename)}')
+            logger.debug(f'File name with extension from dict: {filename_search_dir.get(base_filename)}')
 
-                file_path = os.path.join(
-                    data_dir, 
-                    filename_search_dir.get(base_filename))
+            file_path = os.path.join(
+                data_dir, 
+                filename_search_dir.get(base_filename))
 
-                if os.path.exists(file_path):
+            if os.path.exists(file_path):
 
-                    try:
-                        os.remove(file_path)
-                    except Exception as e:
-                        logger.error(f'Can not del {filename} from {data_dir} dir! - {e}')
-                        return redirect(url_for("index", delete_message=f'Can not del {filename} from {data_dir} dir!'))
-                    else:
-                        logger.info(f'Successfully deleted file from {data_dir}')
+                try:
+                    os.remove(file_path)
+                except Exception as e:
+                    logger.error(f'Can not del {filename} from {data_dir} dir! - {e}')
+                    return redirect(url_for("index", delete_failed_message=f'Can not del {filename} from {data_dir} dir!'))
+                else:
+                    logger.info(f'Successfully deleted file from {data_dir}')
 
-                        if data_dir == PATH_TO_FAISS_VECTORS_DIR:
- 
-                            deleted_successfully_from_json = del_file_from_embeded(
-                                filename_to_del=filename,
-                                path_to_embeddings_file=os.path.join(EMBEDDINGS_DIR, EMBEDDED_JSON)
-                            )
+                    if data_dir == PATH_TO_FAISS_VECTORS_DIR:
 
-                            if deleted_successfully_from_json:
+                        deleted_successfully_from_json = del_file_from_embeded(
+                            filename_to_del=filename,
+                            path_to_embeddings_file=os.path.join(EMBEDDINGS_DIR, EMBEDDED_JSON)
+                        )
 
-                                logger.info(f'Successfully deleted {filename} from JSON file')
+                        if deleted_successfully_from_json:
 
-                            else:
+                            logger.info(f'Successfully deleted {filename} from JSON file')
 
-                                logger.error(f'Failed to delete {filename} from JSON file')
-                                return redirect(url_for("index", delete_message=f'Failed to delete {filename} from JSON file.'))
-        
-        return redirect(url_for("index", delete_message=f'File {filename} deleted successfully.'))
+                        else:
+
+                            logger.error(f'Failed to delete {filename} from JSON file')
+                            return redirect(url_for("index", delete_failed_message=f'Failed to delete {filename} from JSON file.'))
+    
+    return redirect(url_for("index", delete_success_message=f'File {filename} deleted successfully.'))
     
 @app.route('/choose_files_for_clusters', methods=['POST', 'GET'])
 def choose_files_for_clusters():
@@ -446,11 +454,14 @@ def choose_files_for_clusters():
     files_for_clustering = request.form.getlist('chosen_files')
 
     if not files_for_clustering:
-        return redirect(url_for("index", cluster_no_file_message=f'No file has been selected for clustering!'))
+        return redirect(url_for("index", cluster_failed_message=f'No file has been selected for clustering.'))
+    
+    if not all(False for file_ in files_for_clustering if file_ not in os.listdir(PATH_TO_VALID_FILES)):
+        return redirect(url_for("index", cluster_failed_message=f'At least one file is not present in File Storage.'))
     
     logger.debug(f'Chosen files: {files_for_clustering}')
 
-    process_data_from_choosen_files(
+    zero_length_after_processing = process_data_from_choosen_files(
         chosen_files=files_for_clustering,
         path_to_valid_files=PATH_TO_VALID_FILES,
         path_to_cleared_files=PATH_TO_CLEARED_FILES,
@@ -472,6 +483,16 @@ def choose_files_for_clusters():
         empty_content_ext=EMPTY_CONTENTS_EXT,
         batch_size=BATCH_SIZE,
         seed=SEED)
+    
+    if zero_length_after_processing:
+
+        files_for_clustering = [
+            file_ for file_ in files_for_clustering 
+            if file_ not in zero_length_after_processing
+        ]
+
+    if not files_for_clustering:
+        return redirect(url_for("index", cluster_failed_message=f"After cleaning no files are suitable for clusterization."))
 
     new_current_df = get_clusters_for_choosen_files(
         chosen_files=files_for_clustering,
@@ -496,7 +517,12 @@ def choose_files_for_clusters():
         min_samples=HDBSCAN_SETTINGS.get('min_samples'),
         metric=HDBSCAN_SETTINGS.get('metric'),                      
         cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
-    ).astype({col: str for col in REQUIRED_COLUMNS})
+    )
+
+    if not isinstance(new_current_df, pd.DataFrame):
+        return redirect(url_for("index", cluster_failed_message=new_current_df))
+    
+    new_current_df = new_current_df.astype({col: str for col in REQUIRED_COLUMNS})
     
     cns_after_clusterization(
         new_current_df=new_current_df,
@@ -520,6 +546,33 @@ def choose_files_for_clusters():
     n_clusters = len(new_current_df[LABELS_COLUMN].unique())
 
     return redirect(url_for("index", cluster_message=f"{n_clusters} clusters have been created successfully."))
+
+@app.route('/get_empty_contents', methods=['GET'])
+def get_empty_contents():
+
+    full_filename = get_report_name_with_timestamp(
+        filename_prefix=EMPTY_CONTENTS_SUFFIX.lstrip('_')
+    )
+
+    filepath = os.path.join(PATH_TO_EMPTY_ARCHIVE, full_filename)
+
+    if len(set(list(os.listdir(PATH_TO_EMPTY_CONTENTS))).difference(set([GITKEEP_FILE]))) == 0:
+        return redirect(url_for("show_clusters", message=f'Currently no empty content files are available!'))
+    
+    logger.debug(f'Empty content dir: {os.listdir(PATH_TO_EMPTY_CONTENTS)}')
+    
+    shutil.make_archive(
+        filepath, 
+        ZIP_EXT.lstrip('.'), 
+        PATH_TO_EMPTY_CONTENTS)
+    
+    # Clear the folder
+    for file_ in os.listdir(PATH_TO_EMPTY_CONTENTS):
+        if file_.split('.')[0].endswith(EMPTY_CONTENTS_SUFFIX):
+            os.remove(os.path.join(PATH_TO_EMPTY_CONTENTS, file_))
+    
+    # Return the ZIP file to the user
+    return send_file(f"{filepath}{ZIP_EXT}", as_attachment=True, download_name=f"{full_filename}{ZIP_EXT}")
 
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
@@ -638,43 +691,75 @@ def get_exec_filtered_report():
 
     report_type = request.form.get('filtered_exec_report_type')
 
+    if not report_type:
+        return redirect(url_for("show_clusters", message="No report type has been selected."))
+    
+    if report_type not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_type} is not allowed."))
+
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
-    filtered_df = read_file(
-        file_path=PATH_TO_FILTERED_DF,
-        columns=[LABELS_COLUMN]
-    )
+    try:
+
+        filtered_df = read_file(
+            file_path=PATH_TO_FILTERED_DF,
+            columns=[LABELS_COLUMN]
+        )
+
+    except FileNotFoundError:
+        return redirect(url_for("show_clusters", message=f"DataFrame for filtering is not currently available."))
 
     filtered_exec_report_name = get_report_name_with_timestamp(
         filename_prefix=FILTERED_REPORT_PREFIX
     )
 
-    summary_df, _, _ = save_cluster_exec_report(
-        df=filtered_df,
-        filename=filtered_exec_report_name,
-        path_to_cluster_exec_reports_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
-        clusters_topics=read_file(file_path=os.path.join(PATH_TO_CURRENT_DF_DIR, TOPICS_DF_FILE)),
-        filename_ext=FILTERED_FILENAME_EXT,
-        labels_column_name=LABELS_COLUMN,
-        cardinalities_column_name=CARDINALITIES_COLUMN
-    )
+    try:
+        summary_df, _, _ = save_cluster_exec_report(
+            df=filtered_df,
+            filename=filtered_exec_report_name,
+            path_to_cluster_exec_reports_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
+            clusters_topics=read_file(file_path=os.path.join(PATH_TO_CURRENT_DF_DIR, TOPICS_DF_FILE)),
+            filename_ext=FILTERED_FILENAME_EXT,
+            labels_column_name=LABELS_COLUMN,
+            cardinalities_column_name=CARDINALITIES_COLUMN
+        )
 
-    resp_report = create_response_report(
-        df=summary_df,
-        filename=filtered_exec_report_name,
-        ext=report_ext,
-        mimetype=report_mimetype,
-        file_format=report_type
-    )
+    except Exception as e:
 
-    return resp_report
+        logger.error(f'Error while creating filtered exec report: {e}')
+        response = redirect(url_for('show_clusters',
+                            message='Can not save filtered report, file may be invalid'))
+
+    try:
+
+        response = create_response_report(
+            df=summary_df,
+            filename=filtered_exec_report_name,
+            ext=report_ext,
+            mimetype=report_mimetype,
+            file_format=report_type
+        )
+
+    except Exception as e:
+
+        logger.error(f'Error while creating response report: {e}')
+        response = redirect(url_for('show_clusters',
+                            message='Creation of exec filtered report response failed, file may be invalid'))
+
+    return response
 
 @app.route('/get_detailed_filtered_report', methods=['POST'])
 def get_detailed_filtered_report():
 
     report_type = request.form.get('detailed_filtered_report_type')
+
+    if not report_type:
+        return redirect(url_for("show_clusters", message="No report type has been selected."))
+    
+    if report_type not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_type} is not allowed."))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -684,25 +769,45 @@ def get_detailed_filtered_report():
         filename_prefix=FILTERED_REPORT_PREFIX
     )
 
-    filtered_df = read_file(
-        file_path=PATH_TO_FILTERED_DF,
-        columns=ALL_DETAILED_REPORT_COLUMNS
-    )
+    try:
+        filtered_df = read_file(
+            file_path=PATH_TO_FILTERED_DF,
+            columns=ALL_DETAILED_REPORT_COLUMNS
+        )
 
-    resp_report = create_response_report(
-        df=filtered_df,
-        filename=filtered_df_filename,
-        ext=report_ext,
-        mimetype=report_mimetype,
-        file_format=report_type
-    )
+    except Exception as e:
+        logger.error(f'Error while reading filtered df: {e}')
+        response = redirect(url_for('show_clusters',
+                            message='Can not read filtered df, file may be invalid'))
+        
+    try:
 
-    return resp_report
+        response = create_response_report(
+            df=filtered_df,
+            filename=filtered_df_filename,
+            ext=report_ext,
+            mimetype=report_mimetype,
+            file_format=report_type
+        )
+
+    except Exception as e:
+
+        logger.error(f'Error while creating response report: {e}')
+        response = redirect(url_for('show_clusters',
+                            message='Creation of detailed filtered report response failed, file may be invalid'))
+
+    return response
 
 @app.route('/get_last_cluster_exec_report', methods=['POST'])
 def get_last_cluster_exec_report():
 
     report_type = request.form.get('last_report_type')
+
+    if not report_type:
+        return redirect(url_for("show_clusters", message="No report type has been chosen."))
+    
+    if report_type not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_type} is not allowed."))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -714,19 +819,38 @@ def get_last_cluster_exec_report():
         n_reports=1
     )
 
-    cluster_exec_df = read_file(
-        file_path=os.path.join(PATH_TO_CLUSTER_EXEC_REPORTS_DIR, latest_exec_report)
-    )
+    if latest_exec_report is None:
+        return redirect(url_for("show_clusters", message="No clusterization exec reports are currently available."))
 
-    resp_report = create_response_report(
-        df=cluster_exec_df,
-        filename=latest_exec_report.split('.')[0],
-        ext=report_ext,
-        mimetype=report_mimetype,
-        file_format=report_type
-    )
+    try:
 
-    return resp_report
+        cluster_exec_df = read_file(
+            file_path=os.path.join(PATH_TO_CLUSTER_EXEC_REPORTS_DIR, latest_exec_report)
+        )
+
+    except Exception as e:
+
+        logger.error(f'Can not read clusterizaton report {latest_exec_report} - {e}')
+        return redirect(url_for("show_clusters", message=f"""
+            Could not read cluster exec report {latest_exec_report}. File may be invalid"""))
+
+    try :
+
+        response = create_response_report(
+            df=cluster_exec_df,
+            filename=latest_exec_report.split('.')[0],
+            ext=report_ext,
+            mimetype=report_mimetype,
+            file_format=report_type
+        )
+
+    except Exception as e:
+
+        logger.error(f'Creating response report failed. {e}')
+        response = redirect(url_for("show_clusters", message=f"""
+            Could not create cluster exec report {latest_exec_report}. File may be invalid"""))
+
+    return response
 
 @app.route('/get_chosen_cluster_exec_report', methods=['POST'])
 def get_chosen_cluster_exec_report():
@@ -734,13 +858,24 @@ def get_chosen_cluster_exec_report():
     chosen_report_name = request.form.get('chosen_report_name')
     report_type = request.form.get('chosen_report_type')
 
+    if not report_type:
+        return redirect(url_for("show_clusters", message="No report type has been chosen."))
+    
+    if report_type not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_type} is not allowed."))
+    
+    try:
+
+        cluster_exec_df = read_file(
+            file_path=os.path.join(PATH_TO_CLUSTER_EXEC_REPORTS_DIR, chosen_report_name)
+        )
+
+    except FileNotFoundError:
+        return redirect(url_for("show_clusters", message=f"Selected cluster exec report {chosen_report_name} does not exist in File Storage"))
+    
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
-
-    cluster_exec_df = read_file(
-        file_path=os.path.join(PATH_TO_CLUSTER_EXEC_REPORTS_DIR, chosen_report_name)
-    )
 
     resp_report = create_response_report(
         df=cluster_exec_df,
@@ -757,6 +892,12 @@ def get_chosen_cluster_exec_report():
 def get_detailed_cluster_exec_report():
 
     report_type = request.form.get('report_type_exec')
+
+    if not report_type:
+        return redirect(url_for("show_clusters", message="No report type has been chosen."))
+    
+    if report_type not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_type} is not allowed."))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -788,7 +929,7 @@ def update_clusters_new_file():
     filename = uploaded_file.filename
 
     if filename == '':
-        return redirect(url_for("show_clusters", update_clusters_new_file_no_file_message=f'No file has been selected for uploading!'))
+        return redirect(url_for("show_clusters", message=f'No file has been selected for uploading!'))
 
     logger.debug(f"Uploaded file: {filename}")
 
@@ -805,7 +946,7 @@ def update_clusters_new_file():
 
         if success_upload:
 
-            rows_cards_for_preprocessed = process_data_from_choosen_files(
+            zero_length_after_processing = process_data_from_choosen_files(
                 chosen_files=[filename],
                 path_to_valid_files=PATH_TO_VALID_FILES,
                 path_to_cleared_files=PATH_TO_CLEARED_FILES,
@@ -828,7 +969,22 @@ def update_clusters_new_file():
                 batch_size=BATCH_SIZE,
                 seed=SEED)
             
-            n_of_rows_for_new_file = rows_cards_for_preprocessed.get(filename)
+            if zero_length_after_processing:
+                return redirect(url_for("show_clusters", message=f"After preprocessing the file {filename} no samples have left."))
+            
+            filename_in_cleared_files = find_filename_in_dir(
+                path_to_dir=PATH_TO_CLEARED_FILES) \
+                    .get(os.path.splitext(filename)[0])
+            
+            logger.debug(filename_in_cleared_files)
+
+            n_of_rows_for_new_file = get_n_of_rows_df(
+                os.path.join(PATH_TO_CLEARED_FILES, filename_in_cleared_files),
+                loaded_column=ORIGINAL_CONTENT_COLUMN,
+            )
+
+            if n_of_rows_for_new_file < MIN_CLUSTER_SAMPLES:
+                return redirect(url_for("show_clusters", update_clusters_new_file_message=f"Number of samples for clusterization after preprocessing should be at least {MIN_CLUSTER_SAMPLES}."))
 
             rows_cardinalities_current_df = get_rows_cardinalities(
                 path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES
@@ -851,6 +1007,7 @@ def update_clusters_new_file():
                     path_to_cleared_files_dir=PATH_TO_CLEARED_FILES,
                     path_to_faiss_vetors_dir=PATH_TO_FAISS_VECTORS_DIR,
                     required_columns=REQUIRED_COLUMNS,
+                    n_of_samples=n_of_rows_for_new_file,
                     topic_df_filename=TOPICS_DF_FILE,
                     outlier_treshold=OUTLIER_TRESHOLD,
                     clusterer_model_name=HDBSCAN_MODEL_NAME,
@@ -858,6 +1015,9 @@ def update_clusters_new_file():
                     reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
                     cleared_files_ext=CLEARED_FILE_EXT
                 )
+
+                if not isinstance(new_current_df, pd.DataFrame):
+                    return redirect(url_for("show_clusters", update_clusters_new_file_message=new_current_df))
 
                 rows_cardinalities_current_df[ONLY_CLASSIFIED_KEY][filename] = n_of_rows_for_new_file
                 set_rows_cardinalities(
@@ -925,7 +1085,12 @@ def update_clusters_new_file():
                     min_samples=HDBSCAN_SETTINGS.get('min_samples'),
                     metric=HDBSCAN_SETTINGS.get('metric'),                      
                     cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
-                ).astype({col: str for col in REQUIRED_COLUMNS})
+                )
+
+                if not isinstance(new_current_df, pd.DataFrame):
+                    return redirect(url_for("show_clusters", update_clusters_new_file_message=new_current_df))
+                
+                new_current_df = new_current_df.astype({col: str for col in REQUIRED_COLUMNS})
                 
                 path_to_exec_report, destination_filename = cns_after_clusterization(
                     new_current_df=new_current_df,
@@ -965,13 +1130,15 @@ def update_clusters_new_file():
 def update_clusters_existing_file():
     
     existing_file_for_update = request.form.get('ex_file_update')
-    logger.info(existing_file_for_update)
+    logger.debug(existing_file_for_update)
 
+    if not existing_file_for_update:
+        return redirect(url_for("show_clusters", message=f"No file has been selected!"))
 
     if not os.path.exists(os.path.join(PATH_TO_VALID_FILES, existing_file_for_update)):
-        return redirect(url_for("show_clusters", message=f"Selected file {existing_file_for_update} does not exist!"))
+        return redirect(url_for("show_clusters", message=f"Selected file {existing_file_for_update} does not exist in File Storage!"))
 
-    rows_cards_for_preprocessed = process_data_from_choosen_files(
+    zero_length_after_processing = process_data_from_choosen_files(
         chosen_files=[existing_file_for_update],
         path_to_valid_files=PATH_TO_VALID_FILES,
         path_to_cleared_files=PATH_TO_CLEARED_FILES,
@@ -994,28 +1161,31 @@ def update_clusters_existing_file():
         batch_size=BATCH_SIZE,
         seed=SEED)
     
-    if rows_cards_for_preprocessed:
-        n_of_rows_for_new_file = rows_cards_for_preprocessed.get(existing_file_for_update)
-    else:
+    if zero_length_after_processing:
+        return redirect(url_for("show_clusters", message=f"After preprocessing the file {existing_file_for_update} no samples have left."))
+    
+    logger.debug(existing_file_for_update)
 
-        logger.debug(existing_file_for_update)
+    filename_in_cleared_files = find_filename_in_dir(
+        path_to_dir=PATH_TO_CLEARED_FILES) \
+            .get(os.path.splitext(existing_file_for_update)[0])
+    
+    logger.debug(filename_in_cleared_files)
 
-        filename_in_cleared_files = find_filename_in_dir(
-            path_to_dir=PATH_TO_CLEARED_FILES) \
-                .get(os.path.splitext(existing_file_for_update)[0])
-        
-        logger.debug(filename_in_cleared_files)
+    n_of_rows_existing_file = get_n_of_rows_df(
+        os.path.join(PATH_TO_CLEARED_FILES, filename_in_cleared_files),
+        loaded_column=ORIGINAL_CONTENT_COLUMN,
+    )
 
-        n_of_rows_for_new_file = get_n_of_rows_df(
-            os.path.join(PATH_TO_CLEARED_FILES, filename_in_cleared_files)
-        )
+    if n_of_rows_existing_file < MIN_CLUSTER_SAMPLES:
+        return redirect(url_for("show_clusters", message=f"Number of samples for clusterization after preprocessing should be at least {MIN_CLUSTER_SAMPLES}."))
 
     rows_cardinalities_current_df = get_rows_cardinalities(
         path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES
     )
 
     need_to_recalculate = cluster_recalculation_needed(
-        n_of_rows=n_of_rows_for_new_file,
+        n_of_rows=n_of_rows_existing_file,
         rows_cardinalities_current_df=rows_cardinalities_current_df,
         recalculate_treshold=RECALCULATE_CLUSTERS_TRESHOLD
     )
@@ -1039,7 +1209,10 @@ def update_clusters_existing_file():
             cleared_files_ext=CLEARED_FILE_EXT
         )
 
-        rows_cardinalities_current_df[ONLY_CLASSIFIED_KEY][existing_file_for_update] = n_of_rows_for_new_file
+        if not isinstance(new_current_df, pd.DataFrame):
+            return redirect(url_for("show_clusters", message=new_current_df))
+
+        rows_cardinalities_current_df[ONLY_CLASSIFIED_KEY][existing_file_for_update] = n_of_rows_existing_file
         set_rows_cardinalities(
             path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES,
             updated_cardinalities=rows_cardinalities_current_df
@@ -1093,7 +1266,12 @@ def update_clusters_existing_file():
             min_samples=HDBSCAN_SETTINGS.get('min_samples'),
             metric=HDBSCAN_SETTINGS.get('metric'),                      
             cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
-        ).astype({col: str for col in REQUIRED_COLUMNS})
+        )
+
+        if not isinstance(new_current_df, pd.DataFrame):
+            return redirect(url_for("show_clusters", message=new_current_df))
+
+        new_current_df = new_current_df.astype({col: str for col in REQUIRED_COLUMNS})
         
         cns_after_clusterization(
             new_current_df=new_current_df,
@@ -1124,29 +1302,48 @@ def compare_selected_reports():
     report_format_form = request.form.get('file-format')
 
     if any(not file_ for file_ in [filename1, filename2]):
-        return redirect(url_for("show_clusters", message=f"Chosing both files is required"))
-    
+        return redirect(url_for("show_clusters",
+                                message=f"Chosing both files is required"))
+
     if filename1 == filename2:
-        return redirect(url_for("show_clusters", message=f"Chosen files must be different"))
+        return redirect(url_for("show_clusters",
+                                message=f"Chosen files must be different"))
     
+    if not report_format_form:
+        return redirect(url_for("show_clusters", message="No report type has been chosen."))
+    
+    if report_format_form not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_format_form} is not allowed."))
+
     logger.debug(f'{report_format_form=}')
 
-    ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, DEFAULT_REPORT_FORMAT_SETTINGS)
+    ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form,
+                                              DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
     logger.debug(filename1, filename2)
 
-    comparison_result_df = compare_reports(
-        first_report_name=filename1,
-        second_report_name=filename2,
-        path_to_reports_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR
-    )
+    try:
+
+        comparison_result_df = compare_reports(
+            first_report_name=filename1,
+            second_report_name=filename2,
+            path_to_reports_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR
+        )
+
+    except Exception as e:
+
+        logger.error(f'Comparing reports failed, could not compare report {filename1} and {filename2} - {e}')
+        return redirect(url_for("show_clusters",
+                                message=f"""Error while trying to compare reports, files may be invalid."""))
 
     logger.debug(comparison_result_df)
 
     comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
-    path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR, f"{comparison_report_filename}{report_ext}")
+    
+    path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR,
+                                      f"{comparison_report_filename}{report_ext}")
 
     logger.debug(f'{report_ext=}')
 
@@ -1161,20 +1358,33 @@ def compare_selected_reports():
        
     elif report_ext == '.pdf':
 
-        create_pdf_comaprison_report(
-            df=comparison_result_df,
-            old_col_name=OLD_COL_NAME,
-            new_col_name=NEW_COL_NAME,
-            cols_for_label=COLS_FOR_LABEL,
-            cols_for_old_label=COLS_FOR_OLD_LABEL,
-            output_file_path=path_to_new_report
-        )
+        filenames = [filename1.split('.')[0], filename2.split('.')[0]]
+    
+        try:
+            create_pdf_comaprison_report(
+                df=comparison_result_df,
+                old_col_name=OLD_COL_NAME,
+                new_col_name=NEW_COL_NAME,
+                cols_for_label=COLS_FOR_LABEL,
+                cols_for_old_label=COLS_FOR_OLD_LABEL,
+                output_file_path=path_to_new_report,
+                filenames=filenames
+            )
+
+        except Exception as e:
+
+            logger.error(f'Creating pdf report failed for {filenames} - {e}')
+            return redirect(url_for("show_clusters",
+                                    message=f"Could not create comparing pdf report"))
 
         logger.debug(f'Report ext is .pdf')
 
     else:
-        raise ValueError(f"Report extension {report_ext} is not supported")   
 
+        logger.error(f"Report extension {report_ext} is not supported")
+        return redirect(url_for("show_clusters", message=f"""
+            Could not create comparing report beacuse report extension {report_ext} is not supported"""))
+ 
     response = make_response(send_file(
         path_to_new_report,
         mimetype = report_mimetype,
@@ -1186,36 +1396,90 @@ def compare_selected_reports():
 
 @app.route('/compare_with_last_report', methods=['POST'])
 def compare_with_last_report():
-    
-    filename1, filename2 = find_latested_n_exec_report(
-        path_to_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
-        cluster_exec_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
-        n_reports=2)
+
+    try:
+
+        filename1, filename2 = find_latested_n_exec_report(
+            path_to_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
+            cluster_exec_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
+            n_reports=2)
+        
+    except (ValueError, TypeError):
+
+        logger.error(f"Could not find latest reports to compare")
+        return redirect(url_for("show_clusters", message=f"Currently there are not enough cluster execution reports to compare"))
     
     report_format_form = request.form.get('file-format')
+
+    if not report_format_form:
+        return redirect(url_for("show_clusters", message="No report type has been chosen."))
+    
+    if report_format_form not in REPORT_FORMATS_MAPPING.keys():
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_format_form} is not allowed."))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
-    comparison_result_df = compare_reports(
-        first_report_name=filename1,
-        second_report_name=filename2,
-        path_to_reports_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR
-    )
+    try:
 
+        comparison_result_df = compare_reports(
+            first_report_name=filename1,
+            second_report_name=filename2,
+            path_to_reports_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR
+        )
+
+    except Exception as e:
+
+        logger.error(f'Comparing reports failed, could not compare report {filename1} and {filename2} - {e}')
+        return redirect(url_for("show_clusters",
+                                message=f"""Error while trying to compare reports, files may be invalid."""))
     logger.debug(comparison_result_df)
 
     comparison_report_filename = f"{filename1.split('.')[0]}__{filename2.split('.')[0]}{COMPARING_REPORT_SUFFIX}"
-
-    save_df_to_file(
-        df=comparison_result_df,
-        filename=comparison_report_filename,
-        path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
-        file_ext=report_ext
+    
+    path_to_new_report = os.path.join(
+        PATH_TO_COMPARING_REPORTS_DIR,
+        f"{comparison_report_filename}{report_ext}"
     )
 
-    path_to_new_report = os.path.join(PATH_TO_COMPARING_REPORTS_DIR, f"{comparison_report_filename}{report_ext}")
+    if report_ext in ['.csv', '.xlsx', '.html']:
+
+        save_df_to_file(
+            df=comparison_result_df,
+            filename=comparison_report_filename,
+            path_to_dir=PATH_TO_COMPARING_REPORTS_DIR,
+            file_ext=report_ext
+        )
+
+    elif report_ext == '.pdf':
+
+        filenames = [filename1.split('.')[0], filename2.split('.')[0]]
+
+        try:
+
+            create_pdf_comaprison_report(
+                df=comparison_result_df,
+                old_col_name=OLD_COL_NAME,
+                new_col_name=NEW_COL_NAME,
+                cols_for_label=COLS_FOR_LABEL,
+                cols_for_old_label=COLS_FOR_OLD_LABEL,
+                output_file_path=path_to_new_report,
+                filenames=filenames
+            )
+
+        except Exception as e:
+
+            logger.error(f'Creating pdf report failed for {filenames} - {e}')
+            return redirect(url_for("show_clusters",
+                                    message=f"Could not create comparing pdf report"))
+
+    else:
+
+        logger.error(f"Report extension {report_ext} is not supported")
+        return redirect(url_for("show_clusters", message=f"""
+            Could not create comparing report beacuse report extension {report_ext} is not supported"""))
+ 
 
     response = make_response(send_file(
         path_to_new_report,
@@ -1225,16 +1489,6 @@ def compare_with_last_report():
     ))
 
     return response
-
-@app.route('/get_items', methods=['GET'])
-def get_items():
-    selected_column = request.args.get('column')
-    logger.info(selected_column)
-    df = read_file(PATH_TO_CURRENT_DF)
-
-    response = {'items': list(df[selected_column].unique()) }
-    logger.info(response)
-    return jsonify(response)
 
 if __name__ == '__main__':
     app.run(debug=True)

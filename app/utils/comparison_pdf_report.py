@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import logging
 
-from copy import deepcopy
-
 logger = logging.getLogger(__file__)
 
 LABEL = 'Label'
@@ -69,7 +67,8 @@ def create_df_for_barh(df: pd.DataFrame,
 def plot_changed_groups(df_changed: pd.DataFrame,
                         old_col_name: str,
                         new_col_name: str,
-                        indicato_col: str) -> plt.figure:
+                        indicator_col: str,
+                        filenames: list) -> plt.figure:
     """
     Plot a barh plot of changed groups.
     
@@ -77,12 +76,16 @@ def plot_changed_groups(df_changed: pd.DataFrame,
         df_changed (pd.DataFrame): The DataFrame with changed groups.
         old_col_name (str): The name of the column with old values.
         new_col_name (str): The name of the column with new values.
+        indicato_col (str): The name of the column with indicator values.
+        report_num (str): The number of the report to be display on the title.
         
     Returns:
         plt.figure: The figure with the plot.
     """
     df_changed = df_changed.sort_values(by=new_col_name, ascending=True)
     df_changed.reset_index(inplace=True)
+
+    logger.info(f'Size of dataframe with changed groups: {df_changed.shape}')
     
     bar_positions = np.arange(len(df_changed))
     bar_height = 0.4
@@ -95,7 +98,7 @@ def plot_changed_groups(df_changed: pd.DataFrame,
     ax.barh(bar_positions, df_changed[old_col_name], height=bar_height,\
         color=OLD_GROUP_COLOR, label=old_col_name)
 
-    for i, diff in enumerate(df_changed[indicato_col]):
+    for i, diff in enumerate(df_changed[indicator_col]):
         x = max(df_changed[new_col_name][i], df_changed[old_col_name][i]) + 1
         y = bar_positions[i] + bar_height / 2
         ax.text(x, y, f'{diff}', va='center')
@@ -104,12 +107,25 @@ def plot_changed_groups(df_changed: pd.DataFrame,
     ax.set_yticks(bar_positions + bar_height)
     ax.set_yticklabels(df_changed[LABEL])
 
-    plt.text(0.5, 1.3, s='Comparison Report',\
-             transform=ax.transAxes, fontsize=22, verticalalignment='top',\
-                horizontalalignment='center')
-    plt.text(0.5, 1.1, 'The groups that have changed',\
+    if len(df_changed) > 46:
+        y_top, y_bottom = (1.05, 1.02)
+    elif len(df_changed) > 26:
+        y_top, y_bottom = (1.1, 1.05)
+    elif len(df_changed) > 12:
+        y_top, y_bottom = (1.2, 1.1)
+    elif len(df_changed) > 6:
+        y_top, y_bottom = (1.8, 1.2)
+    else:
+        y_top, y_bottom = (2, 1.4)
+        
+    plt.text(0, y_top, s=f'Comparison Report',\
+             transform=ax.transAxes, fontsize=26, verticalalignment='top',\
+                ha='left')
+    plt.text(0, y_bottom, f'{filenames[0]} vs {filenames[1]}',\
             transform=ax.transAxes, fontsize=12, verticalalignment='top',\
-                horizontalalignment='center')
+                ha='left')
+    # plt.title('Comparison Report', fontsize=32, pad=20, loc='left', )
+    # plt.subtitle('The groups that have changed', fontsize=16, pad=20, loc='left')
     plt.xlabel(XLABEL)
     plt.ylabel(YLABEL)
     plt.tight_layout()
@@ -151,6 +167,16 @@ def create_single_bar_barh(df,
 
     return fig
 
+def create_text(text: str) -> plt.figure:
+    """
+    Create a figure with a text.
+    """
+    fig = plt.figure(visible=True, figsize=(8, 1))
+    ax = fig.add_subplot(111)
+    ax.text(0.5, 0.5, text, ha='right', va='center', fontsize=12)
+    plt.axis('off')
+    return fig
+
 
 def plot_group(comp_report_df: pd.DataFrame,
                vals_col_name: str,
@@ -160,31 +186,52 @@ def plot_group(comp_report_df: pd.DataFrame,
                plot_title: str,
                no_topic_phrase: str,
                new_group: bool
-               ) -> plt.figure:
+               ) -> plt.figure or None:
+    """
+    Create a barh plot of a single group (no changes).
+    Color of the bar is determined by the new_group parameter.
+
+    Args:
+        comp_report_df (pd.DataFrame): The DataFrame with the comparison report.
+        vals_col_name (str): The name of the column with values.
+        indicator_value (str): The value of the indicator column that tells if 
+            the group is new, old or simply has changed quantity.
+        columns_for_label (list): The list of columns to be used for the label.
+        indicator_col_name (str): The name of the indicator column.
+        plot_title (str): The title of the plot.
+        no_topic_phrase (str): The phrase to be used if there are no topics.
+        new_group (bool): If True, the color of the bar is NEW_GROUP_COLOR,
+            otherwise OLD_GROUP_COLOR.
+
+    Returns:
+        plt.figure: The bar horizontal plot.
+    """
 
     df = comp_report_df[columns_for_label + [vals_col_name, indicator_col_name]].copy()    
     df.where(df[indicator_col_name] == indicator_value, inplace=True)
     df.dropna(inplace=True)
+    if len(df) == 0:
+        fig = create_text(f'There are no "{indicator_value}" groups.')
+    else:
+        df[LABEL] = df[columns_for_label].apply(
+            lambda x: combine_words(x, no_topic_phrase), axis=1
+            )
+        
+        df[vals_col_name] = pd.to_numeric(df[vals_col_name], errors='coerce')
+        df.dropna(inplace=True)
+        
+        df[vals_col_name] = df[vals_col_name].astype(int)
 
-    df[LABEL] = df[columns_for_label].apply(
-        lambda x: combine_words(x, no_topic_phrase), axis=1
-        )
+        df.reset_index(inplace=True)
+
+        df = df[[LABEL] + [vals_col_name]]
     
-    df[vals_col_name] = pd.to_numeric(df[vals_col_name], errors='coerce')
-    df.dropna(inplace=True)
-    
-    df[vals_col_name] = df[vals_col_name].astype(int)
-
-    df.reset_index(inplace=True)
-
-    df = df[[LABEL] + [vals_col_name]]
- 
-    fig = create_single_bar_barh(df,
-                                 vals_col_name=vals_col_name,
-                                 label_col_name=LABEL,
-                                 plot_title=plot_title,
-                                 new_group=new_group
-                                 )
+        fig = create_single_bar_barh(df,
+                                    vals_col_name=vals_col_name,
+                                    label_col_name=LABEL,
+                                    plot_title=plot_title,
+                                    new_group=new_group
+                                    )
     
     return fig
 
@@ -219,7 +266,8 @@ def save_to_pdf(figures: list, output_file_path: str) -> None:
 
     with PdfPages(output_file_path) as pdf:
         for fig in figures:
-            pdf.savefig(fig, bbox_inches='tight')
+            if fig is not None:
+                pdf.savefig(fig, bbox_inches='tight')
         plt.close()
 
 
@@ -230,6 +278,7 @@ def create_pdf_comaprison_report(
         output_file_path: str,
         cols_for_label: list,
         cols_for_old_label: list,
+        filenames: list,
         old_col_value: str=OLD_GROUP_VAL,
         new_col_value: str=NEW_GROUP_VAL,
         indicator_col_name: str=INDICATOR_COL,
@@ -240,7 +289,6 @@ def create_pdf_comaprison_report(
     """
     Calls all plot generation functions and saves the plots to a pdf file.
     """
-
     df_changed = create_df_for_barh(df,
                                     indicator_col_name=indicator_col_name,
                                     indicator_value_for_new=new_col_value,
@@ -254,7 +302,9 @@ def create_pdf_comaprison_report(
     fig_changed_groups = plot_changed_groups(df_changed,
                                              old_col_name,
                                              new_col_name,
-                                             indicator_col_name)    
+                                             indicator_col_name,
+                                             filenames
+                                             )    
     
     fig_new_group = plot_group(df,
                                vals_col_name=new_col_name,
