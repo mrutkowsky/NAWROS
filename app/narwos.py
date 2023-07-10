@@ -699,10 +699,10 @@ def get_exec_filtered_report():
     report_type = request.form.get('filtered_exec_report_type')
 
     if not report_type:
-        return redirect(url_for("show_clusters"), message="No report type has been selected.")
+        return redirect(url_for("show_clusters", message="No report type has been selected."))
     
     if report_type not in REPORT_FORMATS_MAPPING.keys():
-        return redirect(url_for("show_clusters"), message=f"Selected report type {report_type} is not allowed.")
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_type} is not allowed."))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -716,7 +716,7 @@ def get_exec_filtered_report():
         )
 
     except FileNotFoundError:
-        return redirect(url_for("show_clusters"), message=f"DataFrame for filtering is not currently available.")
+        return redirect(url_for("show_clusters", message=f"DataFrame for filtering is not currently available."))
 
     filtered_exec_report_name = get_report_name_with_timestamp(
         filename_prefix=FILTERED_REPORT_PREFIX
@@ -736,8 +736,8 @@ def get_exec_filtered_report():
     except Exception as e:
 
         logger.error(f'Error while creating filtered exec report: {e}')
-        response = redirect(url_for('show_clusters'),
-                            message='Can not save filtered report, file may be invalid')
+        response = redirect(url_for('show_clusters',
+                            message='Can not save filtered report, file may be invalid'))
 
     try:
 
@@ -752,8 +752,8 @@ def get_exec_filtered_report():
     except Exception as e:
 
         logger.error(f'Error while creating response report: {e}')
-        response = redirect(url_for('show_clusters'),
-                            message='Creation of exec filtered report response failed, file may be invalid')
+        response = redirect(url_for('show_clusters',
+                            message='Creation of exec filtered report response failed, file may be invalid'))
 
     return response
 
@@ -763,10 +763,10 @@ def get_detailed_filtered_report():
     report_type = request.form.get('detailed_filtered_report_type')
 
     if not report_type:
-        return redirect(url_for("show_clusters"), message="No report type has been selected.")
+        return redirect(url_for("show_clusters", message="No report type has been selected."))
     
     if report_type not in REPORT_FORMATS_MAPPING.keys():
-        return redirect(url_for("show_clusters"), message=f"Selected report type {report_type} is not allowed.")
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_type} is not allowed."))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -784,8 +784,8 @@ def get_detailed_filtered_report():
 
     except Exception as e:
         logger.error(f'Error while reading filtered df: {e}')
-        response = redirect(url_for('show_clusters'),
-                            message='Can not read filtered df, file may be invalid')
+        response = redirect(url_for('show_clusters',
+                            message='Can not read filtered df, file may be invalid'))
         
     try:
 
@@ -800,8 +800,8 @@ def get_detailed_filtered_report():
     except Exception as e:
 
         logger.error(f'Error while creating response report: {e}')
-        response = redirect(url_for('show_clusters'),
-                            message='Creation of detailed filtered report response failed, file may be invalid')
+        response = redirect(url_for('show_clusters',
+                            message='Creation of detailed filtered report response failed, file may be invalid'))
 
     return response
 
@@ -811,10 +811,10 @@ def get_last_cluster_exec_report():
     report_type = request.form.get('last_report_type')
 
     if not report_type:
-        return redirect(url_for("show_clusters"), message="No report type has been chosen.")
+        return redirect(url_for("show_clusters", message="No report type has been chosen."))
     
     if report_type not in REPORT_FORMATS_MAPPING.keys():
-        return redirect(url_for("show_clusters"), message=f"Selected report type {report_type} is not allowed.")
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_type} is not allowed."))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -866,10 +866,10 @@ def get_chosen_cluster_exec_report():
     report_type = request.form.get('chosen_report_type')
 
     if not report_type:
-        return redirect(url_for("show_clusters"), message="No report type has been chosen.")
+        return redirect(url_for("show_clusters", message="No report type has been chosen."))
     
     if report_type not in REPORT_FORMATS_MAPPING.keys():
-        return redirect(url_for("show_clusters"), message=f"Selected report type {report_type} is not allowed.")
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_type} is not allowed."))
     
     try:
 
@@ -878,7 +878,7 @@ def get_chosen_cluster_exec_report():
         )
 
     except FileNotFoundError:
-        return redirect(url_for("show_clusters"), message=f"Selected cluster exec report {chosen_report_name} does not exist in File Storage")
+        return redirect(url_for("show_clusters", message=f"Selected cluster exec report {chosen_report_name} does not exist in File Storage"))
     
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -901,10 +901,10 @@ def get_detailed_cluster_exec_report():
     report_type = request.form.get('report_type_exec')
 
     if not report_type:
-        return redirect(url_for("show_clusters"), message="No report type has been chosen.")
+        return redirect(url_for("show_clusters", message="No report type has been chosen."))
     
     if report_type not in REPORT_FORMATS_MAPPING.keys():
-        return redirect(url_for("show_clusters"), message=f"Selected report type {report_type} is not allowed.")
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_type} is not allowed."))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -1317,10 +1317,10 @@ def compare_selected_reports():
                                 message=f"Chosen files must be different"))
     
     if not report_format_form:
-        return redirect(url_for("show_clusters"), message="No report type has been chosen.")
+        return redirect(url_for("show_clusters", message="No report type has been chosen."))
     
     if report_format_form not in REPORT_FORMATS_MAPPING.keys():
-        return redirect(url_for("show_clusters"), message=f"Selected report type {report_format_form} is not allowed.")
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_format_form} is not allowed."))
 
     logger.debug(f'{report_format_form=}')
 
@@ -1411,7 +1411,7 @@ def compare_with_last_report():
             cluster_exec_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
             n_reports=2)
         
-    except ValueError:
+    except (ValueError, TypeError):
 
         logger.error(f"Could not find latest reports to compare")
         return redirect(url_for("show_clusters", message=f"Currently there are not enough cluster execution reports to compare"))
@@ -1419,10 +1419,10 @@ def compare_with_last_report():
     report_format_form = request.form.get('file-format')
 
     if not report_format_form:
-        return redirect(url_for("show_clusters"), message="No report type has been chosen.")
+        return redirect(url_for("show_clusters", message="No report type has been chosen."))
     
     if report_format_form not in REPORT_FORMATS_MAPPING.keys():
-        return redirect(url_for("show_clusters"), message=f"Selected report type {report_format_form} is not allowed.")
+        return redirect(url_for("show_clusters", message=f"Selected report type {report_format_form} is not allowed."))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_format_form, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
