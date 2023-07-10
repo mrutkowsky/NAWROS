@@ -21,6 +21,7 @@ from utils.embeddings_module import load_transformer_model, get_embeddings
 from utils.etl import preprocess_text
 from utils.sentiment_analysis import load_sentiment_model, predict_sentiment, offensive_language
 from utils.translation import load_lang_detector, load_translation_model, detect_lang, translate_text
+from dateutil import parser
 
 logger = logging.getLogger(__file__)
 
@@ -713,21 +714,17 @@ def create_response_report(
 
     return resp
 
-def filter_date(
-    df: pd.DataFrame,
-    date1: datetime.date,
-    date2: datetime.date,
-    date_column: str):
+def validate_date_format(
+        date_str: str,
+        date_format: str):
 
-    dates = [date1, date2]
-    sorted_dates = sorted(dates)
+    try:
 
-    df[date_column] = pd.to_datetime(df[date_column])
-
-    interval_df = df.loc[(df[date_column] >= sorted_dates[0])
-                     & (df[date_column] < sorted_dates[1])]
+        parsed_date = parser.parse(date_str)
+        return parsed_date.strftime(date_format) == date_str
     
-    return interval_df
+    except ValueError:
+        return False
 
 def prepare_filters(
         df: pd.DataFrame,
@@ -791,3 +788,102 @@ def prepare_reports_to_chose(
         'exec_reports_to_show': reports_to_show,
         'available_for_update': available_for_update
     }
+
+def create_filter_query(
+    date_column: str,
+    filters_dict: dict[str, list],
+    date_format: str) -> str:
+
+    filter_query = []
+
+    for column_name, filter_values in filters_dict.items():
+
+        if not filter_values:
+            continue
+
+        current_query = ''
+
+        if isinstance(column_name, str):
+
+            if column_name == date_column:
+
+                try:
+                    start_date, end_date = filter_values
+                except ValueError:
+                    logger.error(f'Can not unpack dates for filtering, skipping operation')
+                    continue
+                except TypeError:
+                    continue
+                else:
+
+                    current_query = []
+
+                    if (start_date) and (validate_date_format(start_date, date_format=date_format)):
+
+                         current_query.append(f"({column_name} >= '{start_date}')")
+
+                    if (end_date) and (validate_date_format(end_date, date_format=date_format)):
+
+                        current_query.append(f"({column_name} <= '{end_date}')")
+
+                    if current_query:
+                        current_query = " & ".join(current_query)
+                    else:
+                        continue
+                    
+            else:
+
+                current_query = f"({column_name} in {filter_values})"
+        
+        elif isinstance(column_name, tuple):
+
+            current_query = ' | '.join([f"{sub_col} in {filter_values}" for sub_col in column_name])
+            current_query = f"({current_query})"
+
+        else:
+            continue
+
+        filter_query.append(current_query)
+
+    if not filter_query:
+
+        logger.debug('No chosen values for filtering')
+        return None
+
+    logger.debug(f'Filter query: {" & ".join(filter_query)}')
+
+    return " & ".join(filter_query)
+
+def apply_filters_on_df(
+    df: pd.DataFrame,
+    filters_dict: dict[str, list],
+    date_column: str,
+    date_format: str) -> pd.DataFrame:
+
+    filter_query = create_filter_query(
+        date_column=date_column,
+        filters_dict=filters_dict,
+        date_format=date_format
+    )
+
+    if not filter_query:
+        return df
+
+    try:
+
+        df = df.query(
+            filter_query
+        )
+    
+    except Exception as e:
+
+        logger.error(f'Failed to apply filters on DataFrame: {e}')
+
+    else:
+
+        logger.info('Successfully aplied filters on DataFrame')
+        return df
+    
+
+
+    

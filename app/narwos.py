@@ -20,9 +20,9 @@ from utils.data_processing import process_data_from_choosen_files, \
     find_filename_in_dir, \
     get_report_name_with_timestamp, \
     create_response_report, \
-    filter_date, \
     prepare_filters, \
-    prepare_reports_to_chose
+    prepare_reports_to_chose, \
+    apply_filters_on_df
 import plotly.express as px
 import json
 import plotly
@@ -592,50 +592,46 @@ def apply_filter():
 
     logger.debug(f'Report columns: {ALL_DETAILED_REPORT_COLUMNS}')
 
-    filters = request.get_json()
+    filtered_files = request.form.getlist('filtered_files')
+    logger.debug(f'{filtered_files=}')
 
-    filtered_df = read_file(PATH_TO_CURRENT_DF, columns=ALL_DETAILED_REPORT_COLUMNS)
+    filtered_date_from = request.form.get('filtered_date_from')
+    logger.debug(f'{filtered_date_from=}')
 
-    logger.info(filters)
+    filtered_date_to = request.form.get('filtered_date_to')
+    logger.debug(f"{filtered_date_to=}")
 
-    # Find elements with columns 'DataFrom' and 'DataTo'
-    for item in filters:
-        if item['column'] == 'DataFrom':
-            data_from = pd.to_datetime(item['value'])
+    filtered_topics = request.form.getlist('filtered_topics')
+    logger.debug(f'{filtered_topics=}')
 
-        elif item['column'] == 'DataTo':
-            data_to = pd.to_datetime(item['value'])
+    filtered_sentiment = request.form.getlist('filtered_sentiment')
+    logger.debug(f'{filtered_sentiment=}')
 
-
-    filtered_df = filter_date(
-        filtered_df, 
-        data_from,
-        data_to,
-        DATE_COLUMN)
-
-    logger.info('Dataframe is now filtered by date')
-
-    # Remove elements with columns 'DataFrom' and 'DataTo' from the array
-    filters = [item for item in filters if item['column'] not in ['DataFrom', 'DataTo']]
-
-    logger.info(
-        f"""{filters} Columns of df to filter:{filtered_df.columns}""")
-
-    query_string = ' & '.join(
-        [f"{filter_dict.get('column')} in '{filter_dict.get('value')}'" for filter_dict in filters ] 
-    ) if any(filter_dict.get('column') != 'none' and filter_dict.get('value') != '' for filter_dict in filters) else ''
+    filtered_df = read_file(
+        PATH_TO_CURRENT_DF, 
+        columns=ALL_DETAILED_REPORT_COLUMNS)
     
-    logger.info(f"{query_string}")
+    TOPIC_COLUMNS = tuple(f"{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE)
+    
+    filters_dict = {
+        FILENAME_COLUMN: filtered_files,
+        DATE_COLUMN: [filtered_date_from, filtered_date_to],
+        TOPIC_COLUMNS: filtered_topics,
+        SENTIMENT_COLUMN: filtered_sentiment
+    }
 
-    filtered_df = filtered_df.query(query_string) if query_string else filtered_df.copy()
-    logger.info(filtered_df)
-    message = f"{filters} filters has been applied successfully."
+    filtered_df = apply_filters_on_df(
+        df=filtered_df,
+        filters_dict=filters_dict,
+        date_column=DATE_COLUMN,
+        date_format=DATE_FILTER_FORMAT
+    )
 
     filtered_df.to_parquet(
         index=False, 
         path=PATH_TO_FILTERED_DF)
 
-    return redirect(url_for("show_clusters", messsage=message))
+    return redirect(url_for("show_clusters", messsage='Filters applied successfully'))
 
 @app.route('/get_exec_filtered_report', methods=['POST'])
 def get_exec_filtered_report():
