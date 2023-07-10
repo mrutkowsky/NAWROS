@@ -175,7 +175,7 @@ def compare_reports(
             if (len(group2.intersection(group1)) >= must_match_topics_numbers) \
                 or ((group2.issubset(group1)) and (len(group2) != 0) and (len(group1) != 0)) \
                 or ((group1.issubset(group2)) and (len(group2) != 0) and (len(group1) != 0)) \
-                or (group1 == group2) or ((idx1 == 0) and (idx2 == 0)):
+                or (group1 == group2):
 
                 growth = cardinality2 - cardinality1
                 growth_str = f'+{growth}' if growth >= 0 else str(growth)

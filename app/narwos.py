@@ -650,7 +650,7 @@ def show_clusters():
                                 topics_for_filtering=topics_for_filtering,
                                 sentiment_for_filtering=sentiment_for_filtering,
                                 available_for_update=available_for_update,
-                                reports_to_show=exec_reports_to_show,
+                                exec_reports_to_show=exec_reports_to_show,
                                 message=message,
                                 update_clusters_new_file_message=update_clusters_new_file_message,
                                 update_clusters_existing_file_message=update_clusters_existing_file_message,
