@@ -215,36 +215,32 @@
                     </div> 
                     <div>
                         <h3 style="margin-bottom: 10px;">Filtered reports</h3>
-                        <div class="form-style" style="min-height: 450; flex-direction: column;padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px; min-height: 375px;" >
-                            <div style="margin-right: 8px;" >
+                        <div class="form-style" style="min-height: 375px;" >
                                 <p>Download detailed report</p>
                                 <form  action="/get_detailed_filtered_report"  method="post">
-                                    <div style="margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 20px; height: 35px;">
+                                    <div style="margin-top: 20px; margin-top: 17px; margin-bottom: 20px; height: 35px;">
                                         <select id="detailed_filtered_report_type" name="detailed_filtered_report_type">
                                             <option value="excel">Excel</option>
                                             <option value="csv">CSV</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <input type="submit" value="Get filtered detailed report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px;  font-size: 14px; text-align: center;">
+                                        <input type="submit" value="Get filtered detailed report" style=" margin-top: 20px; margin-bottom: 20px;  font-size: 14px; text-align: center;">
                                     </div>
                                     
                                 </form>
-                            </div>
-                            <div style="margin-top: 10px;">
                                 <p>Download summary report</p>
                                 <form action="/get_exec_filtered_report"  method="post">
-                                    <div style="margin-top: 10px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
+                                    <div style="margin-top: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
                                         <select id="filtered_exec_report_type" name="filtered_exec_report_type">
                                             <option value="excel">Excel</option>
                                             <option value="csv">CSV</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <input type="submit" value="Get summary filtered report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px;  font-size: 14px; text-align: center;">
+                                        <input type="submit" value="Get summary filtered report" style=" margin-top: 20px; margin-bottom: 20px;  font-size: 14px; text-align: center;">
                                     </div>
                                 </form>
-                            </div>
                         </div>
                     </div>
                 </div>
