@@ -399,6 +399,22 @@ def delete_file():
         logger.debug(f'File {filename} does not exist in File Storage.')
         return redirect(url_for("index", delete_failed_message=f'File {filename} does not exist in File Storage.'))
     
+    files_used_for_clustering = get_rows_cardinalities(
+        path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES
+    )
+
+    forbidden_files_to_delete = \
+        list(files_used_for_clustering.get(USED_AS_BASE_KEY, {}).keys()) \
+        + list(files_used_for_clustering.get(ONLY_CLASSIFIED_KEY, {}).keys())
+    
+    if filename in forbidden_files_to_delete:
+        return redirect(url_for("index", delete_failed_message=f"""
+            Deletion of file {filename} is forbidden - it has been used in last clusterization process, 
+            cluster again with other files and then delete this file"""))
+    
+    logger.debug(f'{forbidden_files_to_delete=}')
+    logger.debug(f'{filename=}')
+    
     try:
         os.remove(file_path)
     except Exception as e:
@@ -577,13 +593,16 @@ def get_empty_contents():
 @app.route('/show_clusters', methods=['GET'])
 def show_clusters():
 
+    try:
+        df = read_file(PATH_TO_CURRENT_DF)
+    except FileNotFoundError:
+        return redirect(url_for("index", no_current_df_message=f"Analysis page will be available after first clusterization process - current_df file is missing")) 
+
     message = request.args.get("message")
     update_clusters_new_file_message = request.args.get("update_clusters_new_file_message")
     update_clusters_existing_file_message = request.args.get("update_clusters_existing_file_message")
     update_clusters_existing_file_no_file_message = request.args.get("update_clusters_existing_file_no_file_message")
     update_clusters_new_file_no_file_message = request.args.get("update_clusters_new_file_no_file_message")
-
-    df = read_file(PATH_TO_CURRENT_DF)
 
     if isinstance(df, pd.DataFrame):
         
@@ -730,7 +749,7 @@ def get_exec_filtered_report():
     except Exception as e:
 
         logger.error(f'Error while creating filtered exec report: {e}')
-        response = redirect(url_for('show_clusters',
+        return redirect(url_for('show_clusters',
                             message='Can not save filtered report, file may be invalid'))
 
     try:
@@ -778,8 +797,8 @@ def get_detailed_filtered_report():
 
     except Exception as e:
         logger.error(f'Error while reading filtered df: {e}')
-        response = redirect(url_for('show_clusters',
-                            message='Can not read filtered df, file may be invalid'))
+        return redirect(url_for('show_clusters',
+                            message='Currently DataFrame for filtering is not available'))
         
     try:
 
@@ -794,7 +813,7 @@ def get_detailed_filtered_report():
     except Exception as e:
 
         logger.error(f'Error while creating response report: {e}')
-        response = redirect(url_for('show_clusters',
+        return redirect(url_for('show_clusters',
                             message='Creation of detailed filtered report response failed, file may be invalid'))
 
     return response
@@ -848,7 +867,7 @@ def get_last_cluster_exec_report():
     except Exception as e:
 
         logger.error(f'Creating response report failed. {e}')
-        response = redirect(url_for("show_clusters", message=f"""
+        return redirect(url_for("show_clusters", message=f"""
             Could not create cluster exec report {latest_exec_report}. File may be invalid"""))
 
     return response
