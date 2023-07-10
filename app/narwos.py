@@ -944,6 +944,8 @@ def update_clusters_new_file():
     uploaded_file = request.files['file']
     filename = uploaded_file.filename
 
+    logger.info(f'File for clustering {filename}')
+
     if filename == '':
         return redirect(url_for("show_clusters", message_unsuccessful=f'No file has been selected for uploading!'))
 
@@ -1148,7 +1150,7 @@ def update_clusters_existing_file():
     existing_file_for_update = request.form.get('ex_file_update')
     logger.debug(existing_file_for_update)
 
-    if not existing_file_for_update:
+    if not existing_file_for_update or existing_file_for_update == '':
         return redirect(url_for("show_clusters", message_unsuccessful=f"No file has been selected!"))
 
     if not os.path.exists(os.path.join(PATH_TO_VALID_FILES, existing_file_for_update)):
