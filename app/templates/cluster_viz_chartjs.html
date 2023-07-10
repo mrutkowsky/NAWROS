@@ -191,7 +191,8 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr;">
                     <div>
                     <h3 style="margin-bottom: 10px;">Clusterization exec reports</h3>
-                    <form style="padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px;" class="form-style" action="/get_chosen_cluster_exec_report" method="post">
+                    <div class="form-style">
+                    <form  action="/get_chosen_cluster_exec_report" method="post">
                         <label for="chosen_report_name">Choose specified report to download</label>
                         <select id="chosen_report_name" name="chosen_report_name" required>
                         <option value="" selected disabled hidden>(Choose file)</option>
@@ -206,15 +207,15 @@
                         <input type="submit" value="Download specified exec report" style="margin-right: 10px; margin-top: 6px; margin-bottom: 20px;  font-size: 15px; text-align: center;">  
                     </form>
                     <br>
-                    <form style="padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px;" class="form-style" action="/get_empty_contents" method="get">
+                    <form  action="/get_empty_contents" method="get">
                         <p>Get empty content indexes</p>
-                        <input type="submit" value="Download empty content indexes files" style="margin-right: 10px; margin-top: 6px; margin-bottom: 20px;  font-size: 15px; text-align: center;">  
+                        <input type="submit" value="Download empty content indexes files" style="margin-right: 10px; margin-top: 6px;  font-size: 15px; text-align: center;">  
                     </form>
-                    
+                    </div>
                     </div> 
                     <div>
                         <h3 style="margin-bottom: 10px;">Filtered reports</h3>
-                        <div class="form-style" style="min-height: 450; flex-direction: column;padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px;" >
+                        <div class="form-style" style="min-height: 450; flex-direction: column;padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px; min-height: 375px;" >
                             <div style="margin-right: 8px;" >
                                 <p>Download detailed report</p>
                                 <form  action="/get_detailed_filtered_report"  method="post">
