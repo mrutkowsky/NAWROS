@@ -703,6 +703,9 @@ def get_exec_filtered_report():
     report_ext = ext_settings.get('ext', '.csv')
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
+    if not PATH_TO_FILTERED_DF:
+        return redirect(url_for("show_clusters"), message="No filtered df found")
+
     filtered_df = read_file(
         file_path=PATH_TO_FILTERED_DF,
         columns=[LABELS_COLUMN]
@@ -746,6 +749,9 @@ def get_exec_filtered_report():
 def get_detailed_filtered_report():
 
     report_type = request.form.get('detailed_filtered_report_type')
+    if not report_type:
+        return redirect(url_for("show_clusters"),
+                        message="No report type selected")
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
@@ -755,10 +761,19 @@ def get_detailed_filtered_report():
         filename_prefix=FILTERED_REPORT_PREFIX
     )
 
-    filtered_df = read_file(
-        file_path=PATH_TO_FILTERED_DF,
-        columns=ALL_DETAILED_REPORT_COLUMNS
-    )
+    try:
+        filtered_df = read_file(
+            file_path=PATH_TO_FILTERED_DF,
+            columns=ALL_DETAILED_REPORT_COLUMNS
+        )
+    except Exception as e:
+        logger.error(f'Error while reading filtered df: {e}')
+        response = redirect(url_for('show_clusters'),
+                            message='Cound\'t read filtered df, choosen file may be invalid')
+        
+    if not report_ext in ['csv', 'xlsx', 'html']:
+        return redirect(url_for("show_clusters"),
+                        message="Invalid report type selected")
 
     try:
         response = create_response_report(
@@ -779,6 +794,10 @@ def get_detailed_filtered_report():
 def get_last_cluster_exec_report():
 
     report_type = request.form.get('last_report_type')
+
+    if not report_type:
+        return redirect(url_for("show_clusters"),
+                        message="No report type selected")
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
     report_ext = ext_settings.get('ext', '.csv')
