@@ -272,7 +272,11 @@ def upload_and_validate_files(
 
     for uploaded_file in uploaded_files:
 
-        if not uploaded_file:
+        if not uploaded_file: 
+            continue
+
+        if uploaded_file.filename in os.listdir(PATH_TO_VALID_FILES):
+            files_uploading_status['uploading_failed'][uploaded_file.filename] = 'File already exists in File Storage'
             continue
 
         if validate_file_extension(
@@ -648,7 +652,7 @@ def show_clusters():
                                 topics_for_filtering=topics_for_filtering,
                                 sentiment_for_filtering=sentiment_for_filtering,
                                 available_for_update=available_for_update,
-                                reports_to_show=exec_reports_to_show,
+                                exec_reports_to_show=exec_reports_to_show,
                                 message_info=message_info,
                                 message_successful=message_successful,
                                 message_unsuccessful=message_unsuccessful,
