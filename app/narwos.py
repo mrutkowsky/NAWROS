@@ -334,6 +334,8 @@ def index():
     upload_message = request.args.get("upload_message")
     upload_no_file_message = request.args.get("upload_no_file_message")
     delete_failed_message = request.args.get("delete_failed_message")
+
+    no_current_df_message = request.args.get("no_current_df_message")
  
     if success_upload is not None:
         success_upload = json.loads(success_upload)
@@ -359,7 +361,8 @@ def index():
         success_upload=success_upload, 
         failed_upload=failed_upload,
         upload_no_file_message=upload_no_file_message,
-        delete_failed_message=delete_failed_message)
+        delete_failed_message=delete_failed_message,
+        no_current_df_message=no_current_df_message)
 
 @app.route('/upload_file', methods=['POST'])
 def upload_file():

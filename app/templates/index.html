@@ -35,7 +35,11 @@
         </ul>
       </div>
     </nav>
-    <br><br>
+    <br>
+    {% if no_current_df_message %}
+      <h3 style="color:  rgb(250, 89, 89); align-items: center; margin-bottom: 20px;">{{ no_current_df_message }}</h3>
+    {% endif %}
+    <br>
     <h3>Managing files</h3>
     <div class="container">
       <div class="Load-files">
@@ -65,7 +69,7 @@
               </ol>
             {% endif %}
             {% if upload_no_file_message %}
-            <p style="color: rgb(250, 89, 89)">{{ upload_no_file_message }}</h4>
+              <p style="color: rgb(250, 89, 89)">{{ upload_no_file_message }}</h4>
             {% endif %}
           </form>
         </div>
