@@ -21,6 +21,7 @@ from utils.embeddings_module import load_transformer_model, get_embeddings
 from utils.etl import preprocess_text
 from utils.sentiment_analysis import load_sentiment_model, predict_sentiment, offensive_language
 from utils.translation import load_lang_detector, load_translation_model, detect_lang, translate_text
+from dateutil import parser
 
 logger = logging.getLogger(__file__)
 
@@ -34,7 +35,7 @@ class MyDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
-
+    
 def read_file(
         file_path: str, 
         columns: list = None) -> pd.DataFrame:
@@ -55,9 +56,28 @@ def read_file(
     elif file_path.endswith('.parquet.gzip'):
         df = pd.read_parquet(file_path, columns=columns)
     else:
-        df = pd.read_csv(
-            file_path, 
-            usecols=columns)
+
+        for sep in [',', ';']:
+
+            try:
+
+                df_one_col = pd.read_csv(
+                    file_path, 
+                    usecols=columns,
+                    sep=sep,
+                    nrows=1)
+        
+            except (ValueError, pd.errors.ParserError):
+                continue
+
+            else:
+
+                df = pd.read_csv(
+                    filepath_or_buffer=file_path, 
+                    usecols=columns,
+                    sep=sep)
+
+                break
 
     logger.debug(f'df: {df}')
 
@@ -258,7 +278,7 @@ def find_filename_in_dir(
     path_to_dir: str) -> dict:
 
     lookup_dir = {
-        os.path.splitext(file_)[0]: file_ for file_ in os.listdir(path_to_dir)
+        file_.split('.')[0]: file_ for file_ in os.listdir(path_to_dir)
     }
 
     return lookup_dir
@@ -276,6 +296,8 @@ def process_data_from_choosen_files(
         lang_detection_model_name: str,
         swearwords: list,
         currently_serviced_langs: dict,
+        required_columns: list,
+        detect_languages: bool = True,
         get_sentiment: bool = True,
         translate_content: bool = True,
         original_content_column: str = 'content',
@@ -290,6 +312,7 @@ def process_data_from_choosen_files(
         empty_content_ext: str = '.csv',
         en_code: str = 'en',
         batch_size: int = 32,
+        translation_batch_size: int = 8,
         seed: int = 42):
     
     """
@@ -347,33 +370,17 @@ def process_data_from_choosen_files(
 
     logger.info(f'Embeddings model {embeddings_model_name} loaded successfully')
 
-    lang_detect_dict = load_lang_detector(
-        model_name=lang_detection_model_name,
-        device=DEVICE
-    )
+    if detect_languages:
 
-    lang_detection_model = lang_detect_dict.get('model')
-    lang_detection_tokenizer = lang_detect_dict.get('tokenizer')
+        lang_detect_dict = load_lang_detector(
+            model_name=lang_detection_model_name,
+            device=DEVICE
+        )
 
-    logger.info(f'Language detection model {lang_detection_model_name} loaded successfully')
+        lang_detection_model = lang_detect_dict.get('model')
+        lang_detection_tokenizer = lang_detect_dict.get('tokenizer')
 
-    if translate_content:
-
-        translation_models_dict = {}
-
-        for lang, model_name in currently_serviced_langs.items():
-
-            current_trans_model_dict = load_translation_model(
-                model_name=model_name,
-                device=DEVICE
-            )
-
-            translation_models_dict[lang] = current_trans_model_dict
-
-            # translation_model = current_trans_model_dict.get('model')
-            # translation_tokenizer = current_trans_model_dict.get('tokenizer')
-
-            logger.info(f'Translation model {model_name} for {lang.upper()} loaded successfully')
+        logger.info(f'Language detection model {lang_detection_model_name} loaded successfully')
 
     logger.info(
         f"""Loading data from chosen files:{chosen_files}""")
@@ -386,7 +393,7 @@ def process_data_from_choosen_files(
         
         logger.info(f'Sentiment setup loaded successfully.')
 
-    rows_cardinalities = {}
+    zero_length_after_processing = []
 
     for file_ in chosen_files:
 
@@ -399,7 +406,8 @@ def process_data_from_choosen_files(
             if filename not in cleared_files_names.keys():
 
                 df = read_file(
-                    file_path=os.path.join(path_to_valid_files, file_))
+                    file_path=os.path.join(path_to_valid_files, file_),
+                    columns=required_columns)
                     
                 logger.debug(f'{filename=}, {ext=}')
                 logger.debug(f'Loaded {file_}')
@@ -416,6 +424,10 @@ def process_data_from_choosen_files(
                     content_column_name=content_column_name,
                     dropped_indexes_column_name=dropped_indexes_column_name)
                 
+                if len(df) == 0:
+                    zero_length_after_processing.append(file_)
+                    continue
+                
                 logger.info(f'Cleaned {file_}')
 
                 dataloader = create_dataloader(
@@ -425,26 +437,46 @@ def process_data_from_choosen_files(
                     shuffle=False
                 )
 
-                lang_detection_labels = detect_lang(
-                    dataloader=dataloader,
-                    detection_model=lang_detection_model,
-                    tokenizer=lang_detection_tokenizer,
-                    device=DEVICE
-                )
+                if detect_languages:
 
-                logger.info(f'Successfully detected languages for {filename}')
+                    lang_detection_labels = detect_lang(
+                        dataloader=dataloader,
+                        detection_model=lang_detection_model,
+                        tokenizer=lang_detection_tokenizer,
+                        device=DEVICE
+                    )
 
-                df[detected_language_column_name] = lang_detection_labels
-                known_langs = [en_code]
+                    logger.info(f'Successfully detected languages for {filename}')
 
-                if translate_content:
+                    df[detected_language_column_name] = lang_detection_labels
+                    known_langs = [en_code]
+
+                if translate_content and detect_languages:
+
+                    translation_models_dict = {}
+
+                    langs_to_service = list(df[detected_language_column_name].unique())
+
+                    for lang, model_name in currently_serviced_langs.items():
+
+                        if lang not in langs_to_service:
+                            continue
+
+                        current_trans_model_dict = load_translation_model(
+                            model_name=model_name,
+                            device=DEVICE
+                        )
+
+                        translation_models_dict[lang] = current_trans_model_dict
+
+                        logger.info(f'Translation model {model_name} for {lang.upper()} loaded successfully')
 
                     for lang, lang_model_dict in translation_models_dict.items():
 
                         to_translate_dataloader = create_dataloader(
                             df.loc[df[detected_language_column_name] == lang],
                             target_column=content_column_name,
-                            batch_size=8,
+                            batch_size=translation_batch_size,
                             shuffle=False
                         )
 
@@ -483,6 +515,10 @@ def process_data_from_choosen_files(
                     path_to_dir=path_to_empty_content_dir,
                     file_ext=empty_content_ext
                 )
+
+                if len(df) == 0:
+                    zero_length_after_processing.append(file_)
+                    continue
 
                 if get_sentiment:
 
@@ -563,10 +599,7 @@ def process_data_from_choosen_files(
 
                 logger.info(f'File with embeddings saved for {file_}')
 
-        if isinstance(df, pd.DataFrame):
-            rows_cardinalities[file_] = len(df)
-
-    return rows_cardinalities
+    return zero_length_after_processing
 
 def get_stopwords(
         path_to_dir_with_stopwords: str) -> list:
@@ -592,8 +625,13 @@ def get_swearwords(
 
 def get_rows_cardinalities(path_to_cardinalities_file: str) -> dict:
 
-    with open(path_to_cardinalities_file, 'r', encoding='utf-8') as cards_json:
-        return json.load(cards_json)
+    try:
+        with open(path_to_cardinalities_file, 'r', encoding='utf-8') as cards_json:
+            cards = json.load(cards_json)
+    except FileNotFoundError:
+        return {}
+    else:
+        return cards
 
 def set_rows_cardinalities(
     path_to_cardinalities_file: str,
@@ -713,3 +751,179 @@ def create_response_report(
 
     return resp
 
+def validate_date_format(
+        date_str: str,
+        date_format: str):
+
+    try:
+
+        parsed_date = parser.parse(date_str)
+        return parsed_date.strftime(date_format) == date_str
+    
+    except ValueError:
+        return False
+
+def prepare_filters(
+        df: pd.DataFrame,
+        date_column: str,
+        date_filter_format: str,
+        filename_column: str,
+        topic_colum_prefix: str,
+        topics_range: range,
+        sentiment_column: str = None) -> dict[str, list]:
+
+    files_for_filtering = list(df[filename_column].unique())
+
+    dates_for_filtering = list(
+        set([datetime.strftime(date, date_filter_format) 
+            for date in df[date_column].unique()]))
+    
+    if sentiment_column is not None:
+        try:
+            sentiment_for_filtering = list(set(df[sentiment_column].unique()))
+        except KeyError:
+            sentiment_for_filtering = None
+    else:
+        sentiment_for_filtering = None
+
+    topics_for_filtering = []
+
+    for topic_col in [f'{topic_colum_prefix}_{i}' for i in topics_range]:
+        topics_for_filtering.extend(list(set(df[topic_col].unique())))
+
+    topics_for_filtering = list(set(topics_for_filtering)) 
+
+    return {
+        'files_filter': files_for_filtering,
+        'dates_filter': dates_for_filtering,
+        'sentiment_filter': sentiment_for_filtering,
+        'topics_filter': topics_for_filtering
+    }
+
+def prepare_reports_to_chose(
+    path_to_cluster_exec_reports_dir: str,
+    path_to_valid_files: str,
+    files_for_filtering: list,
+    gitkeep_file: str = '.gitkeep',
+    exec_report_ext: str = '.gzip') -> dict[str, list]:
+
+    
+    reports = os.listdir(path_to_cluster_exec_reports_dir)
+
+    reports_to_show = [
+        report.split('.')[0] for report in reports 
+        if report.endswith(exec_report_ext) 
+    ]
+
+    logger.debug(f'Report to show: {reports_to_show}')
+
+    available_for_update = list(
+        set(os.listdir(path_to_valid_files)).difference(
+            set(files_for_filtering)))
+    
+    available_for_update = list(filter(lambda x: x != gitkeep_file, available_for_update))
+    logger.debug(f'available_for_update {available_for_update}')
+
+    return {
+        'exec_reports_to_show': reports_to_show,
+        'available_for_update': available_for_update
+    }
+
+def create_filter_query(
+    date_column: str,
+    filters_dict: dict[str, list],
+    date_format: str) -> str:
+
+    filter_query = []
+
+    for column_name, filter_values in filters_dict.items():
+
+        if not filter_values:
+            continue
+
+        current_query = ''
+
+        if isinstance(column_name, str):
+
+            if column_name == date_column:
+
+                try:
+                    start_date, end_date = filter_values
+                except ValueError:
+                    logger.error(f'Can not unpack dates for filtering, skipping operation')
+                    continue
+                except TypeError:
+                    continue
+                else:
+
+                    current_query = []
+
+                    if (start_date) and (validate_date_format(start_date, date_format=date_format)):
+
+                         current_query.append(f"({column_name}.dt.strftime('{date_format}') >= '{start_date}')")
+
+                    if (end_date) and (validate_date_format(end_date, date_format=date_format)):
+
+                        current_query.append(f"({column_name}.dt.strftime('{date_format}') <= '{end_date}')")
+
+                    if current_query:
+                        current_query = " & ".join(current_query)
+                    else:
+                        continue
+                    
+            else:
+
+                current_query = f"({column_name} in {filter_values})"
+        
+        elif isinstance(column_name, tuple):
+
+            current_query = ' | '.join([f"{sub_col} in {filter_values}" for sub_col in column_name])
+            current_query = f"({current_query})"
+
+        else:
+            continue
+
+        filter_query.append(current_query)
+
+    if not filter_query:
+
+        logger.debug('No chosen values for filtering')
+        return None
+
+    logger.debug(f'Filter query: {" & ".join(filter_query)}')
+
+    return " & ".join(filter_query)
+
+def apply_filters_on_df(
+    df: pd.DataFrame,
+    filters_dict: dict[str, list],
+    date_column: str,
+    date_format: str) -> pd.DataFrame:
+
+    filter_query = create_filter_query(
+        date_column=date_column,
+        filters_dict=filters_dict,
+        date_format=date_format
+    )
+
+    if not filter_query:
+        return df
+
+    try:
+
+        df = df.query(
+            filter_query
+        )
+    
+    except Exception as e:
+
+        logger.error(f'Failed to apply filters on DataFrame: {e}')
+
+    else:
+
+        logger.info('Successfully aplied filters on DataFrame')
+        return df
+    
+
+
+    

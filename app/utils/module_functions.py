@@ -30,10 +30,17 @@ def compare_columns(
     
     return None if column_compatibility else required_columns_set.difference(file_columns_set)
 
+def check_column_names(column_names):
+
+    for i, col1 in enumerate(column_names):
+        for j, col2 in enumerate(column_names):
+            if i != j and col1.startswith(col2) and '.' in col1:
+                return col2
+    return False
+
 def validate_file(
         file_path, 
-        required_columns,
-        delimeter: str = ';'):
+        required_columns):
     
     """
     Validate a file by checking if it has the required columns.
@@ -54,14 +61,22 @@ def validate_file(
         try:
             file_df = pd.read_excel(
                 file_path, 
-                nrows=1,
-                usecols=required_columns)
-        except (pd.errors.ParserError, pd.errors.EmptyDataError, ValueError):
+                nrows=1)
+        except (pd.errors.ParserError, pd.errors.EmptyDataError):
             return "Invalid file format or structure."
         else:
-
-            if file_df.iloc[0].isnull().any():
-                return "Empty dataframe or provided file has missing data in the first line of file."
+            
+            try:
+                first_line = file_df.iloc[0]
+            except IndexError:
+                return "Empty dataframe"
+            else:
+                if first_line.isnull().any():
+                    return "Provided file has missing data in the first line of file."
+                
+            has_doubled_col = check_column_names(file_df.columns)
+            if has_doubled_col:
+                return f"Provided file has doubled column: {has_doubled_col}"
             
             logger.debug(f"Loaded filename df {file_df}")
 
@@ -78,15 +93,33 @@ def validate_file(
         try:
             file_df = pd.read_csv(
                 file_path, 
-                nrows=1,
-                sep=delimeter)
+                nrows=1)
              
         except (pd.errors.ParserError, pd.errors.EmptyDataError):
             return "Invalid file format or structure."
         else:
 
-            if file_df.iloc[0].isnull().any():
-                return "Empty dataframe or provided file has missing data in the first line of file."
+            if len(list(file_df.columns)) < len(required_columns):
+
+                file_df = pd.read_csv(
+                    file_path, 
+                    nrows=1,
+                    delimiter=";")
+                
+                if len(list(file_df.columns)) < len(required_columns):
+                    return "Only comma (,) or semicolon (;) are allowed as separators."
+
+            try:
+                first_line = file_df.iloc[0]
+            except IndexError:
+                return "Empty dataframe"
+            else:
+                if first_line.isnull().any():
+                    return "Provided file has missing data in the first line of file."
+                
+            has_doubled_col = check_column_names(file_df.columns)
+            if has_doubled_col:
+                return f"Provided file has doubled column: {has_doubled_col}"
 
             column_dismatch = compare_columns(
                 file_columns=file_df.columns,
@@ -136,10 +169,16 @@ def read_config(
         config_filename) \
             if path_to_dir is not None else config_filename
     
-    with open(path_to_configfile) as yaml_file:
-        config = yaml.load(yaml_file, Loader=yaml.SafeLoader)
+    try:
+    
+        with open(path_to_configfile) as yaml_file:
+            config = yaml.load(yaml_file, Loader=yaml.SafeLoader)
 
-    return config
+    except FileNotFoundError:
+        return None
+
+    else:
+        return config
 
 def get_report_ext(
     path_to_arf_dir: str,

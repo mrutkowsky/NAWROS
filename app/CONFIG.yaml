@@ -4,10 +4,9 @@ DIRECTORIES:
   cleared_files: cleared_files
   valid_files: validated_files
   cluster_exec_reports: cluster_exec_reports
-  detailed_cluster_exec_reports: detailed_cluster_exec_reports
-  detailed_filtered_reports: detailed_filtered_reports
   comparing_reports: comparing_reports
   empty_content: empty_content
+  empty_content_archive: empty_content_archive
   tmp: tmp
   embeddings: embeddings
   faiss_vectors: faiss_vectors
@@ -27,10 +26,6 @@ FILES:
   ext_mappings: mimetypes_formats.json
 
 INPUT_FILES_SETTINGS:
-  allowed_extensions:
-    - .csv 
-    - .txt
-    - .xlsx
   required_columns: 
     - Questioned_Date
     - Model_No
@@ -42,18 +37,32 @@ INPUT_FILES_SETTINGS:
     - content
 
 ETL_SETTINGS:
+  detect_lang: false
   translate: true
   sentiment: true
+  batch_size: 16
+  translation_batch_size: 8
+  cleared_file_ext: .parquet.gzip
+
+LOGGER:
+  logging_format: '[%(asctime)s] - %(levelname)s - %(message)s'
+  logger_level: DEBUG
+
+EMPTY_CONTENT_SETTINGS:
+  dropped_indexes_column: dropped_indexes
+  empty_content_suffix: _EMPTY_CONTENT
 
 REPORT_SETTINGS:
+  date_column: Questioned_Date
   original_content_column: content
   preprocessed_content_column: preprocessed_content
   labels_column: labels
   cardinalities_column: counts
   sentiment_column: sentiment
+  detected_language_column: detected_language
   filename_column: filename
+  cluster_summary_column: cluster_summary
   base_columns:
-    - Questioned_Date
     - Model_No
     - OS
     - SW_Version 
@@ -66,47 +75,31 @@ REPORT_SETTINGS:
   comparing_report_suffix: _comparison
   cluster_exec_filename_prefix: cluster_exec
   detailed_cluster_exec_filename_prefix: detailed
-  cluster_exec_filename_ext: .parquet.gzip
   filtered_filename_prefix: filtered
-  filtered_filename_ext: .parquet.gzip
-
-LOGGER:
-  logging_format: '[%(asctime)s] - %(levelname)s - %(message)s'
-  logger_level: DEBUG
-
-EMPTY_CONTENT_SETTINGS:
-  empty_content_suffix: _EMPTY_CONTENT
-  empty_content_ext: .csv
-
-PIPELINE:
-  content_column: content
-  batch_size: 16
-  cleared_file_ext: .csv
-
+  
 ML:
   seed: 42
   recalculate_clusters_treshold: 0.1
+  outlier_treshold: 0.1
+
   embeddings:
     model_name: sentence-transformers/all-mpnet-base-v2
+
   UMAP:
-    dim_reducer_model_name: 'umap_reducer.pkl'
-    reducer_2d_model_name: 'dim_reducer_2d.pkl'
     n_neighbors: 15
     min_dist: 0.0
     n_components: 5
-  topics:
-    - 2
+
   sentiment:
     model_name: 'cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual'
-    
-  HDBSCAN_SETTINGS:
-    model_name: 'clusterer.pkl'
-    min_cluster_size: 15
-    min_samples: 15
-    outlier_treshold: 0.1
-    metric: euclidean                      
-    cluster_selection_method: eom
 
+  HDBSCAN_SETTINGS:
+    coverage_with_best: 0.87
+    min_cluster_size: [5, 10, 15, 30, 45, 60]
+    min_samples: [5, 10, 15, 20, 30]
+    metric: ['euclidean', 'manhattan']                      
+    cluster_selection_method: ['eom']
+    
   translation_models:
     pl: Helsinki-NLP/opus-mt-pl-en
     de: Helsinki-NLP/opus-mt-de-en
@@ -114,6 +107,4 @@ ML:
     ko: Helsinki-NLP/opus-mt-ko-en
 
   lang_detection_model: papluca/xlm-roberta-base-language-detection
-
-FILTERING:
   

@@ -18,7 +18,7 @@
   .Delete-files { grid-area: Delete-files; }
 
   </style>
-  <body>
+  <body >
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
       <a class="navbar-brand" href="#">NARWOS NLP</a>
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,12 +35,16 @@
         </ul>
       </div>
     </nav>
-    <br><br>
+    <br>
+    {% if no_current_df_message %}
+      <h3 style="color:  rgb(250, 89, 89); align-items: center; margin-bottom: 20px;">{{ no_current_df_message }}</h3>
+    {% endif %}
+    <br>
     <h3>Managing files</h3>
     <div class="container">
       <div class="Load-files">
         <div class="mt-20">
-          <form action="/upload_file" class="mt-20" method="post" enctype="multipart/form-data">
+          <form class="form-style" action="/upload_file" class="mt-20" method="post" enctype="multipart/form-data">
             <label>Load files:</label>
             <input type="file" name="file" multiple required>
             <br><br>
@@ -65,14 +69,14 @@
               </ol>
             {% endif %}
             {% if upload_no_file_message %}
-            <p style="color: rgb(250, 89, 89)">{{ upload_no_file_message }}</h4>
+              <p style="color: rgb(250, 89, 89)">{{ upload_no_file_message }}</h4>
             {% endif %}
           </form>
         </div>
       </div>
       <div class="Delete-files">
         <div class="mt-20">
-          <form action="/delete_file" method="post">
+          <form class="form-style" action="/delete_file" method="post">
             <label for="to_delete">Delete file:</label>
             <select id="to_delete" name="to_delete" required>
               <option value="" selected disabled hidden>(Choose file)</option>
@@ -82,11 +86,11 @@
             </select>
             <br><br>
             <input style="background-color: rgb(250, 89, 89)" type="submit" value="Delete">
-            {% if delete_message %}
-              <p style="color: rgb(80, 187, 80)">{{ delete_message }}</h4>
+            {% if delete_success_message %}
+              <p style="color: rgb(80, 187, 80)">{{ delete_success_message }}</h4>
             {% endif %}
-            {% if delete_no_file_message %}
-            <p style="color: rgb(250, 89, 89)">{{ delete_no_file_message }}</h4>
+            {% if delete_failed_message %}
+              <p style="color: rgb(250, 89, 89)">{{ delete_failed_message }}</h4>
             {% endif %}
           </form>
         </div>
@@ -95,7 +99,7 @@
       <div style="align-items: center;">
         <h3>Clustering</h3>
         <div class="mt-20">
-          <form method="post" action="/choose_files_for_clusters">
+          <form class="form-style" method="post" action="/choose_files_for_clusters">
             <label for="chosen_files">Choose files for clustering:</label>
             <br>
             {% for file in files %}
@@ -122,10 +126,10 @@
               </div>
             </div>
             {% if cluster_message %}
-            <p style="color: rgb(80, 187, 80)">{{ cluster_message }}</h4>
+              <p style="color: rgb(80, 187, 80)">{{ cluster_message }}</h4>
             {% endif %}
-            {% if cluster_no_file_message %}
-            <p style="color: rgb(250, 89, 89)">{{ cluster_no_file_message }}</h4>
+            {% if cluster_failed_message %}
+              <p style="color: rgb(250, 89, 89)">{{ cluster_failed_message }}</h4>
             {% endif %}
           </form>
         </div>

@@ -175,7 +175,7 @@ def compare_reports(
             if (len(group2.intersection(group1)) >= must_match_topics_numbers) \
                 or ((group2.issubset(group1)) and (len(group2) != 0) and (len(group1) != 0)) \
                 or ((group1.issubset(group2)) and (len(group2) != 0) and (len(group1) != 0)) \
-                or (group1 == group2) or ((idx1 == 0) and (idx2 == 0)):
+                or (group1 == group2):
 
                 growth = cardinality2 - cardinality1
                 growth_str = f'+{growth}' if growth >= 0 else str(growth)
@@ -242,4 +242,10 @@ def find_latested_n_exec_report(
         logger.error(f'No cluster execution reports in {path_to_dir}!')
         return None
     else:
+
+        if (n_reports > 1) and n_reports != len(reports_to_return):
+
+            logger.error(f'Only one cluster execution report is avaiable currently')
+            return None
+        
         return reports_to_return
