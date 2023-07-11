@@ -1,12 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scatter Plot</title>
-    <!-- Include Chart.js library -->
-    <script src="node_modules/virtual-select-plugin/dist/virtual-select.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/styles.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.11.2/css/all.css">
@@ -146,8 +141,14 @@
     <!--<canvas id="myChart"></canvas>-->
     </div>
     <div style="display: flex; justify-content: center;">
-    {% if message %}
-        <h3 style="color:  rgb(250, 89, 89); align-items: center; margin-bottom: 20px;">{{ message }}</h3>
+    {% if message_unsuccessful %}
+        <h3 style="color:  rgb(250, 89, 89); align-items: center; margin-bottom: 20px;">{{ message_unsuccessful }}</h3>
+    {% endif %}
+    {% if message_successful %}
+    <h3 style="color:  rgb(80, 187, 80); align-items: center; margin-bottom: 20px;">{{ message_successful }}</h3>
+    {% endif %}
+    {% if message_info %}
+    <h3 style="color:  rgb(89, 159, 250); align-items: center; margin-bottom: 20px;">{{ message_info }}</h3>
     {% endif %}
     </div>
     <div style="padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px; display: flex; justify-content: center; flex-direction: column; width: 1280px;  margin: auto;">
@@ -190,7 +191,8 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr;">
                     <div>
                     <h3 style="margin-bottom: 10px;">Clusterization exec reports</h3>
-                    <form style="padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px;" class="form-style" action="/get_chosen_cluster_exec_report" method="post">
+                    <div class="form-style">
+                    <form  action="/get_chosen_cluster_exec_report" method="post">
                         <label for="chosen_report_name">Choose specified report to download</label>
                         <select id="chosen_report_name" name="chosen_report_name" required>
                         <option value="" selected disabled hidden>(Choose file)</option>
@@ -205,44 +207,40 @@
                         <input type="submit" value="Download specified exec report" style="margin-right: 10px; margin-top: 6px; margin-bottom: 20px;  font-size: 15px; text-align: center;">  
                     </form>
                     <br>
-                    <form style="padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px;" class="form-style" action="/get_empty_contents" method="get">
+                    <form  action="/get_empty_contents" method="get">
                         <p>Get empty content indexes</p>
-                        <input type="submit" value="Download empty content indexes files" style="margin-right: 10px; margin-top: 6px; margin-bottom: 20px;  font-size: 15px; text-align: center;">  
+                        <input type="submit" value="Download empty content indexes files" style="margin-right: 10px; margin-top: 6px;  font-size: 15px; text-align: center;">  
                     </form>
-                    
+                    </div>
                     </div> 
                     <div>
                         <h3 style="margin-bottom: 10px;">Filtered reports</h3>
-                        <div class="form-style" style="min-height: 450; flex-direction: column;padding: 20px;  box-shadow: 0px 0px 10px #999; border-radius: 10px;" >
-                            <div style="margin-right: 8px;" >
+                        <div class="form-style" style="min-height: 375px;" >
                                 <p>Download detailed report</p>
                                 <form  action="/get_detailed_filtered_report"  method="post">
-                                    <div style="margin-top: 20px; margin-right: 10px; margin-top: 17px; margin-bottom: 20px; height: 35px;">
+                                    <div style="margin-top: 20px; margin-top: 17px; margin-bottom: 20px; height: 35px;">
                                         <select id="detailed_filtered_report_type" name="detailed_filtered_report_type">
                                             <option value="excel">Excel</option>
                                             <option value="csv">CSV</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <input type="submit" value="Get filtered detailed report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px;  font-size: 14px; text-align: center;">
+                                        <input type="submit" value="Get filtered detailed report" style=" margin-top: 20px; margin-bottom: 20px;  font-size: 14px; text-align: center;">
                                     </div>
                                     
                                 </form>
-                            </div>
-                            <div style="margin-top: 10px;">
                                 <p>Download summary report</p>
                                 <form action="/get_exec_filtered_report"  method="post">
-                                    <div style="margin-top: 10px; margin-right: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
+                                    <div style="margin-top: 10px; margin-top: 17px; margin-bottom: 10px; height: 35px;">
                                         <select id="filtered_exec_report_type" name="filtered_exec_report_type">
                                             <option value="excel">Excel</option>
                                             <option value="csv">CSV</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <input type="submit" value="Get summary filtered report" style="margin-right: 10px; margin-top: 20px; margin-bottom: 20px;  font-size: 14px; text-align: center;">
+                                        <input type="submit" value="Get summary filtered report" style=" margin-top: 20px; margin-bottom: 20px;  font-size: 14px; text-align: center;">
                                     </div>
                                 </form>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -278,16 +276,10 @@
                         </div>
                         </div>
                     </div>
-                    {% if update_clusters_new_file_message %}
-                    <p style="color: rgb(80, 187, 80)">{{ update_clusters_new_file_message }}</p>
-                    {% endif %}
-                    {% if update_clusters_new_file_no_file_message %}
-                    <p style="color:  rgb(250, 89, 89)">{{ update_clusters_new_file_no_file_message }}</p>
-                    {% endif %}
                 </form>
                 <form class="form-style" style="margin-top: 20px; height:340px;" action="/update_clusters_existing_file"  method="post">
                     <p>Choose exisitng file for clustering</p>
-                    <select class="ex_file_update" name="ex_file_update" required>
+                    <select class="ex_file_update" name="ex_file_update" >
                         <option value="" selected disabled hidden>(select file)</option>
                         {% for file in available_for_update %}
                             <option value="{{ file }}">{{ file }}</option>
@@ -312,12 +304,6 @@
                         </div>
                         </div>
                     </div>
-                    {% if update_clusters_existing_file_message %}
-                    <p style="color: rgb(80, 187, 80)">{{ update_clusters_existing_file_message }}</p>
-                    {% endif %}
-                    {% if update_clusters_existing_file_no_file_message %}
-                    <p style="color:  rgb(250, 89, 89)">{{ update_clusters_existing_file_no_file_message }}</p>
-                    {% endif %}
                 </form>
             </div>
         </div>
@@ -327,21 +313,6 @@
                 <form class="form-style" method="post" action="/compare_with_last_report" style="height: 250px;">
                     
                     <label for="file-format">File Format:</label><br>
-                    <!--
-                    <input type="radio" id="csv" name="file-format" value="csv">
-                    <label for="csv">CSV</label>
-
-                    <input type="radio" id="excel" name="file-format" value="excel">
-                    <label for="excel">Excel</label>
-
-                    <input type="radio" id="html" name="file-format" value="html">
-                    <label for="html">HTML</label>
-
-                    <input type="radio" id="pdf" name="file-format" value="pdf">
-                    <label for="pdf">PDF</label>
-
-                    <input type="radio" id="powerpoint" name="file-format" value="powerpoint">
-                    <label for="powerpoint">PowerPoint</label>-->
                     <select id="file-format" name="file-format">
                         <option value="excel">Excel</option>
                         <option value="csv">CSV</option>
@@ -354,21 +325,6 @@
                     <div class="mt-20" style="margin-top: 20px;">
                         <form class="form-style" method="post" action="/compare_selected_reports" style="height:340px;">
                                 <label for="file-format">File Format:</label><br>
-                                <!--
-                                <input type="radio" id="csv" name="file-format" value="csv">
-                                <label for="csv">CSV</label>
-
-                                <input type="radio" id="excel" name="file-format" value="excel">
-                                <label for="excel">Excel</label>
-
-                                <input type="radio" id="html" name="file-format" value="html">
-                                <label for="html">HTML</label>
-
-                                <input type="radio" id="pdf" name="file-format" value="pdf">
-                                <label for="pdf">PDF</label>
-
-                                <input type="radio" id="powerpoint" name="file-format" value="powerpoint">
-                                <label for="powerpoint">PowerPoint</label>-->
                                 <select id="file-format" name="file-format">
                                     <option value="excel">Excel</option>
                                     <option value="csv">CSV</option>
@@ -421,14 +377,12 @@
                             <p style="text-align: left; margin-top: 20px ;">Filter by other atributes</p>
                             <label for="column">Filter by file:</label>
                             <select name="filtered_files" id="filtered_files" multiple>
-                                <option value=""></option>
                                 {% for value in files_for_filtering %}
                                     <option value="{{ value }}">{{ value}}</option>
                             {% endfor %}
                             </select>
                             <label for="column">Filter by topics:</label>
                             <select name="filtered_topics" id="filtered_topics" multiple>
-                                <option value=""></option>
                                 {% for value in topics_for_filtering %}
                                     <option value="{{ value }}">{{ value}}</option>
                             {% endfor %}
@@ -436,7 +390,6 @@
                             {% if sentiment_column == true %}
                             <label for="column">Filter by sentiment:</label>
                             <select name="filtered_sentiment" id="filtered_sentiment" multiple>
-                                <option value=""></option>
                                     {% for value in sentiment_for_filtering %}
                                         <option value="{{ value }}">{{ value}}</option>
                                     {% endfor %}
@@ -501,6 +454,7 @@
             }
         };
     </script> 
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
     <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
