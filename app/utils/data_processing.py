@@ -278,7 +278,7 @@ def find_filename_in_dir(
     path_to_dir: str) -> dict:
 
     lookup_dir = {
-        os.path.splitext(file_)[0]: file_ for file_ in os.listdir(path_to_dir)
+        file_.split('.')[0]: file_ for file_ in os.listdir(path_to_dir)
     }
 
     return lookup_dir
@@ -779,7 +779,10 @@ def prepare_filters(
             for date in df[date_column].unique()]))
     
     if sentiment_column is not None:
-        sentiment_for_filtering = list(set(df[sentiment_column].unique()))
+        try:
+            sentiment_for_filtering = list(set(df[sentiment_column].unique()))
+        except KeyError:
+            sentiment_for_filtering = None
     else:
         sentiment_for_filtering = None
 

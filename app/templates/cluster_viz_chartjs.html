@@ -376,25 +376,27 @@
                     </div>
                     <div id="filter-container">
                         <div>
-                            <p style="text-align: left; margin-top: 20px ;">Filter by other atributes</p>
+                            <br>
                             <label for="column">Filter by file:</label>
                             <select name="filtered_files" id="filtered_files" multiple>
                                 {% for value in files_for_filtering %}
                                     <option value="{{ value }}">{{ value}}</option>
                             {% endfor %}
                             </select>
+                            <br><br>
                             <label for="column">Filter by topics:</label>
                             <select name="filtered_topics" id="filtered_topics" multiple>
                                 {% for value in topics_for_filtering %}
                                     <option value="{{ value }}">{{ value}}</option>
                             {% endfor %}
                             </select>
-                            {% if sentiment_column == true %}
+                            <br><br>
+                            {% if sentiment_column and sentiment_for_filtering %}
                             <label for="column">Filter by sentiment:</label>
-                            <select name="filtered_sentiment" id="filtered_sentiment" multiple>
-                                    {% for value in sentiment_for_filtering %}
-                                        <option value="{{ value }}">{{ value}}</option>
-                                    {% endfor %}
+                            <select name="filtered_sentiment" id="filtered_sentiment" multiple>   
+                                {% for value in sentiment_for_filtering %}
+                                    <option value="{{ value }}">{{ value }}</option>
+                                {% endfor %}
                             </select>
                             {% endif %}
                         </div>

@@ -1,8 +1,10 @@
 import os
+import sys
 import shutil
 import pandas as pd
 from flask import Flask, request, render_template, send_file, redirect, url_for, make_response, jsonify
 import logging
+from typing import Iterable
 from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
@@ -31,11 +33,10 @@ from utils.cluster import get_clusters_for_choosen_files, \
     cluster_recalculation_needed, \
     cns_after_clusterization, \
     save_cluster_exec_report
-from utils.reports import compare_reports, find_latest_two_reports, \
+from utils.reports import compare_reports, \
     find_latested_n_exec_report
 from utils.comparison_pdf_report import create_pdf_comaprison_report
 from copy import copy
-import datetime
 
 app = Flask(__name__)
 
@@ -60,100 +61,109 @@ CSV_FORMAT = 'csv'
 EXCEL_FORMAT = 'excel'
 HTML_FORMAT = 'html'
 
+CLUSTER_EXEC_FILENAME_EXT = '.parquet.gzip'
+FILTERED_FILENAME_EXT = '.parquet.gzip'
+EMPTY_CONTENTS_EXT = '.csv'
+
+CLUSTERER_MODEL_NAME = 'clusterer.pkl'
+DIM_REDUCER_MODEL_NAME = 'umap_reducer.pkl'
+REDUCER_2D_MODEL_NAME = 'dim_reducer_2d.pkl'
+
 app.config['CONFIG_FILE'] = 'CONFIG.yaml'
 
 CONFIGURATION = read_config(
     app.config['CONFIG_FILE']
 )
 
+if not CONFIGURATION:
+    logging.error('Can not start application without CONFIG.yaml')
+    sys.exit(0)
+
 DIRECTORIES = CONFIGURATION.get('DIRECTORIES')
+
+if not DIRECTORIES:
+    logging.error('Can not start application without defining DIRECTORIES')
+    sys.exit(0)
+
 FILES = CONFIGURATION.get('FILES')
-EMPTY_CONTENT_SETTINGS = CONFIGURATION.get('EMPTY_CONTENT_SETTINGS')
-PIPELINE = CONFIGURATION.get('PIPELINE')
+
+if not FILES:
+    logging.error('Can not start application without defining FILES')
+    sys.exit(0)
+
 INPUT_FILES_SETTINGS = CONFIGURATION.get('INPUT_FILES_SETTINGS')
-LOGGER = CONFIGURATION.get('LOGGER')
-ML = CONFIGURATION.get('ML')
-FILTERING = CONFIGURATION.get('FILTERING')
-
-DATA_FOLDER = DIRECTORIES.get('data')
-CLEARED_DATA_DIR = DIRECTORIES.get('cleared_files')
-VALID_FILES_DIR = DIRECTORIES.get('valid_files')
-TMP_DIR = DIRECTORIES.get('tmp')
-EMBEDDINGS_DIR = DIRECTORIES.get('embeddings')
-EMPTY_CONTENT_DIR = DIRECTORIES.get('empty_content')
-EMPTY_CONTENT_ARCHIVE_DIR = DIRECTORIES.get('empty_content_archive')
-FAISS_VECTORS_DIR = DIRECTORIES.get('faiss_vectors')
-CLUSTER_EXEC_REPORTS_DIR = DIRECTORIES.get('cluster_exec_reports')
-COMPARING_REPORTS_DIR = DIRECTORIES.get('comparing_reports')
-CURRENT_DF_DIR = DIRECTORIES.get('current_df')
-FILTERED_DF_DIR = DIRECTORIES.get('filtered_df')
-STOPWORDS_DIR = DIRECTORIES.get('stop_words')
-SWEARWORDS_DIR = DIRECTORIES.get('swearwords_dir')
-STOPWORDS_DIR = DIRECTORIES.get('stop_words')
-DETAILED_CLUSTER_EXEC_REPORTS = DIRECTORIES.get('detailed_cluster_exec_reports')
-DETAILED_FILTERED_REPORTS = DIRECTORIES.get('detailed_filtered_reports')
-
-ALLOWED_REPORT_EXT_DIR = DIRECTORIES.get('allowed_reports_formats')
-
-EMBEDDED_JSON = FILES.get('embedded_json')
-CURRENT_DF_FILE = FILES.get('current_df')
-FILTERED_DF_FILE = FILES.get('filtered_df')
-TOPICS_DF_FILE = FILES.get('topics_df')
-ROWS_CARDINALITIES_FILE = FILES.get('rows_cardinalities')
-EXT_MAPPINGS_FILE = FILES.get('ext_mappings')
-
-EMPTY_CONTENTS_EXT = EMPTY_CONTENT_SETTINGS.get('empty_content_ext')
-EMPTY_CONTENTS_SUFFIX = EMPTY_CONTENT_SETTINGS.get('empty_content_suffix')
-
-BATCH_SIZE = PIPELINE.get('batch_size')
-TRANSLATION_BATCH_SIZE = PIPELINE.get('translation_batch_size')
-CLEARED_FILE_EXT = PIPELINE.get('cleared_file_ext')
-
-LOGGING_FORMAT = LOGGER.get('logging_format')
-LOGGER_LEVEL = LOGGER.get('logger_level')
-
 ETL_SETTINGS = CONFIGURATION.get('ETL_SETTINGS')
-LANG_DETECT = ETL_SETTINGS.get('detect_lang')
-TRANSLATE_CONTENT = ETL_SETTINGS.get('translate')
-GET_SENTIMENT = ETL_SETTINGS.get('sentiment')
+REPORT_CONFIG = CONFIGURATION.get('REPORT_SETTINGS')
+LOGGER = CONFIGURATION.get('LOGGER')
+EMPTY_CONTENT_SETTINGS = CONFIGURATION.get('EMPTY_CONTENT_SETTINGS')
+ML = CONFIGURATION.get('ML')
+
+DATA_FOLDER = DIRECTORIES.get('data', 'data')
+CLEARED_DATA_DIR = DIRECTORIES.get('cleared_files', 'cleared_files')
+VALID_FILES_DIR = DIRECTORIES.get('valid_files', 'valid_files')
+TMP_DIR = DIRECTORIES.get('tmp', 'tmp')
+EMBEDDINGS_DIR = DIRECTORIES.get('embeddings', 'embeddings')
+EMPTY_CONTENT_DIR = DIRECTORIES.get('empty_content', 'empty_content')
+EMPTY_CONTENT_ARCHIVE_DIR = DIRECTORIES.get('empty_content_archive', 'empty_content_archive')
+FAISS_VECTORS_DIR = DIRECTORIES.get('faiss_vectors', 'faiss_vectors')
+CLUSTER_EXEC_REPORTS_DIR = DIRECTORIES.get('cluster_exec_reports')
+COMPARING_REPORTS_DIR = DIRECTORIES.get('comparing_reports', 'cluster_exec_reports')
+CURRENT_DF_DIR = DIRECTORIES.get('current_df', 'current_df')
+FILTERED_DF_DIR = DIRECTORIES.get('filtered_df', 'filtered_df')
+STOPWORDS_DIR = DIRECTORIES.get('stop_words', 'stop_words')
+SWEARWORDS_DIR = DIRECTORIES.get('swearwords_dir', 'swearwords_dir')
+STOPWORDS_DIR = DIRECTORIES.get('stop_words', 'stop_words')
+ALLOWED_REPORT_EXT_DIR = DIRECTORIES.get('allowed_reports_formats', 'allowed_reports_formats')
+
+EMBEDDED_JSON = FILES.get('embedded_json', 'embedded_json')
+CURRENT_DF_FILE = FILES.get('current_df', 'current_df')
+FILTERED_DF_FILE = FILES.get('filtered_df', 'filtered_df')
+TOPICS_DF_FILE = FILES.get('topics_df', 'topics_df')
+ROWS_CARDINALITIES_FILE = FILES.get('rows_cardinalities', 'rows_cardinalities')
+EXT_MAPPINGS_FILE = FILES.get('ext_mappings', 'ext_mappings')
 
 REQUIRED_COLUMNS = INPUT_FILES_SETTINGS.get('required_columns')
 
-EMBEDDINGS_MODEL = ML.get('embeddings').get('model_name')
-SEED = ML.get('seed')
-SENTIMENT_MODEL_NAME = ML.get('sentiment').get('model_name')
+if len(REQUIRED_COLUMNS) < 2:
+    logging.error('Can not start application without defining at least content and date columns')
+    sys.exit(0)
 
-UMAP = ML.get('UMAP')
-DIM_REDUCER_MODEL_NAME = UMAP.get('dim_reducer_model_name')
-REDUCER_2D_MODEL_NAME = UMAP.get('reducer_2d_model_name')
+LANG_DETECT = ETL_SETTINGS.get('detect_lang', True)
+TRANSLATE_CONTENT = ETL_SETTINGS.get('translate', True)
+GET_SENTIMENT = ETL_SETTINGS.get('sentiment', True)
+BATCH_SIZE = ETL_SETTINGS.get('batch_size', 16)
+TRANSLATION_BATCH_SIZE = ETL_SETTINGS.get('translation_batch_size', 8)
+CLEARED_FILE_EXT = ETL_SETTINGS.get('cleared_file_ext', '.parquet.gzip')
 
-HDBSCAN_SETTINGS = ML.get('HDBSCAN_SETTINGS')
-HDBSCAN_MODEL_NAME = HDBSCAN_SETTINGS.get('model_name')
-RECALCULATE_CLUSTERS_TRESHOLD = ML.get('recalculate_clusters_treshold')
-OUTLIER_TRESHOLD = HDBSCAN_SETTINGS.get('outlier_treshold')
+LOGGING_FORMAT = LOGGER.get('logging_format', '[%(asctime)s] - %(levelname)s - %(message)s')
+LOGGER_LEVEL = LOGGER.get('logger_level', 'INFO')
 
-LANG_DETECTION_MODEL = ML.get('lang_detection_model')
+EMPTY_CONTENTS_SUFFIX = EMPTY_CONTENT_SETTINGS.get('empty_content_suffix', '_EMPTY_CONTENT')
+DROPPED_INDEXES_COLUMN = EMPTY_CONTENT_SETTINGS.get('dropped_indexes_column', 'dropped_indexes')
 
-TRANSLATION_MODELS = ML.get('translation_models')
+BASE_REPORT_COLUMNS = REPORT_CONFIG.get('base_columns', [])
+ORIGINAL_CONTENT_COLUMN = REPORT_CONFIG.get('original_content_column', 'content')
+DATE_COLUMN = REPORT_CONFIG.get('date_column', 'Questioned_Date')
 
-REPORT_CONFIG = CONFIGURATION.get('REPORT_SETTINGS')
+if ORIGINAL_CONTENT_COLUMN not in REQUIRED_COLUMNS:
+    logging.error(f'Required columns: {REQUIRED_COLUMNS} does not contain ORIGINAL_CONTENT_COLUMN: {ORIGINAL_CONTENT_COLUMN}')
+    sys.exit(0)
 
-BASE_REPORT_COLUMNS = REPORT_CONFIG.get('base_columns')
-ORIGINAL_CONTENT_COLUMN = REPORT_CONFIG.get('original_content_column')
-PREPROCESSED_CONTENT_COLUMN = REPORT_CONFIG.get('preprocessed_content_column')
+if DATE_COLUMN not in REQUIRED_COLUMNS:
+    logging.error(f'Required columns: {REQUIRED_COLUMNS} does not contain DATE_COLUMN: {DATE_COLUMN}')
+    sys.exit(0)
+
+PREPROCESSED_CONTENT_COLUMN = REPORT_CONFIG.get('preprocessed_content_column', 'preprocessed_content')
 LABELS_COLUMN = REPORT_CONFIG.get('labels_column', 'labels')
 CARDINALITIES_COLUMN = REPORT_CONFIG.get('cardinalities_column', 'counts')
 SENTIMENT_COLUMN = REPORT_CONFIG.get('sentiment_column', 'sentiment')
 FILENAME_COLUMN = REPORT_CONFIG.get('filename_column', 'filename')
-ORIGINAL_CONTENT = REPORT_CONFIG.get('original_content')
-DATE_COLUMN = REPORT_CONFIG.get('date_column')
+LANG_DETECTION_COLUMN = REPORT_CONFIG.get('detected_language_column', 'detected_language')
 CLUSTER_SUMMARY_COLUMN = REPORT_CONFIG.get('cluster_summary_column', 'cluster_summary')
 
-COMPARING_RAPORT_DOWNLOAD_NAME = REPORT_CONFIG.get('download_name')
-NO_TOPIC_TOKEN = REPORT_CONFIG.get('no_topic_token')
-COMPARING_REPORT_SUFFIX = REPORT_CONFIG.get('comparing_report_suffix')
-
-TOPIC_COLUMN_PREFIX = REPORT_CONFIG.get('topic_column_prefix')
+NO_TOPIC_TOKEN = REPORT_CONFIG.get('no_topic_token', '-')
+COMPARING_REPORT_SUFFIX = REPORT_CONFIG.get('comparing_report_suffix', '_comparison')
+TOPIC_COLUMN_PREFIX = REPORT_CONFIG.get('topic_column_prefix', 'Word')
 
 TOPICS_RANGE = range(1, 6)
 ALL_DETAILED_REPORT_COLUMNS = [DATE_COLUMN] + BASE_REPORT_COLUMNS + [
@@ -165,19 +175,45 @@ ALL_DETAILED_REPORT_COLUMNS = [DATE_COLUMN] + BASE_REPORT_COLUMNS + [
 if GET_SENTIMENT:
     ALL_DETAILED_REPORT_COLUMNS += [SENTIMENT_COLUMN]
 
-CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('cluster_exec_filename_prefix')
-CLUSTER_EXEC_FILENAME_EXT = REPORT_CONFIG.get('cluster_exec_filename_ext')
+if LANG_DETECT:
+    ALL_DETAILED_REPORT_COLUMNS += [LANG_DETECTION_COLUMN]
 
-DETAILED_CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('detailed_cluster_exec_filename_prefix')
-
-FILTERED_REPORT_PREFIX = REPORT_CONFIG.get('filtered_filename_prefix')
-FILTERED_FILENAME_EXT = REPORT_CONFIG.get('filtered_filename_ext')
+CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('cluster_exec_filename_prefix', 'cluster_exec')
+DETAILED_CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('detailed_cluster_exec_filename_prefix', 'detailed')
+FILTERED_REPORT_PREFIX = REPORT_CONFIG.get('filtered_filename_prefix', 'filtered')
 
 COLS_FOR_LABEL = [f"New_{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE]
 COLS_FOR_OLD_LABEL = [f"Old_{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE]
 OLD_COL_NAME = 'Old_' + CARDINALITIES_COLUMN
 NEW_COL_NAME = 'New_' + CARDINALITIES_COLUMN
 
+SEED = ML.get('seed', 42)
+EMBEDDINGS_MODEL = ML.get('embeddings', {}).get('model_name', 'sentence-transformers/all-mpnet-base-v2')
+SENTIMENT_MODEL_NAME = ML.get('sentiment', {}).get('model_name', 'cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual')
+
+UMAP = ML.get('UMAP', {})
+HDBSCAN_SETTINGS = ML.get('HDBSCAN_SETTINGS', {})
+
+N_NEIGHBORS = UMAP.get('n_neighbors', 15)
+MIN_DIST = UMAP.get('min_dist', 0.0)
+N_COMPONENTS = UMAP.get('n_components', 5)
+
+COVERAGE_WITH_BEST = HDBSCAN_SETTINGS.get('coverage_with_best', 0.87)
+MIN_CLUSTER_SIZE = HDBSCAN_SETTINGS.get('min_cluster_size', [5, 10, 15, 30, 45, 60])
+MIN_SAMPLES = HDBSCAN_SETTINGS.get('min_samples', [5, 10, 15, 20, 30])
+HDBSCAN_METRIC = HDBSCAN_SETTINGS.get('metric', ['euclidean', 'manhattan'])                   
+CLUSTER_SELECTION_METHOD = HDBSCAN_SETTINGS.get('cluster_selection_method', ['eom'])
+
+RECALCULATE_CLUSTERS_TRESHOLD = ML.get('recalculate_clusters_treshold', 0.1)
+OUTLIER_TRESHOLD = ML.get('outlier_treshold', 0.1)
+
+LANG_DETECTION_MODEL = ML.get('lang_detection_model', 'papluca/xlm-roberta-base-language-detection')
+TRANSLATION_MODELS = ML.get('translation_models', {
+    'pl': 'Helsinki-NLP/opus-mt-pl-en',
+    'de': 'Helsinki-NLP/opus-mt-de-en',
+    'es': 'Helsinki-NLP/opus-mt-es-en',
+    'ko': 'Helsinki-NLP/opus-mt-ko-en'
+})
 
 REPORT_FORMATS_MAPPING = get_report_ext(
     ALLOWED_REPORT_EXT_DIR,
@@ -267,6 +303,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 logger.debug(f'Required columns: {REQUIRED_COLUMNS}')
+logger.debug(f"{N_NEIGHBORS=}, {MIN_DIST=}, {N_COMPONENTS=}")
+logger.debug(f"{SEED=}")
+logger.debug(f"{COVERAGE_WITH_BEST=}")
+logger.debug(f"{SENTIMENT_MODEL_NAME=}")
+logger.debug(f"{OUTLIER_TRESHOLD=}")
+logger.debug(f"{MIN_CLUSTER_SIZE=}")
+logger.debug(f"{HDBSCAN_METRIC=}")
 
 def upload_and_validate_files(
         uploaded_files: list):
@@ -508,6 +551,9 @@ def choose_files_for_clusters():
         swearwords=SWEAR_WORDS,
         original_content_column=ORIGINAL_CONTENT_COLUMN,
         content_column_name=PREPROCESSED_CONTENT_COLUMN,
+        sentiment_column_name=SENTIMENT_COLUMN,
+        detected_language_column_name=LANG_DETECTION_COLUMN,
+        dropped_indexes_column_name=DROPPED_INDEXES_COLUMN,
         cleread_file_ext=CLEARED_FILE_EXT,
         empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
         empty_content_ext=EMPTY_CONTENTS_EXT,
@@ -535,20 +581,24 @@ def choose_files_for_clusters():
         embedded_files_filename=EMBEDDED_JSON,
         cleared_files_ext=CLEARED_FILE_EXT,
         outlier_treshold=OUTLIER_TRESHOLD,
+        labels_column=LABELS_COLUMN,
         cluster_summary_column=CLUSTER_SUMMARY_COLUMN,
         filename_column=FILENAME_COLUMN,
         random_state=SEED,
-        umap_model_name=DIM_REDUCER_MODEL_NAME,
-        reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
-        n_neighbors=UMAP.get('n_neighbors'),
-        min_dist=UMAP.get('min_dist'),
-        n_components=UMAP.get('n_components'),
-        coverage_with_best=HDBSCAN_SETTINGS.get('coverage_with_best'),
-        min_cluster_size=HDBSCAN_SETTINGS.get('min_cluster_size'),
-        min_samples=HDBSCAN_SETTINGS.get('min_samples'),
-        metric=HDBSCAN_SETTINGS.get('metric'),                      
-        cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
+        clusterer_model_name=CLUSTERER_MODEL_NAME,
+        umap_model_name = DIM_REDUCER_MODEL_NAME,
+        reducer_2d_model_name = REDUCER_2D_MODEL_NAME,
+        n_neighbors=N_NEIGHBORS,
+        min_dist=MIN_DIST,
+        n_components=N_COMPONENTS,
+        coverage_with_best=COVERAGE_WITH_BEST,
+        min_cluster_size=MIN_CLUSTER_SIZE,
+        min_samples=MIN_SAMPLES,
+        metric=HDBSCAN_METRIC,                      
+        cluster_selection_method=CLUSTER_SELECTION_METHOD
     )
+
+    logger.debug(f"{new_current_df=}")
 
     if not isinstance(new_current_df, pd.DataFrame):
         return redirect(url_for("index", cluster_failed_message=new_current_df))
@@ -699,7 +749,7 @@ def apply_filter():
         
     except Exception as e:
 
-        return redirect(url_for("index", message=f"DataFrame current_df can not be found and loaded"))
+        return redirect(url_for("index", no_current_df_message=f"DataFrame current_df can not be found or loaded"))
     
     filtered_df[DATE_COLUMN] = pd.to_datetime(filtered_df[DATE_COLUMN])
     
@@ -955,7 +1005,7 @@ def get_detailed_cluster_exec_report():
     
     except Exception as e:
 
-        return redirect(url_for("index", message=f"DataFrame current_df can not be found and loaded"))
+        return redirect(url_for("index", no_current_df_message=f"DataFrame current_df can not be found or loaded"))
 
     detailed_cluster_exec_report_filename = get_report_name_with_timestamp(
         filename_prefix=f"{DETAILED_CLUSTER_EXEC_FILENAME_PREFIX}_{CLUSTER_EXEC_FILENAME_PREFIX}"
@@ -1016,6 +1066,9 @@ def update_clusters_new_file():
                 swearwords=SWEAR_WORDS,
                 original_content_column=ORIGINAL_CONTENT_COLUMN,
                 content_column_name=PREPROCESSED_CONTENT_COLUMN,
+                detected_language_column_name=LANG_DETECTION_COLUMN,
+                sentiment_column_name=SENTIMENT_COLUMN,
+                dropped_indexes_column_name=DROPPED_INDEXES_COLUMN,
                 cleread_file_ext=CLEARED_FILE_EXT,
                 empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
                 empty_content_ext=EMPTY_CONTENTS_EXT,
@@ -1028,7 +1081,7 @@ def update_clusters_new_file():
             
             filename_in_cleared_files = find_filename_in_dir(
                 path_to_dir=PATH_TO_CLEARED_FILES) \
-                    .get(os.path.splitext(filename)[0])
+                    .get(filename.split('.')[0])
             
             logger.debug(filename_in_cleared_files)
 
@@ -1058,10 +1111,10 @@ def update_clusters_new_file():
                     path_to_cleared_files_dir=PATH_TO_CLEARED_FILES,
                     path_to_faiss_vetors_dir=PATH_TO_FAISS_VECTORS_DIR,
                     required_columns=REQUIRED_COLUMNS,
-                    n_of_samples=n_of_rows_for_new_file,
+                    label_column=LABELS_COLUMN,
                     topic_df_filename=TOPICS_DF_FILE,
                     outlier_treshold=OUTLIER_TRESHOLD,
-                    clusterer_model_name=HDBSCAN_MODEL_NAME,
+                    clusterer_model_name=CLUSTERER_MODEL_NAME,
                     umap_model_name=DIM_REDUCER_MODEL_NAME,
                     reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
                     cleared_files_ext=CLEARED_FILE_EXT
@@ -1122,20 +1175,22 @@ def update_clusters_new_file():
                     faiss_vectors_dirname=FAISS_VECTORS_DIR,
                     embedded_files_filename=EMBEDDED_JSON,
                     cleared_files_ext=CLEARED_FILE_EXT,
+                    labels_column=LABELS_COLUMN,
                     cluster_summary_column=CLUSTER_SUMMARY_COLUMN,
                     outlier_treshold=OUTLIER_TRESHOLD,
                     filename_column=FILENAME_COLUMN,
                     random_state=SEED,
+                    clusterer_model_name=CLUSTERER_MODEL_NAME,
                     umap_model_name=DIM_REDUCER_MODEL_NAME,
                     reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
-                    n_neighbors=UMAP.get('n_neighbors'),
-                    min_dist=UMAP.get('min_dist'),
-                    n_components=UMAP.get('n_components'),
-                    coverage_with_best=HDBSCAN_SETTINGS.get('coverage_with_best'),
-                    min_cluster_size=HDBSCAN_SETTINGS.get('min_cluster_size'),
-                    min_samples=HDBSCAN_SETTINGS.get('min_samples'),
-                    metric=HDBSCAN_SETTINGS.get('metric'),                      
-                    cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
+                    n_neighbors=N_NEIGHBORS,
+                    min_dist=MIN_DIST,
+                    n_components=N_COMPONENTS,
+                    coverage_with_best=COVERAGE_WITH_BEST,
+                    min_cluster_size=MIN_CLUSTER_SIZE,
+                    min_samples=MIN_SAMPLES,
+                    metric=HDBSCAN_METRIC,                      
+                    cluster_selection_method=CLUSTER_SELECTION_METHOD
                 )
 
                 if not isinstance(new_current_df, pd.DataFrame):
@@ -1208,6 +1263,9 @@ def update_clusters_existing_file():
         swearwords=SWEAR_WORDS,
         original_content_column=ORIGINAL_CONTENT_COLUMN,
         content_column_name=PREPROCESSED_CONTENT_COLUMN,
+        sentiment_column_name=SENTIMENT_COLUMN,
+        detected_language_column_name=LANG_DETECTION_COLUMN,
+        dropped_indexes_column_name=DROPPED_INDEXES_COLUMN,
         cleread_file_ext=CLEARED_FILE_EXT,
         empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
         empty_content_ext=EMPTY_CONTENTS_EXT,
@@ -1222,7 +1280,7 @@ def update_clusters_existing_file():
 
     filename_in_cleared_files = find_filename_in_dir(
         path_to_dir=PATH_TO_CLEARED_FILES) \
-            .get(os.path.splitext(existing_file_for_update)[0])
+            .get(existing_file_for_update.split('.')[0])
     
     logger.debug(filename_in_cleared_files)
 
@@ -1253,8 +1311,9 @@ def update_clusters_existing_file():
             path_to_faiss_vetors_dir=PATH_TO_FAISS_VECTORS_DIR,
             topic_df_filename=TOPICS_DF_FILE,
             required_columns=REQUIRED_COLUMNS,
+            label_column=LABELS_COLUMN,
             outlier_treshold=OUTLIER_TRESHOLD,
-            clusterer_model_name=HDBSCAN_MODEL_NAME,
+            clusterer_model_name=CLUSTERER_MODEL_NAME,
             umap_model_name=DIM_REDUCER_MODEL_NAME,
             reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
             cleared_files_ext=CLEARED_FILE_EXT
@@ -1305,18 +1364,21 @@ def update_clusters_existing_file():
             embedded_files_filename=EMBEDDED_JSON,
             cleared_files_ext=CLEARED_FILE_EXT,
             outlier_treshold=OUTLIER_TRESHOLD,
+            labels_column=LABELS_COLUMN,
             cluster_summary_column=CLUSTER_SUMMARY_COLUMN,
             filename_column=FILENAME_COLUMN,
             random_state=SEED,
+            clusterer_model_name=CLUSTERER_MODEL_NAME,
             umap_model_name=DIM_REDUCER_MODEL_NAME,
             reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
-            n_neighbors=UMAP.get('n_neighbors'),
-            min_dist=UMAP.get('min_dist'),
-            n_components=UMAP.get('n_components'),
-            min_cluster_size=HDBSCAN_SETTINGS.get('min_cluster_size'),
-            min_samples=HDBSCAN_SETTINGS.get('min_samples'),
-            metric=HDBSCAN_SETTINGS.get('metric'),                      
-            cluster_selection_method=HDBSCAN_SETTINGS.get('cluster_selection_method')
+            n_neighbors=N_NEIGHBORS,
+            min_dist=MIN_DIST,
+            n_components=N_COMPONENTS,
+            coverage_with_best=COVERAGE_WITH_BEST,
+            min_cluster_size=MIN_CLUSTER_SIZE,
+            min_samples=MIN_SAMPLES,
+            metric=HDBSCAN_METRIC,                      
+            cluster_selection_method=CLUSTER_SELECTION_METHOD
         )
 
         if not isinstance(new_current_df, pd.DataFrame):

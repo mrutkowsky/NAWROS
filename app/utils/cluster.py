@@ -394,7 +394,7 @@ def get_clusters_for_choosen_files(
        pd.DataFrame: Dataframe with labels and 2D coordinates for each sentence.
     """
 
-    MIN_SAMPLES = 15
+    MIN_SAMPLES_TO_START = 15
     PATH_TO_JSON_EMBEDDED_FILES = os.path.join(path_to_embeddings_dir, embedded_files_filename)
     PATH_TO_FAISS_VECTORS = os.path.join(path_to_embeddings_dir, faiss_vectors_dirname)
 
@@ -413,8 +413,8 @@ def get_clusters_for_choosen_files(
         only_classified_key=only_classified_key)
     
     n_of_samples = sum(rows_cardinalities_dict.get(used_as_base_key, {}).values())
-    if n_of_samples < MIN_SAMPLES:
-        return f'Number of samples should be at least {MIN_SAMPLES} to perform clusterization.'
+    if n_of_samples < MIN_SAMPLES_TO_START:
+        return f'Number of samples should be at least {MIN_SAMPLES_TO_START} to perform clusterization.'
     
     try:
     

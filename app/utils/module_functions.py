@@ -169,10 +169,16 @@ def read_config(
         config_filename) \
             if path_to_dir is not None else config_filename
     
-    with open(path_to_configfile) as yaml_file:
-        config = yaml.load(yaml_file, Loader=yaml.SafeLoader)
+    try:
+    
+        with open(path_to_configfile) as yaml_file:
+            config = yaml.load(yaml_file, Loader=yaml.SafeLoader)
 
-    return config
+    except FileNotFoundError:
+        return None
+
+    else:
+        return config
 
 def get_report_ext(
     path_to_arf_dir: str,
