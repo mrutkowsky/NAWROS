@@ -67,7 +67,7 @@ def read_file(
                     sep=sep,
                     nrows=1)
         
-            except ValueError:
+            except (ValueError, pd.errors.ParserError):
                 continue
 
             else:
@@ -296,6 +296,8 @@ def process_data_from_choosen_files(
         lang_detection_model_name: str,
         swearwords: list,
         currently_serviced_langs: dict,
+        required_columns: list,
+        detect_languages: bool = True,
         get_sentiment: bool = True,
         translate_content: bool = True,
         original_content_column: str = 'content',
@@ -310,6 +312,7 @@ def process_data_from_choosen_files(
         empty_content_ext: str = '.csv',
         en_code: str = 'en',
         batch_size: int = 32,
+        translation_batch_size: int = 8,
         seed: int = 42):
     
     """
@@ -367,15 +370,17 @@ def process_data_from_choosen_files(
 
     logger.info(f'Embeddings model {embeddings_model_name} loaded successfully')
 
-    lang_detect_dict = load_lang_detector(
-        model_name=lang_detection_model_name,
-        device=DEVICE
-    )
+    if detect_languages:
 
-    lang_detection_model = lang_detect_dict.get('model')
-    lang_detection_tokenizer = lang_detect_dict.get('tokenizer')
+        lang_detect_dict = load_lang_detector(
+            model_name=lang_detection_model_name,
+            device=DEVICE
+        )
 
-    logger.info(f'Language detection model {lang_detection_model_name} loaded successfully')
+        lang_detection_model = lang_detect_dict.get('model')
+        lang_detection_tokenizer = lang_detect_dict.get('tokenizer')
+
+        logger.info(f'Language detection model {lang_detection_model_name} loaded successfully')
 
     logger.info(
         f"""Loading data from chosen files:{chosen_files}""")
@@ -401,7 +406,8 @@ def process_data_from_choosen_files(
             if filename not in cleared_files_names.keys():
 
                 df = read_file(
-                    file_path=os.path.join(path_to_valid_files, file_))
+                    file_path=os.path.join(path_to_valid_files, file_),
+                    columns=required_columns)
                     
                 logger.debug(f'{filename=}, {ext=}')
                 logger.debug(f'Loaded {file_}')
@@ -431,19 +437,21 @@ def process_data_from_choosen_files(
                     shuffle=False
                 )
 
-                lang_detection_labels = detect_lang(
-                    dataloader=dataloader,
-                    detection_model=lang_detection_model,
-                    tokenizer=lang_detection_tokenizer,
-                    device=DEVICE
-                )
+                if detect_languages:
 
-                logger.info(f'Successfully detected languages for {filename}')
+                    lang_detection_labels = detect_lang(
+                        dataloader=dataloader,
+                        detection_model=lang_detection_model,
+                        tokenizer=lang_detection_tokenizer,
+                        device=DEVICE
+                    )
 
-                df[detected_language_column_name] = lang_detection_labels
-                known_langs = [en_code]
+                    logger.info(f'Successfully detected languages for {filename}')
 
-                if translate_content:
+                    df[detected_language_column_name] = lang_detection_labels
+                    known_langs = [en_code]
+
+                if translate_content and detect_languages:
 
                     translation_models_dict = {}
 
@@ -468,7 +476,7 @@ def process_data_from_choosen_files(
                         to_translate_dataloader = create_dataloader(
                             df.loc[df[detected_language_column_name] == lang],
                             target_column=content_column_name,
-                            batch_size=8,
+                            batch_size=translation_batch_size,
                             shuffle=False
                         )
 

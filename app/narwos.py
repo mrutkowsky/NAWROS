@@ -56,6 +56,9 @@ DEFAULT_REPORT_FORMAT_SETTINGS = {
 }
 
 GITKEEP_FILE = '.gitkeep'
+CSV_FORMAT = 'csv'
+EXCEL_FORMAT = 'excel'
+HTML_FORMAT = 'html'
 
 app.config['CONFIG_FILE'] = 'CONFIG.yaml'
 
@@ -103,12 +106,14 @@ EMPTY_CONTENTS_EXT = EMPTY_CONTENT_SETTINGS.get('empty_content_ext')
 EMPTY_CONTENTS_SUFFIX = EMPTY_CONTENT_SETTINGS.get('empty_content_suffix')
 
 BATCH_SIZE = PIPELINE.get('batch_size')
+TRANSLATION_BATCH_SIZE = PIPELINE.get('translation_batch_size')
 CLEARED_FILE_EXT = PIPELINE.get('cleared_file_ext')
 
 LOGGING_FORMAT = LOGGER.get('logging_format')
 LOGGER_LEVEL = LOGGER.get('logger_level')
 
 ETL_SETTINGS = CONFIGURATION.get('ETL_SETTINGS')
+LANG_DETECT = ETL_SETTINGS.get('detect_lang')
 TRANSLATE_CONTENT = ETL_SETTINGS.get('translate')
 GET_SENTIMENT = ETL_SETTINGS.get('sentiment')
 
@@ -493,6 +498,8 @@ def choose_files_for_clusters():
         faiss_vectors_dirname=FAISS_VECTORS_DIR,
         embedded_files_filename=EMBEDDED_JSON,
         embeddings_model_name=EMBEDDINGS_MODEL,
+        required_columns=REQUIRED_COLUMNS,
+        detect_languages=LANG_DETECT,
         get_sentiment=GET_SENTIMENT,
         translate_content=TRANSLATE_CONTENT,
         lang_detection_model_name=LANG_DETECTION_MODEL,
@@ -505,6 +512,7 @@ def choose_files_for_clusters():
         empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
         empty_content_ext=EMPTY_CONTENTS_EXT,
         batch_size=BATCH_SIZE,
+        translation_batch_size=TRANSLATION_BATCH_SIZE,
         seed=SEED)
     
     if zero_length_after_processing:
@@ -729,7 +737,7 @@ def get_exec_filtered_report():
     if not report_type:
         return redirect(url_for("show_clusters", message_unsuccessful="No report type has been selected."))
     
-    if report_type not in REPORT_FORMATS_MAPPING.keys():
+    if report_type not in [CSV_FORMAT, EXCEL_FORMAT, HTML_FORMAT]:
         return redirect(url_for("show_clusters", message_unsuccessful=f"Selected report type {report_type} is not allowed."))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
@@ -793,7 +801,7 @@ def get_detailed_filtered_report():
     if not report_type:
         return redirect(url_for("show_clusters", message_unsuccessful="No report type has been selected."))
     
-    if report_type not in REPORT_FORMATS_MAPPING.keys():
+    if report_type not in [CSV_FORMAT, EXCEL_FORMAT]:
         return redirect(url_for("show_clusters", message_unsuccessful=f"Selected report type {report_type} is not allowed."))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
@@ -841,7 +849,7 @@ def get_last_cluster_exec_report():
     if not report_type:
         return redirect(url_for("show_clusters", message_unsuccessful="No report type has been chosen."))
     
-    if report_type not in REPORT_FORMATS_MAPPING.keys():
+    if report_type not in [CSV_FORMAT, EXCEL_FORMAT, HTML_FORMAT]:
         return redirect(url_for("show_clusters", message_unsuccessful=f"Selected report type {report_type} is not allowed."))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
@@ -896,7 +904,7 @@ def get_chosen_cluster_exec_report():
     if not report_type:
         return redirect(url_for("show_clusters", message_unsuccessful="No report type has been chosen."))
     
-    if report_type not in REPORT_FORMATS_MAPPING.keys():
+    if report_type not in [CSV_FORMAT, EXCEL_FORMAT, HTML_FORMAT]:
         return redirect(url_for("show_clusters", message_unsuccessful=f"Selected report type {report_type} is not allowed."))
     
     try:
@@ -931,7 +939,7 @@ def get_detailed_cluster_exec_report():
     if not report_type:
         return redirect(url_for("show_clusters", message_unsuccessful="No report type has been chosen."))
     
-    if report_type not in REPORT_FORMATS_MAPPING.keys():
+    if report_type not in [CSV_FORMAT, EXCEL_FORMAT]:
         return redirect(url_for("show_clusters", message_unsuccessful=f"Selected report type {report_type} is not allowed."))
 
     ext_settings = REPORT_FORMATS_MAPPING.get(report_type, DEFAULT_REPORT_FORMAT_SETTINGS)
@@ -998,6 +1006,8 @@ def update_clusters_new_file():
                 faiss_vectors_dirname=FAISS_VECTORS_DIR,
                 embedded_files_filename=EMBEDDED_JSON,
                 embeddings_model_name=EMBEDDINGS_MODEL,
+                required_columns=REQUIRED_COLUMNS,
+                detect_languages=LANG_DETECT,
                 get_sentiment=GET_SENTIMENT,
                 translate_content=TRANSLATE_CONTENT,
                 lang_detection_model_name=LANG_DETECTION_MODEL,
@@ -1010,6 +1020,7 @@ def update_clusters_new_file():
                 empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
                 empty_content_ext=EMPTY_CONTENTS_EXT,
                 batch_size=BATCH_SIZE,
+                translation_batch_size=TRANSLATION_BATCH_SIZE,
                 seed=SEED)
             
             if zero_length_after_processing:
@@ -1025,9 +1036,6 @@ def update_clusters_new_file():
                 os.path.join(PATH_TO_CLEARED_FILES, filename_in_cleared_files),
                 loaded_column=ORIGINAL_CONTENT_COLUMN,
             )
-
-            if n_of_rows_for_new_file < MIN_CLUSTER_SAMPLES:
-                return redirect(url_for("show_clusters", message_unsuccessful=f"Number of samples for clusterization after preprocessing should be at least {MIN_CLUSTER_SAMPLES}."))
 
             rows_cardinalities_current_df = get_rows_cardinalities(
                 path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES
@@ -1191,6 +1199,8 @@ def update_clusters_existing_file():
         embedded_files_filename=EMBEDDED_JSON,
         embeddings_model_name=EMBEDDINGS_MODEL,
         translate_content=TRANSLATE_CONTENT,
+        required_columns=REQUIRED_COLUMNS,
+        detect_languages=LANG_DETECT,
         get_sentiment=GET_SENTIMENT,
         lang_detection_model_name=LANG_DETECTION_MODEL,
         currently_serviced_langs=TRANSLATION_MODELS,
@@ -1202,6 +1212,7 @@ def update_clusters_existing_file():
         empty_contents_suffix=EMPTY_CONTENTS_SUFFIX,
         empty_content_ext=EMPTY_CONTENTS_EXT,
         batch_size=BATCH_SIZE,
+        translation_batch_size=TRANSLATION_BATCH_SIZE,
         seed=SEED)
     
     if zero_length_after_processing:
@@ -1219,9 +1230,6 @@ def update_clusters_existing_file():
         os.path.join(PATH_TO_CLEARED_FILES, filename_in_cleared_files),
         loaded_column=ORIGINAL_CONTENT_COLUMN,
     )
-
-    if n_of_rows_existing_file < MIN_CLUSTER_SAMPLES:
-        return redirect(url_for("show_clusters", message_unsuccessful=f"Number of samples for clusterization after preprocessing should be at least {MIN_CLUSTER_SAMPLES}."))
 
     rows_cardinalities_current_df = get_rows_cardinalities(
         path_to_cardinalities_file=PATH_TO_ROWS_CARDINALITIES
