@@ -92,7 +92,9 @@ def plot_changed_groups(df_changed: pd.DataFrame,
     bar_positions = np.arange(len(df_changed))
     bar_height = 0.4
     plot_width = 8
-    fig, ax = plt.subplots(figsize=(plot_width, len(df_changed) / 4 + 2))
+
+    height = len(df_changed) / 4 + 2 if len(df_changed) > 18 else 8
+    fig, ax = plt.subplots(figsize=(plot_width, height))
 
     ax.barh(bar_positions + bar_height, df_changed[new_col_name],\
             height=bar_height, color=NEW_GROUP_COLOR, label=new_col_name)
