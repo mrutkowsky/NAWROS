@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import logging
 
+plt.switch_backend('agg')
+
 logger = logging.getLogger(__file__)
 
 LABEL = 'Label'
@@ -249,7 +251,7 @@ def create_table(df: pd.DataFrame) -> plt.figure:
 
     num_rows, num_cols = df.shape
 
-    table.scale(3.5, num_rows / (num_cols + 1))
+    table.scale(3.5, 2)
     ax.axis('off')
 
     return fig

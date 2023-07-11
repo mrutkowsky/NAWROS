@@ -676,9 +676,19 @@ def apply_filter():
     filtered_sentiment = request.form.getlist('filtered_sentiment')
     logger.debug(f'{filtered_sentiment=}')
 
-    filtered_df = read_file(
-        PATH_TO_CURRENT_DF, 
-        columns=ALL_DETAILED_REPORT_COLUMNS)
+    try:
+
+        filtered_df = read_file(
+            PATH_TO_CURRENT_DF, 
+            columns=ALL_DETAILED_REPORT_COLUMNS)
+        
+    except Exception as e:
+
+        return redirect(url_for("index", message=f"DataFrame current_df can not be found and loaded"))
+    
+    filtered_df[DATE_COLUMN] = pd.to_datetime(filtered_df[DATE_COLUMN])
+    
+    logger.debug(f'Filter_df before applying filters (only current_df) {filtered_df}')
     
     TOPIC_COLUMNS = tuple(f"{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE)
     
@@ -695,6 +705,8 @@ def apply_filter():
         date_column=DATE_COLUMN,
         date_format=DATE_FILTER_FORMAT
     )
+
+    logger.debug(f'Filter_df after applying filters {filtered_df}')
 
     filtered_df.to_parquet(
         index=False, 
@@ -919,13 +931,19 @@ def get_detailed_cluster_exec_report():
     report_ext = ext_settings.get('ext', '.csv')
     report_mimetype = ext_settings.get('mimetype', 'text/csv')
 
+    try:
+
+        current_df = read_file(
+            file_path=PATH_TO_CURRENT_DF,
+            columns=ALL_DETAILED_REPORT_COLUMNS
+        )
+    
+    except Exception as e:
+
+        return redirect(url_for("index", message=f"DataFrame current_df can not be found and loaded"))
+
     detailed_cluster_exec_report_filename = get_report_name_with_timestamp(
         filename_prefix=f"{DETAILED_CLUSTER_EXEC_FILENAME_PREFIX}_{CLUSTER_EXEC_FILENAME_PREFIX}"
-    )
-
-    current_df = read_file(
-        file_path=PATH_TO_CURRENT_DF,
-        columns=ALL_DETAILED_REPORT_COLUMNS
     )
 
     resp_report = create_response_report(
