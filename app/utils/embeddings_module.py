@@ -9,6 +9,7 @@ def mean_pooling(model_output, attention_mask):
     input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
     return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
+
 def load_transformer_model(
         model_name: str,
         seed: int = 42) -> AutoModel:
@@ -33,6 +34,7 @@ def load_transformer_model(
 
     return model, tokenizer, vec_size
     
+
 def embed_sentence(
         model: AutoModel,
         tokenizer: AutoTokenizer,
@@ -59,6 +61,7 @@ def embed_sentence(
         model_output = model(**encoded_input)
     
     return mean_pooling(model_output, encoded_input['attention_mask']).detach().numpy()
+
 
 def get_embeddings(
         dataloader: DataLoader, 
