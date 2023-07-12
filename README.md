@@ -4,7 +4,7 @@
 ### **Installation**
 It is recommended to run the app in Python virtual environment. Use guids linked below if needed.
 * [Creating pip venv](https://docs.python.org/3/library/venv.html) 
-* [Creating conda environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.  html#creating-an-environment-with-commands)
+* [Creating conda environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands)
 ```
 git clone git@github.com:mrutkowsky/NAWROS.git
 cd NAWROS
