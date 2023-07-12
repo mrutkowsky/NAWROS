@@ -3,6 +3,7 @@ import faiss
 from torch.utils.data import DataLoader, Dataset
 from sentence_transformers import SentenceTransformer
 
+
 def load_transformer_model(
         model_name: str,
         seed: int = 42,
@@ -27,6 +28,7 @@ def load_transformer_model(
 
     return model, vec_size
     
+
 def embed_sentence(
         model: SentenceTransformer,
         text) -> torch.Tensor:
@@ -46,6 +48,7 @@ def embed_sentence(
         sentences=text,
         show_progress_bar=True,
         convert_to_numpy=True)
+
 
 def get_embeddings(
         dataloader: DataLoader, 
