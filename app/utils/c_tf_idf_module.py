@@ -54,13 +54,11 @@ class CTFIDFVectorizer(TfidfTransformer):
         """Transform a count-based matrix to c-TF-IDF
 
         Parameters
-        ----------
-        X : sparse matrix of (n_samples, n_features)
+            X : sparse matrix of (n_samples, n_features)
             a matrix of term/token counts
 
         Returns
-        -------
-        vectors : sparse matrix of shape (n_samples, n_features)
+            vectors : sparse matrix of shape (n_samples, n_features)
 
         """
 
@@ -130,7 +128,7 @@ def perform_ctfidf(
     
     """Perform c-TF-IDF transformation on joined texts.
 
-    Parameters:
+    Args:
     joined_texts : list or pd.Series
         List or Series of joined texts.
     clusters_labels : list or pd.Series
