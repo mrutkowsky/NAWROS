@@ -8,6 +8,7 @@ import json
 
 logger = logging.getLogger(__file__)
 
+
 def compare_columns(
     file_columns: str,
     required_columns: set) -> set:
@@ -30,17 +31,19 @@ def compare_columns(
     
     return None if column_compatibility else required_columns_set.difference(file_columns_set)
 
-def check_column_names(column_names):
 
+def check_column_names(column_names: list) -> bool or str:
+    """Asserts the column are aligned wiotg configuration file."""
     for i, col1 in enumerate(column_names):
         for j, col2 in enumerate(column_names):
             if i != j and col1.startswith(col2) and '.' in col1:
                 return col2
     return False
 
+
 def validate_file(
-        file_path, 
-        required_columns):
+        file_path: str, 
+        required_columns: list) -> bool or str:
     
     """
     Validate a file by checking if it has the required columns.
@@ -48,7 +51,6 @@ def validate_file(
     Args:
         file_path: The path to the file.
         required_columns: The set of required columns.
-        delimeter (str, optional): The delimiter used in case of a CSV file. Defaults to r'[;,]'.
 
     Returns:
         bool or str: Returns True if the file is valid, or an error message if the file is invalid.
@@ -131,6 +133,7 @@ def validate_file(
             
     return True
 
+
 def validate_file_extension(
         filename: str,
         allowed_extensions: set) -> bool:
@@ -147,6 +150,7 @@ def validate_file_extension(
     """
     
     return True if os.path.splitext(filename)[-1].lower() in allowed_extensions else False
+
 
 def read_config(  
         config_filename: str,
@@ -180,9 +184,10 @@ def read_config(
     else:
         return config
 
+
 def get_report_ext(
     path_to_arf_dir: str,
-    filename: str):
-
+    filename: str) -> dict:
+    """Return the extension of the report file."""
     with open(os.path.join(path_to_arf_dir, filename), 'r', encoding='utf-8') as arf_json:
         return json.load(arf_json)

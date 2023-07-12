@@ -17,6 +17,7 @@ def load_sentiment_model(
 
     Args:
         model_name (str): name of pretrained model
+        device (str, optional): device to use. Defaults to 'cpu'.
     
     Returns:
         tuple: tokenizer, model, config
@@ -29,8 +30,10 @@ def load_sentiment_model(
     return tokenizer, model, config
 
 
-def offensive_language(text, swear_words):
-
+def offensive_language(text: str, swear_words: list) -> bool:
+    """
+    Detects offencsive language in a text based on appearance of swear words.
+    """
     text = text.lower().split()
 
     if any(word in text for word in swear_words):
@@ -38,12 +41,26 @@ def offensive_language(text, swear_words):
     else:
         return False
 
+
 def predict_sentiment(
-        data, 
-        tokenizer, 
-        model, 
-        config,
+        data: list, 
+        tokenizer: object, 
+        model: object, 
+        config: object,
         device: str = 'cpu'):
+    """
+    Predict sentiment of a text using a pretrained model.
+
+    Args:
+        data (list): list of texts to predict sentiment for
+        tokenizer (object): tokenizer object, expected AutoTokenizer from transformers
+        model (object): model object, expected AutoModelForSequenceClassification from transformers
+        config (object): config object, expected AutoConfig from transformers
+        device (str, optional): device to use. Defaults to 'cpu'.
+
+    Returns:
+        list: list of predicted labels
+    """
     
     labels = []
     
@@ -66,6 +83,3 @@ def predict_sentiment(
         labels.extend(batch_labels)
 
     return labels
-
-
-

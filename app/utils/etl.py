@@ -52,6 +52,7 @@ def load_files_into_df(
 
     return df_result
 
+
 def preprocess_text(text):
 
     """
@@ -105,7 +106,7 @@ def preprocess_text(text):
     
     return text.strip()
 
-def layer_normalize(vector: np.array):
+def layer_normalize(vector: np.array) -> np.array:
     
     """
     Normalize a vector by subtracting the mean and dividing by the standard deviation.

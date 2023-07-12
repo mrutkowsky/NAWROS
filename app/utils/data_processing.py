@@ -1,21 +1,17 @@
 import os
 import re
 import json
-import yaml
 import logging
 import numpy as np
 import pandas as pd
-import faiss
 import torch
 from torch.utils.data import Dataset, DataLoader
-from tqdm import tqdm
-import sys
 import spacy
-import lemminflect
 from collections import Counter
 from datetime import datetime
 import io
-from flask import make_response
+from flask import make_response, Response
+import lemminflect
 
 from utils.embeddings_module import load_transformer_model, get_embeddings
 from utils.etl import preprocess_text
@@ -102,6 +98,10 @@ def cleanup_data(
         path_to_empty_content_dir (str): The directory path to save the file with empty contents.
         empty_contents_suffix (str): The suffix to append to the filename for the file with empty contents.
         empty_content_ext (str): The file extension for the file with empty contents.
+        content_column_name (str, optional): The name of the column containing the contents.
+            Defaults to 'preprocessed_content'.
+        dropped_indexes_column_name (str, optional): The name of the column containing the dropped indexes.
+            Defaults to 'dropped_indexes'.
 
     Returns:
         pd.DataFrame: The cleaned-up DataFrame.
@@ -137,6 +137,7 @@ def cleanup_data(
     logger.debug(f'Preprocessed: {preprocessed_contents}')
 
     return df, df_dropped_indexes
+
 
 def get_embedded_files(
         path_to_embeddings_file: str):
@@ -184,9 +185,20 @@ def save_file_as_embeded(
     with open(path_to_embeddings_file, 'w', encoding='utf-8') as embedded_json:
         json.dump(embeded_files, embedded_json)
 
+
 def del_file_from_embeded(
     filename_to_del: str,
-    path_to_embeddings_file: str) -> None:
+    path_to_embeddings_file: str) -> bool:
+    """
+    Delets a file from the embedded files in a JSON file.
+
+    Args:
+        filename_to_del (str): The filename to delete.
+        path_to_embeddings_file (str): The path to the JSON file containing the embedded files.
+
+    Returns:
+        bool: True if the file was deleted, False otherwise.
+    """
 
     logger.debug(path_to_embeddings_file)
 
@@ -201,6 +213,7 @@ def del_file_from_embeded(
         with open(path_to_embeddings_file, 'w', encoding='utf-8') as embedded_json:
             json.dump(embedded_files_dict, embedded_json)
             return True
+
 
 def save_df_to_file(
         df: pd.DataFrame,
@@ -218,7 +231,8 @@ def save_df_to_file(
         file_ext (str, optional): The file extension. Defaults to '.csv'.
 
     Returns:
-        None
+        str: The path to the saved file or 'Unallowed file extension' if the
+            file extension is not allowed.
     """
     
     saving_path = os.path.join(path_to_dir, f'{filename}{file_ext}')
@@ -313,7 +327,7 @@ def process_data_from_choosen_files(
         en_code: str = 'en',
         batch_size: int = 32,
         translation_batch_size: int = 8,
-        seed: int = 42):
+        seed: int = 42) -> list:
     
     """
     Process data from files chosen by a user, save embedding for the ones that are not already embedded.
@@ -327,6 +341,24 @@ def process_data_from_choosen_files(
         faiss_vectors_dirname (str): The name of the directory to save the Faiss vectors.
         embedded_files_filename (str): The filename of the JSON file containing the embedded files.
         embeddings_model_name (str): The name of the embeddings model.
+        sentiment_model_name (str): The name of the sentiment model.
+        lang_detection_model_name (str): The name of the language detection model.
+        swearwords (list): A list of swearwords.
+        currently_serviced_langs (dict): A dictionary of currently serviced languages.
+        required_columns (list): A list of required columns.
+        detect_languages (bool, optional): Whether to detect languages. Defaults to True.
+        get_sentiment (bool, optional): Whether to get sentiment. Defaults to True.
+        translate_content (bool, optional): Whether to translate content. Defaults to True.
+        original_content_column (str, optional): The name of the column containing the original content.
+            Defaults to 'content'.
+        content_column_name (str, optional): The name of the column containing the preprocessed content.
+            Defaults to 'preprocessed_content'.
+        sentiment_column_name (str, optional): The name of the column containing the sentiment. Defaults to 'sentiment'.
+        detected_language_column_name (str, optional): The name of the column containing the detected language.
+            Defaults to 'detected_language'.
+        dropped_indexes_column_name (str, optional): The name of the column containing the dropped indexes.
+            Defaults to 'dropped_indexes'.
+        offensive_label (str, optional): The label for offensive content. Defaults to 'offensive'.
         faiss_vector_ext (str, optional): The file extension for the Faiss vectors. Defaults to '.index'.
         cleread_file_ext (str, optional): The file extension for the cleaned files. Defaults to '.gzip.parquet'.
         empty_contents_suffix (str, optional): The suffix to append to the filename for the files with empty contents.
@@ -336,7 +368,7 @@ def process_data_from_choosen_files(
         seed (int, optional): The random seed for the embeddings model. Defaults to 42.
 
     Returns:
-        None
+        list: A list of filenames of the files with empty contents.
     """
 
     PATH_TO_JSON_EMBEDDED_FILES = os.path.join(path_to_embeddings_dir, embedded_files_filename)
@@ -601,8 +633,12 @@ def process_data_from_choosen_files(
 
     return zero_length_after_processing
 
+
 def get_stopwords(
         path_to_dir_with_stopwords: str) -> list:
+    """
+    Returns list of stopwords from all files in directory
+    """
     
     all_stopwords = []
 
@@ -612,9 +648,12 @@ def get_stopwords(
 
     return all_stopwords
 
+
 def get_swearwords(
         path_to_dir_with_swearwords: str) -> list:
-    
+    """
+    Returns list of swearwords from all files in directory
+    """
     all_swearwords = []
 
     for lang_file in os.listdir(path_to_dir_with_swearwords):
@@ -623,8 +662,11 @@ def get_swearwords(
 
     return all_swearwords
 
-def get_rows_cardinalities(path_to_cardinalities_file: str) -> dict:
 
+def get_rows_cardinalities(path_to_cardinalities_file: str) -> dict:
+    """
+    Returns dict with cardinalities of rows for each file
+    """
     try:
         with open(path_to_cardinalities_file, 'r', encoding='utf-8') as cards_json:
             cards = json.load(cards_json)
@@ -633,10 +675,13 @@ def get_rows_cardinalities(path_to_cardinalities_file: str) -> dict:
     else:
         return cards
 
+
 def set_rows_cardinalities(
     path_to_cardinalities_file: str,
     updated_cardinalities) -> str or True:
-
+    """
+    Sets cardinalities of rows for a give file.
+    """
     try:
         with open(path_to_cardinalities_file, 'w', encoding='utf-8') as cards_json:
             json.dump(updated_cardinalities, cards_json)
@@ -645,8 +690,11 @@ def set_rows_cardinalities(
     else:
         return True
     
-def remove_stopwords(text, stopwords):
-    
+
+def remove_stopwords(text: str, stopwords: list) -> str:
+    """
+    Removes stopwords from text.
+    """
     words = re.findall(r'\b\w+\b', text.lower())
 
     filtered_words = [word for word in words if word not in stopwords]
@@ -655,7 +703,11 @@ def remove_stopwords(text, stopwords):
 
     return filtered_text
 
-def remove_single_occurrence_words(text, min_n_of_occurence: int = 3):
+
+def remove_single_occurrence_words(text: str, min_n_of_occurence: int = 3) -> str:
+    """
+    Removes words that occur only once in text.
+    """
     # Split the text into words
     words = text.split()
 
@@ -671,10 +723,14 @@ def remove_single_occurrence_words(text, min_n_of_occurence: int = 3):
 
     return filtered_text
 
+
 def preprocess_pipeline(
     text: str,
     stopwords: list,
-    min_n_of_occurence: int = 3): 
+    min_n_of_occurence: int = 3) -> str: 
+    """
+    Function runs the pipeline of preprocessing the text.
+    """
 
     nlp = spacy.load('en_core_web_sm')
 
@@ -702,6 +758,9 @@ def preprocess_pipeline(
 def get_n_of_rows_df(
     file_path: str,
     loaded_column: str = 'OS') -> int:
+    """
+    Return number of rows in a given file.
+    """
 
     df = read_file(
         file_path=file_path,
@@ -710,20 +769,27 @@ def get_n_of_rows_df(
 
     return len(df)
 
+
 def get_report_name_with_timestamp(
     filename_prefix: str,
-    timestamp_format: str = r"%Y_%m_%d_%H_%M_%S"): 
-
+    timestamp_format: str = r"%Y_%m_%d_%H_%M_%S") -> str: 
+    """
+    Returns filename with timestamp as s string.
+    """
     timestamp_filename = f"""{filename_prefix}_{datetime.now().strftime(timestamp_format)}"""
 
     return timestamp_filename
+
 
 def create_response_report(
         df: pd.DataFrame,
         filename: str,
         ext: str,
         mimetype: str,
-        file_format: str = 'csv'):
+        file_format: str = 'csv') -> Response or None:
+    """
+    Creates response with report in a given format.
+    """
     
     CSV_EXT, EXCEL_EXT, HTML_EXT = 'csv', 'excel', 'html'
     
@@ -751,10 +817,13 @@ def create_response_report(
 
     return resp
 
+
 def validate_date_format(
         date_str: str,
-        date_format: str):
-
+        date_format: str) -> str or False:
+    """
+    Validates date format.
+    """
     try:
 
         parsed_date = parser.parse(date_str)
@@ -762,6 +831,7 @@ def validate_date_format(
     
     except ValueError:
         return False
+
 
 def prepare_filters(
         df: pd.DataFrame,
@@ -771,6 +841,21 @@ def prepare_filters(
         topic_colum_prefix: str,
         topics_range: range,
         sentiment_column: str = None) -> dict[str, list]:
+    """
+    Function prepares filters for a given dataframe.
+
+    Args:
+        df (pd.DataFrame): dataframe to prepare filters for
+        date_column (str): name of the column with dates
+        date_filter_format (str): format of the date filter
+        filename_column (str): name of the column with filenames
+        topic_colum_prefix (str): prefix of the column with topics
+        topics_range (range): range of topics
+        sentiment_column (str, optional): name of the column with sentiment. Defaults to None.
+
+    Returns:
+        dict[str, list]: dictionary with filters
+    """
 
     files_for_filtering = list(df[filename_column].unique())
 
@@ -800,13 +885,24 @@ def prepare_filters(
         'topics_filter': topics_for_filtering
     }
 
+
 def prepare_reports_to_chose(
     path_to_cluster_exec_reports_dir: str,
     path_to_valid_files: str,
     files_for_filtering: list,
     gitkeep_file: str = '.gitkeep',
     exec_report_ext: str = '.gzip') -> dict[str, list]:
-
+    """
+    Args:
+        path_to_cluster_exec_reports_dir (str): path to the directory with cluster execution reports
+        path_to_valid_files (str): path to the directory with valid files
+        files_for_filtering (list): list of files for filtering
+        gitkeep_file (str, optional): name of the gitkeep file. Defaults to '.gitkeep'.
+        exec_report_ext (str, optional): extension of the execution report. Defaults to '.gzip'.
+    
+    Returns:
+        dict[str, list]: dictionary with reports to show and files available for update
+    """
     
     reports = os.listdir(path_to_cluster_exec_reports_dir)
 
@@ -829,10 +925,22 @@ def prepare_reports_to_chose(
         'available_for_update': available_for_update
     }
 
+
 def create_filter_query(
     date_column: str,
     filters_dict: dict[str, list],
     date_format: str) -> str:
+    """
+    Creates a query for filtering.
+
+    Args:
+        date_column (str): name of the column with dates
+        filters_dict (dict[str, list]): dictionary with filters
+        date_format (str): format of the date
+    
+    Returns:
+        str: query for filtering
+    """
 
     filter_query = []
 
@@ -894,11 +1002,15 @@ def create_filter_query(
 
     return " & ".join(filter_query)
 
+
 def apply_filters_on_df(
     df: pd.DataFrame,
     filters_dict: dict[str, list],
     date_column: str,
     date_format: str) -> pd.DataFrame:
+    """
+    Applies filters on DataFrame.
+    """
 
     filter_query = create_filter_query(
         date_column=date_column,
@@ -923,7 +1035,3 @@ def apply_filters_on_df(
 
         logger.info('Successfully aplied filters on DataFrame')
         return df
-    
-
-
-    
