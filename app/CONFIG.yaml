@@ -37,8 +37,6 @@ INPUT_FILES_SETTINGS:
     - content
 
 ETL_SETTINGS:
-  detect_lang: false
-  translate: true
   sentiment: true
   batch_size: 16
   translation_batch_size: 8
@@ -59,7 +57,6 @@ REPORT_SETTINGS:
   labels_column: labels
   cardinalities_column: counts
   sentiment_column: sentiment
-  detected_language_column: detected_language
   filename_column: filename
   cluster_summary_column: cluster_summary
   base_columns:
@@ -83,8 +80,8 @@ ML:
   outlier_treshold: 0.1
 
   embeddings:
-    model_name: sentence-transformers/all-mpnet-base-v2
-
+    eng_model_name: sentence-transformers/all-mpnet-base-v2
+    multilingual_model_name: microsoft/mdeberta-v3-base
   UMAP:
     n_neighbors: 15
     min_dist: 0.0

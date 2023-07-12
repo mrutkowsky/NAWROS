@@ -264,7 +264,7 @@ def get_most_representantive_tickets(
     cluster_summary_column: str = 'cluster_summary'):
 
     only_1_prob = df[[label_column_name, content_column_name]].iloc[one_prob_indexes]
-
+        
     representative_contents = {}
 
     labels_to_iterate_over = sorted(list(set(df[label_column_name].unique()).difference(set([-1]))))
@@ -275,6 +275,9 @@ def get_most_representantive_tickets(
     for label in labels_to_iterate_over:
 
         label_indexes = list(only_1_prob.loc[only_1_prob[label_column_name] == label].index)
+
+        if not label_indexes:
+            continue
 
         dist = scipy.spatial.distance.cdist(
             clusterable_embeddings[label_indexes], 
