@@ -1,14 +1,18 @@
 import torch
 import faiss
 from torch.utils.data import DataLoader, Dataset
-from sentence_transformers import SentenceTransformer
+from transformers import AutoModel, AutoTokenizer
+
+def mean_pooling(model_output, attention_mask):
+
+    token_embeddings = model_output[0] #First element of model_output contains all token embeddings
+    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+    return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
 
 def load_transformer_model(
         model_name: str,
-        seed: int = 42,
-
-) -> SentenceTransformer:
+        seed: int = 42) -> AutoModel:
     
     """
     Load a pre-trained SentenceTransformer model.
@@ -23,14 +27,17 @@ def load_transformer_model(
     
     torch.manual_seed(seed)
 
-    model = SentenceTransformer(model_name)
-    vec_size = model.get_sentence_embedding_dimension()
+    model = AutoModel.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    return model, vec_size
+    vec_size = model.config.hidden_size
+
+    return model, tokenizer, vec_size
     
 
 def embed_sentence(
-        model: SentenceTransformer,
+        model: AutoModel,
+        tokenizer: AutoTokenizer,
         text) -> torch.Tensor:
     
     """
@@ -43,16 +50,23 @@ def embed_sentence(
     Returns:
         torch.Tensor: The embedded sentence(s) as a torch tensor.
     """
+
+    encoded_input = tokenizer(
+        text, 
+        padding=True, 
+        truncation=True, 
+        return_tensors='pt')
+
+    with torch.no_grad():
+        model_output = model(**encoded_input)
     
-    return model.encode(
-        sentences=text,
-        show_progress_bar=True,
-        convert_to_numpy=True)
+    return mean_pooling(model_output, encoded_input['attention_mask']).detach().numpy()
 
 
 def get_embeddings(
         dataloader: DataLoader, 
-        model: SentenceTransformer,
+        model: AutoModel,
+        tokenizer: AutoTokenizer,
         save_path: str,
         vec_size: int):
     
@@ -73,7 +87,7 @@ def get_embeddings(
     index = faiss.IndexFlatL2(int(vec_size))
 
     for batch in dataloader:
-        index.add(embed_sentence(model, batch))
+        index.add(embed_sentence(model, tokenizer, batch))
 
     assert save_path.endswith('.index')
     faiss.write_index(index, save_path)

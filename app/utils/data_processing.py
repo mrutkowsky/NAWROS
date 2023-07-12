@@ -82,10 +82,6 @@ def read_file(
 
 def cleanup_data(
         df: pd.DataFrame, 
-        filename: str,
-        path_to_empty_content_dir: str,
-        empty_contents_suffix: str,
-        empty_content_ext: str,
         content_column_name: str = 'preprocessed_content',
         dropped_indexes_column_name: str = 'dropped_indexes') -> pd.DataFrame:
     
@@ -123,9 +119,6 @@ def cleanup_data(
     df[content_column_name] = preprocessed_contents
 
     short_contents_indexes = df.loc[df[content_column_name].str.split(" ").str.len() < 3].index
-
-    save_path = os.path.join(path_to_empty_content_dir,
-         f'{filename.split(".")[-2]}{empty_contents_suffix}{empty_content_ext}')
 
     indexes_to_drop = np.concatenate((float_contents_indexes, short_contents_indexes))
 
@@ -311,11 +304,11 @@ def process_data_from_choosen_files(
         swearwords: list,
         currently_serviced_langs: dict,
         required_columns: list,
-        detect_languages: bool = True,
         get_sentiment: bool = True,
         translate_content: bool = True,
         original_content_column: str = 'content',
         content_column_name: str = 'preprocessed_content',
+        translation_column_name: str = 'translation',
         sentiment_column_name: str = 'sentiment',
         detected_language_column_name: str = 'detected_language',
         dropped_indexes_column_name: str = 'dropped_indexes',
@@ -327,6 +320,8 @@ def process_data_from_choosen_files(
         en_code: str = 'en',
         batch_size: int = 32,
         translation_batch_size: int = 8,
+        seed: int = 42,
+        device: str = "cpu"):
         seed: int = 42) -> list:
     
     """
@@ -393,20 +388,18 @@ def process_data_from_choosen_files(
 
         return None
     
-    DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
-
-    embeddings_model, vec_size = load_transformer_model(
+    embeddings_model, embeddings_tokenizer, vec_size = load_transformer_model(
         model_name=embeddings_model_name,
         seed=seed
     )
 
     logger.info(f'Embeddings model {embeddings_model_name} loaded successfully')
 
-    if detect_languages:
+    if translate_content:
 
         lang_detect_dict = load_lang_detector(
             model_name=lang_detection_model_name,
-            device=DEVICE
+            device=device
         )
 
         lang_detection_model = lang_detect_dict.get('model')
@@ -421,7 +414,7 @@ def process_data_from_choosen_files(
         # loading sentiment model setup
         sent_tokenizer, sent_models, sent_cofnig = load_sentiment_model(
             sentiment_model_name, 
-            device=DEVICE)
+            device=device)
         
         logger.info(f'Sentiment setup loaded successfully.')
 
@@ -448,11 +441,7 @@ def process_data_from_choosen_files(
                 df[content_column_name] = df[original_content_column].copy()
 
                 df, df_dropped_indexes = cleanup_data(
-                    df=df, 
-                    filename=file_,
-                    path_to_empty_content_dir=path_to_empty_content_dir,
-                    empty_contents_suffix=empty_contents_suffix,
-                    empty_content_ext=empty_content_ext,
+                    df=df,
                     content_column_name=content_column_name,
                     dropped_indexes_column_name=dropped_indexes_column_name)
                 
@@ -469,21 +458,19 @@ def process_data_from_choosen_files(
                     shuffle=False
                 )
 
-                if detect_languages:
+                if translate_content:
 
                     lang_detection_labels = detect_lang(
                         dataloader=dataloader,
                         detection_model=lang_detection_model,
                         tokenizer=lang_detection_tokenizer,
-                        device=DEVICE
+                        device=device
                     )
 
                     logger.info(f'Successfully detected languages for {filename}')
 
                     df[detected_language_column_name] = lang_detection_labels
                     known_langs = [en_code]
-
-                if translate_content and detect_languages:
 
                     translation_models_dict = {}
 
@@ -496,12 +483,14 @@ def process_data_from_choosen_files(
 
                         current_trans_model_dict = load_translation_model(
                             model_name=model_name,
-                            device=DEVICE
+                            device=device
                         )
 
                         translation_models_dict[lang] = current_trans_model_dict
 
                         logger.info(f'Translation model {model_name} for {lang.upper()} loaded successfully')
+
+                    df[translation_column_name] = df[content_column_name].copy()
 
                     for lang, lang_model_dict in translation_models_dict.items():
 
@@ -516,14 +505,14 @@ def process_data_from_choosen_files(
                             dataloader=to_translate_dataloader,
                             trans_model=lang_model_dict.get('model'),
                             trans_tokenizer=lang_model_dict.get('tokenizer'),
-                            device=DEVICE
+                            device=device
                         )
 
                         logger.info(f'Successfully translated {lang} tickets for {filename}')
 
                         try:
                             df.loc[df[detected_language_column_name] == lang, 
-                                content_column_name] = translated_tickets
+                                translation_column_name] = translated_tickets
                         except Exception:
                             logger.error(f'Failed to assign translated tickets for {filename}')
                             return None
@@ -566,7 +555,7 @@ def process_data_from_choosen_files(
                         tokenizer=sent_tokenizer, 
                         model=sent_models, 
                         config=sent_cofnig,
-                        device=DEVICE
+                        device=device
                     ) 
 
                     df[sentiment_column_name] = sentiment_labels
@@ -618,6 +607,7 @@ def process_data_from_choosen_files(
                 get_embeddings(
                     dataloader=dataloader,
                     model=embeddings_model,
+                    tokenizer=embeddings_tokenizer,
                     save_path=save_path,
                     vec_size=vec_size)
                 

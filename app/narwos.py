@@ -4,7 +4,7 @@ import shutil
 import pandas as pd
 from flask import Flask, request, render_template, send_file, redirect, url_for, make_response, jsonify
 import logging
-from typing import Iterable
+import torch
 from utils.module_functions import \
     validate_file, \
     validate_file_extension, \
@@ -44,6 +44,8 @@ DATE_FILTER_FORMAT = '%Y-%m-%d'
 USED_AS_BASE_KEY = "used_as_base"
 ONLY_CLASSIFIED_KEY = "only_classified"
 TOPICS_CONCAT_FOR_VIZ = 'topics'
+LANG_DETECTION_COLUMN = 'detected_language'
+TRANSLATION_COLUMN = 'translation'
 MIN_CLUSTER_SAMPLES = 15
 ZIP_EXT = '.zip'
 
@@ -68,6 +70,9 @@ EMPTY_CONTENTS_EXT = '.csv'
 CLUSTERER_MODEL_NAME = 'clusterer.pkl'
 DIM_REDUCER_MODEL_NAME = 'umap_reducer.pkl'
 REDUCER_2D_MODEL_NAME = 'dim_reducer_2d.pkl'
+
+DEFAULT_EMBEDDINGS_MODEL = 'sentence-transformers/all-mpnet-base-v2'
+DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 app.config['CONFIG_FILE'] = 'CONFIG.yaml'
 
@@ -128,7 +133,6 @@ if len(REQUIRED_COLUMNS) < 2:
     logging.error('Can not start application without defining at least content and date columns')
     sys.exit(0)
 
-LANG_DETECT = ETL_SETTINGS.get('detect_lang', True)
 TRANSLATE_CONTENT = ETL_SETTINGS.get('translate', True)
 GET_SENTIMENT = ETL_SETTINGS.get('sentiment', True)
 BATCH_SIZE = ETL_SETTINGS.get('batch_size', 16)
@@ -158,7 +162,6 @@ LABELS_COLUMN = REPORT_CONFIG.get('labels_column', 'labels')
 CARDINALITIES_COLUMN = REPORT_CONFIG.get('cardinalities_column', 'counts')
 SENTIMENT_COLUMN = REPORT_CONFIG.get('sentiment_column', 'sentiment')
 FILENAME_COLUMN = REPORT_CONFIG.get('filename_column', 'filename')
-LANG_DETECTION_COLUMN = REPORT_CONFIG.get('detected_language_column', 'detected_language')
 CLUSTER_SUMMARY_COLUMN = REPORT_CONFIG.get('cluster_summary_column', 'cluster_summary')
 
 NO_TOPIC_TOKEN = REPORT_CONFIG.get('no_topic_token', '-')
@@ -166,17 +169,6 @@ COMPARING_REPORT_SUFFIX = REPORT_CONFIG.get('comparing_report_suffix', '_compari
 TOPIC_COLUMN_PREFIX = REPORT_CONFIG.get('topic_column_prefix', 'Word')
 
 TOPICS_RANGE = range(1, 6)
-ALL_DETAILED_REPORT_COLUMNS = [DATE_COLUMN] + BASE_REPORT_COLUMNS + [
-    ORIGINAL_CONTENT_COLUMN,
-    PREPROCESSED_CONTENT_COLUMN,
-    LABELS_COLUMN,  
-    FILENAME_COLUMN] + [f"{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE]
-
-if GET_SENTIMENT:
-    ALL_DETAILED_REPORT_COLUMNS += [SENTIMENT_COLUMN]
-
-if LANG_DETECT:
-    ALL_DETAILED_REPORT_COLUMNS += [LANG_DETECTION_COLUMN]
 
 CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('cluster_exec_filename_prefix', 'cluster_exec')
 DETAILED_CLUSTER_EXEC_FILENAME_PREFIX = REPORT_CONFIG.get('detailed_cluster_exec_filename_prefix', 'detailed')
@@ -188,7 +180,38 @@ OLD_COL_NAME = 'Old_' + CARDINALITIES_COLUMN
 NEW_COL_NAME = 'New_' + CARDINALITIES_COLUMN
 
 SEED = ML.get('seed', 42)
-EMBEDDINGS_MODEL = ML.get('embeddings', {}).get('model_name', 'sentence-transformers/all-mpnet-base-v2')
+
+TRANSLATE_CONTENT = False
+
+ENG_EMBEDDINGS_MODEL = ML.get('embeddings', {}).get('eng_model_name')
+MULTILANG_EMBEDDINGS_MODEL = ML.get('embeddings', {}).get('multilingual_model_name')
+
+if all([ENG_EMBEDDINGS_MODEL, MULTILANG_EMBEDDINGS_MODEL]) \
+    or (ENG_EMBEDDINGS_MODEL and not MULTILANG_EMBEDDINGS_MODEL):
+
+    EMBEDDINGS_MODEL = copy(ENG_EMBEDDINGS_MODEL)
+
+elif not any([ENG_EMBEDDINGS_MODEL, MULTILANG_EMBEDDINGS_MODEL]):
+
+    EMBEDDINGS_MODEL = copy(DEFAULT_EMBEDDINGS_MODEL)
+
+else:
+
+    EMBEDDINGS_MODEL = copy(MULTILANG_EMBEDDINGS_MODEL)
+    TRANSLATE_CONTENT = True
+
+ALL_DETAILED_REPORT_COLUMNS = [DATE_COLUMN] + BASE_REPORT_COLUMNS + [
+    ORIGINAL_CONTENT_COLUMN,
+    PREPROCESSED_CONTENT_COLUMN,
+    LABELS_COLUMN,  
+    FILENAME_COLUMN] + [f"{TOPIC_COLUMN_PREFIX}_{i}" for i in TOPICS_RANGE]
+
+if GET_SENTIMENT:
+    ALL_DETAILED_REPORT_COLUMNS += [SENTIMENT_COLUMN]
+
+if TRANSLATE_CONTENT:
+    ALL_DETAILED_REPORT_COLUMNS += [LANG_DETECTION_COLUMN, TRANSLATION_COLUMN]
+
 SENTIMENT_MODEL_NAME = ML.get('sentiment', {}).get('model_name', 'cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual')
 
 UMAP = ML.get('UMAP', {})
@@ -302,7 +325,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-logger.debug(f'Required columns: {REQUIRED_COLUMNS}')
+logger.debug(f"{REQUIRED_COLUMNS=}")
 logger.debug(f"{N_NEIGHBORS=}, {MIN_DIST=}, {N_COMPONENTS=}")
 logger.debug(f"{SEED=}")
 logger.debug(f"{COVERAGE_WITH_BEST=}")
@@ -310,6 +333,7 @@ logger.debug(f"{SENTIMENT_MODEL_NAME=}")
 logger.debug(f"{OUTLIER_TRESHOLD=}")
 logger.debug(f"{MIN_CLUSTER_SIZE=}")
 logger.debug(f"{HDBSCAN_METRIC=}")
+logger.debug(f"{EMBEDDINGS_MODEL=}")
 
 def upload_and_validate_files(
         uploaded_files: list):
@@ -542,7 +566,6 @@ def choose_files_for_clusters():
         embedded_files_filename=EMBEDDED_JSON,
         embeddings_model_name=EMBEDDINGS_MODEL,
         required_columns=REQUIRED_COLUMNS,
-        detect_languages=LANG_DETECT,
         get_sentiment=GET_SENTIMENT,
         translate_content=TRANSLATE_CONTENT,
         lang_detection_model_name=LANG_DETECTION_MODEL,
@@ -551,6 +574,7 @@ def choose_files_for_clusters():
         swearwords=SWEAR_WORDS,
         original_content_column=ORIGINAL_CONTENT_COLUMN,
         content_column_name=PREPROCESSED_CONTENT_COLUMN,
+        translation_column_name=TRANSLATION_COLUMN,
         sentiment_column_name=SENTIMENT_COLUMN,
         detected_language_column_name=LANG_DETECTION_COLUMN,
         dropped_indexes_column_name=DROPPED_INDEXES_COLUMN,
@@ -559,7 +583,8 @@ def choose_files_for_clusters():
         empty_content_ext=EMPTY_CONTENTS_EXT,
         batch_size=BATCH_SIZE,
         translation_batch_size=TRANSLATION_BATCH_SIZE,
-        seed=SEED)
+        seed=SEED,
+        device=DEVICE)
     
     if zero_length_after_processing:
 
@@ -570,6 +595,8 @@ def choose_files_for_clusters():
 
     if not files_for_clustering:
         return redirect(url_for("index", cluster_failed_message=f"After cleaning no files are suitable for clusterization."))
+    
+    content_column_name = PREPROCESSED_CONTENT_COLUMN if not TRANSLATE_CONTENT else TRANSLATION_COLUMN
 
     new_current_df = get_clusters_for_choosen_files(
         chosen_files=files_for_clustering,
@@ -581,13 +608,14 @@ def choose_files_for_clusters():
         embedded_files_filename=EMBEDDED_JSON,
         cleared_files_ext=CLEARED_FILE_EXT,
         outlier_treshold=OUTLIER_TRESHOLD,
+        content_column_name=content_column_name,
         labels_column=LABELS_COLUMN,
         cluster_summary_column=CLUSTER_SUMMARY_COLUMN,
         filename_column=FILENAME_COLUMN,
         random_state=SEED,
         clusterer_model_name=CLUSTERER_MODEL_NAME,
-        umap_model_name = DIM_REDUCER_MODEL_NAME,
-        reducer_2d_model_name = REDUCER_2D_MODEL_NAME,
+        umap_model_name=DIM_REDUCER_MODEL_NAME,
+        reducer_2d_model_name=REDUCER_2D_MODEL_NAME,
         n_neighbors=N_NEIGHBORS,
         min_dist=MIN_DIST,
         n_components=N_COMPONENTS,
@@ -604,7 +632,7 @@ def choose_files_for_clusters():
         return redirect(url_for("index", cluster_failed_message=new_current_df))
     
     new_current_df = new_current_df.astype({col: str for col in REQUIRED_COLUMNS})
-    
+
     cns_after_clusterization(
         new_current_df=new_current_df,
         path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
@@ -618,7 +646,7 @@ def choose_files_for_clusters():
         cardinalities_column=CARDINALITIES_COLUMN,
         cluster_exec_filename_prefix=CLUSTER_EXEC_FILENAME_PREFIX,
         cluster_exec_filename_ext=CLUSTER_EXEC_FILENAME_EXT,
-        content_column_name=PREPROCESSED_CONTENT_COLUMN,
+        content_column_name=content_column_name,
         no_topic_token=NO_TOPIC_TOKEN
     )
 
@@ -1057,7 +1085,6 @@ def update_clusters_new_file():
                 embedded_files_filename=EMBEDDED_JSON,
                 embeddings_model_name=EMBEDDINGS_MODEL,
                 required_columns=REQUIRED_COLUMNS,
-                detect_languages=LANG_DETECT,
                 get_sentiment=GET_SENTIMENT,
                 translate_content=TRANSLATE_CONTENT,
                 lang_detection_model_name=LANG_DETECTION_MODEL,
@@ -1066,6 +1093,7 @@ def update_clusters_new_file():
                 swearwords=SWEAR_WORDS,
                 original_content_column=ORIGINAL_CONTENT_COLUMN,
                 content_column_name=PREPROCESSED_CONTENT_COLUMN,
+                translation_column_name=TRANSLATION_COLUMN,
                 detected_language_column_name=LANG_DETECTION_COLUMN,
                 sentiment_column_name=SENTIMENT_COLUMN,
                 dropped_indexes_column_name=DROPPED_INDEXES_COLUMN,
@@ -1074,7 +1102,8 @@ def update_clusters_new_file():
                 empty_content_ext=EMPTY_CONTENTS_EXT,
                 batch_size=BATCH_SIZE,
                 translation_batch_size=TRANSLATION_BATCH_SIZE,
-                seed=SEED)
+                seed=SEED,
+                device=DEVICE)
             
             if zero_length_after_processing:
                 return redirect(url_for("show_clusters", message_unsuccessful=f"After preprocessing the file {filename} no samples have left."))
@@ -1099,6 +1128,8 @@ def update_clusters_new_file():
                 rows_cardinalities_current_df=rows_cardinalities_current_df,
                 recalculate_treshold=RECALCULATE_CLUSTERS_TRESHOLD
             )
+
+            content_column_name = PREPROCESSED_CONTENT_COLUMN if not TRANSLATE_CONTENT else TRANSLATION_COLUMN
 
             if not need_to_recalculate:
 
@@ -1133,6 +1164,7 @@ def update_clusters_new_file():
 
                 path_to_exec_report, destination_filename = cns_after_clusterization(
                     new_current_df=new_current_df,
+                    content_column_name=content_column_name,
                     path_to_current_df_dir=PATH_TO_CURRENT_DF_DIR,
                     path_to_cluster_exec_dir=PATH_TO_CLUSTER_EXEC_REPORTS_DIR,
                     current_df_filename=CURRENT_DF_FILE,
@@ -1146,17 +1178,6 @@ def update_clusters_new_file():
                     topic_df_file_name=TOPICS_DF_FILE,
                     only_update=True
                 )
-
-                # response = make_response(send_file(
-                #     path_to_exec_report, 
-                #     mimetype="application/octet-stream", 
-                #     as_attachment=True, 
-                #     download_name=destination_filename))
-
-                # Perform the redirect
-                # redirect_url = 
-                # response.headers['Location'] = redirect_url
-                # response.status_code = 302
 
                 return redirect(url_for("show_clusters", message_successful=f"Cluster labels for {filename} have been successfully assigned."))
 
@@ -1175,6 +1196,7 @@ def update_clusters_new_file():
                     faiss_vectors_dirname=FAISS_VECTORS_DIR,
                     embedded_files_filename=EMBEDDED_JSON,
                     cleared_files_ext=CLEARED_FILE_EXT,
+                    content_column_name=content_column_name,
                     labels_column=LABELS_COLUMN,
                     cluster_summary_column=CLUSTER_SUMMARY_COLUMN,
                     outlier_treshold=OUTLIER_TRESHOLD,
@@ -1255,7 +1277,6 @@ def update_clusters_existing_file():
         embeddings_model_name=EMBEDDINGS_MODEL,
         translate_content=TRANSLATE_CONTENT,
         required_columns=REQUIRED_COLUMNS,
-        detect_languages=LANG_DETECT,
         get_sentiment=GET_SENTIMENT,
         lang_detection_model_name=LANG_DETECTION_MODEL,
         currently_serviced_langs=TRANSLATION_MODELS,
@@ -1271,7 +1292,8 @@ def update_clusters_existing_file():
         empty_content_ext=EMPTY_CONTENTS_EXT,
         batch_size=BATCH_SIZE,
         translation_batch_size=TRANSLATION_BATCH_SIZE,
-        seed=SEED)
+        seed=SEED,
+        device=DEVICE)
     
     if zero_length_after_processing:
         return redirect(url_for("show_clusters", message_unsuccessful=f"After preprocessing the file {existing_file_for_update} no samples have left."))
@@ -1378,7 +1400,7 @@ def update_clusters_existing_file():
             min_cluster_size=MIN_CLUSTER_SIZE,
             min_samples=MIN_SAMPLES,
             metric=HDBSCAN_METRIC,                      
-            cluster_selection_method=CLUSTER_SELECTION_METHOD
+            cluster_selection_method=CLUSTER_SELECTION_METHOD,
         )
 
         if not isinstance(new_current_df, pd.DataFrame):

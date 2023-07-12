@@ -12,7 +12,7 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.utils.validation import FLOAT_DTYPES, check_is_fitted
 
-from utils.data_processing import preprocess_pipeline
+from utils.data_processing import preprocess_pipeline, load_lang_detector, load_translation_model, create_dataloader, detect_lang, translate_text
 
 logger = logging.getLogger(__file__)
 
@@ -257,11 +257,14 @@ def get_topics_from_texts(
         Tuple containing a list of topics.
     """
 
+    df_for_topics = df.copy()
+    
     logging.info('Start get_topics_from_texts() execution')
 
-    n_of_rows = len(df)
+    n_of_rows = len(df_for_topics)
+
     docs_per_class = prepare_df_for_ctfidf(
-        df=df,
+        df=df_for_topics,
         stopwords=stop_words,
         content_column_name=content_column_name,
         label_column_name=label_column_name
