@@ -320,8 +320,7 @@ def process_data_from_choosen_files(
         en_code: str = 'en',
         batch_size: int = 32,
         translation_batch_size: int = 8,
-        seed: int = 42,
-        device: str = "cpu"):
+        device: str = "cpu",
         seed: int = 42) -> list:
     
     """
@@ -360,6 +359,7 @@ def process_data_from_choosen_files(
             Defaults to '_EMPTY_CONTENT'.
         empty_content_ext (str, optional): The file extension for the files with empty contents. Defaults to '.csv'.
         batch_size (int, optional): The batch size for processing the data. Defaults to 32.
+        device (str, optional): The device to use for processing the data. Defaults to "cpu".
         seed (int, optional): The random seed for the embeddings model. Defaults to 42.
 
     Returns:
