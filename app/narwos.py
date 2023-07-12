@@ -503,7 +503,7 @@ def delete_file():
 
         logger.debug(f'Current data dir: {data_dir}')
 
-        filename_search_dir = {os.path.splitext(file_)[0]: file_ for file_ in os.listdir(data_dir)}
+        filename_search_dir = {file_.split('.')[0]: file_ for file_ in os.listdir(data_dir)}
 
         logger.debug(f'Current {data_dir} search dir: {filename_search_dir}')
 

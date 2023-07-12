@@ -80,7 +80,7 @@ ML:
   outlier_treshold: 0.1
 
   embeddings:
-    eng_model_name: sentence-transformers/all-mpnet-base-v2
+    # eng_model_name: sentence-transformers/all-mpnet-base-v2
     multilingual_model_name: microsoft/mdeberta-v3-base
   UMAP:
     n_neighbors: 15

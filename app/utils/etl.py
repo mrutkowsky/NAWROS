@@ -72,9 +72,6 @@ def preprocess_text(text):
     # text = re.sub('email_address_masked', '', text)
     text = re.sub(r'application version \d+(\.\d+)+', '', text)
     text = re.sub(r'error code #\d+-\d+', '', text)
-    text = re.sub(
-        'explain the details of the problem youre having. this can help us figure out what\'s going wrong.',
-        '', text)
 
     # Remove unknown signs, but keep dots, commas, question marks, exclamation marks and hashtags
     text = re.sub(r'[^a-ząćęłńóśźż\s.,!?\'\"]|\-(?!\w)|(?<!\w)\-', '', text)
@@ -93,7 +90,6 @@ def preprocess_text(text):
     
     text = re.sub('device type', '', text)
     
-    
     text = re.sub('smarttag', '', text)
     text = re.sub(r', ,', ',', text)
     text = re.sub(r'\. \.', ',', text)
@@ -101,9 +97,13 @@ def preprocess_text(text):
     text = re.sub(r' \?', '?', text)
     text = re.sub(r' \!', '!', text)
 
-    
-    
-    return text.strip()
+    text = text.strip()
+
+    text = re.sub(
+        "explain the details of the problem youre having this can help us figure out what\'s going wrong",
+        '', text)
+
+    return text
 
 def layer_normalize(vector: np.array):
     
