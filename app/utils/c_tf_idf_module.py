@@ -13,9 +13,6 @@ from sklearn.utils.validation import FLOAT_DTYPES, check_is_fitted
 
 from utils.data_processing import preprocess_pipeline
 
-import spacy
-import lemminflect
-
 logger = logging.getLogger(__file__)
 
 class CTFIDFVectorizer(TfidfTransformer):
@@ -26,11 +23,13 @@ class CTFIDFVectorizer(TfidfTransformer):
     def fit(self, X: sp.csr_matrix, n_samples: int):
         """Learn the idf vector (global term weights)
 
-        Parameters
-        ----------
-        X : sparse matrix of shape n_samples, n_features)
+        Args:
+        X : sparse matrix of shape (n_samples, n_features)
             A matrix of term/token counts.
+        n_samples : int -  number of samples in the dataset
 
+        Returns:
+        self : CTFIDFVectorizer
         """
 
         # Prepare input
@@ -53,11 +52,12 @@ class CTFIDFVectorizer(TfidfTransformer):
     def transform(self, X: sp.csr_matrix, copy=True) -> sp.csr_matrix:
         """Transform a count-based matrix to c-TF-IDF
 
-        Parameters
+        Args:
             X : sparse matrix of (n_samples, n_features)
             a matrix of term/token counts
+            copy : bool, default True
 
-        Returns
+        Returns:
             vectors : sparse matrix of shape (n_samples, n_features)
 
         """
@@ -88,7 +88,8 @@ class CTFIDFVectorizer(TfidfTransformer):
             X = normalize(X, axis=1, norm='l1', copy=False)
 
         return X
-    
+
+
 def prepare_df_for_ctfidf(
         df: pd.DataFrame,
         stopwords: list,
@@ -96,9 +97,11 @@ def prepare_df_for_ctfidf(
         label_column_name: str = 'labels') -> pd.DataFrame:
     """Prepare a DataFrame for c-TF-IDF transformation by grouping documents per class.
 
-    Parameters:
+    Args:
     df : pd.DataFrame
         Input DataFrame containing documents and labels.
+    stopwords : list
+        List of stopwords.
     content_column_name : str, optional
         Name of the column containing the document content, by default 'content'.
     label_column_name : str, optional
@@ -107,7 +110,6 @@ def prepare_df_for_ctfidf(
     Returns:
     pd.DataFrame
         DataFrame with documents per class.
-
     """
     docs_per_class = df.groupby(
         by=label_column_name, 
@@ -117,6 +119,7 @@ def prepare_df_for_ctfidf(
         docs_per_class[content_column_name].apply(lambda x: preprocess_pipeline(x, stopwords=stopwords))
 
     return docs_per_class
+
 
 def perform_ctfidf(
         joined_texts: list or pd.Series,
@@ -135,6 +138,12 @@ def perform_ctfidf(
         List or Series of cluster labels.
     df_number_of_rows : int
         Number of rows in the original DataFrame.
+    stop_words : list, optional
+        List of stopwords, by default None.
+    outliers_topic_name : str, optional
+        Name of the topic for outliers, by default '<NO_TOPIC>'.
+    no_topic_token : str, optional
+        Token for no topic, by default '-'.
 
     Returns:
     np.array
@@ -190,12 +199,9 @@ def perform_ctfidf(
                 continue
 
         words_per_class.append(current)
-
-    # words_per_class = np.array([
-    #     [words[index] for index in ctfidf[label].argsort()[-5:]] for label in clusters_labels
-    # ])
-
+    
     return np.array(words_per_class)
+
 
 def transform_topic_vec_to_df(
         topics_array: np.ndarray,
@@ -231,20 +237,25 @@ def get_topics_from_texts(
     
     """Get topics from texts using c-TF-IDF.
 
-    Parameters:
+    Args:
     df : pd.DataFrame
         Input DataFrame containing documents and labels.
+    topic_preffix_name : str, optional
+        Prefix name for the topic columns, by default 'Word'.
+    stop_words : list, optional
+        List of stopwords, by default None.
     content_column_name : str, optional
         Name of the column containing the document content, by default 'content'.
     label_column_name : str, optional
         Name of the column containing the document labels, by default 'labels'.
+    no_topic_token : str, optional
+        Token for no topic, by default '-'.
 
     Returns:
     tuple[list]
         Tuple containing a list of topics.
-
     """
-    
+
     logging.info('Start get_topics_from_texts() execution')
 
     n_of_rows = len(df)
@@ -276,8 +287,6 @@ def get_topics_from_texts(
     )
 
     topics_df[label_column_name] = sorted(docs_per_class[label_column_name])
-
-    # topics_df[label_column_name] = np.arange(-1, len(topics_df) - 1)
 
     logging.info('End of executing - topic_df created succesfully')
     
