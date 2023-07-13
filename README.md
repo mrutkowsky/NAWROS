@@ -9,6 +9,11 @@ It is recommended to run the app in conda virtual environment. Use guide linked 
 git clone git@github.com:mrutkowsky/NAWROS.git
 cd NAWROS
 ```
+Creating conda environment
+```
+conda create --name <your_env_name> python==3.10.11
+conda activate <your_env_name>
+```
 If you have conda already installed:
 ```
 conda install numpy
