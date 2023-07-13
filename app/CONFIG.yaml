@@ -20,8 +20,6 @@ FILES:
   rows_cardinalities: rows_cardinalities.json
   current_df: current_df.parquet.gzip
   filtered_df: filtered_df.parquet.gzip
-  polish_swearwords: 'polish_swearwords.txt'
-  english_swearwords: 'english_swearwords.txt'
   topics_df: topics_df.csv
   ext_mappings: mimetypes_formats.json
 
@@ -37,7 +35,7 @@ INPUT_FILES_SETTINGS:
     - content
 
 ETL_SETTINGS:
-  sentiment: true
+  sentiment: false
   batch_size: 16
   translation_batch_size: 8
   cleared_file_ext: .parquet.gzip
@@ -53,7 +51,6 @@ EMPTY_CONTENT_SETTINGS:
 REPORT_SETTINGS:
   date_column: Questioned_Date
   original_content_column: content
-  preprocessed_content_column: preprocessed_content
   labels_column: labels
   cardinalities_column: counts
   sentiment_column: sentiment
@@ -80,7 +77,7 @@ ML:
   outlier_treshold: 0.1
 
   embeddings:
-    eng_model_name: sentence-transformers/all-mpnet-base-v2
+    # eng_model_name: sentence-transformers/all-mpnet-base-v2
     multilingual_model_name: microsoft/mdeberta-v3-base
   UMAP:
     n_neighbors: 15

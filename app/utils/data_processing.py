@@ -390,7 +390,8 @@ def process_data_from_choosen_files(
     
     embeddings_model, embeddings_tokenizer, vec_size = load_transformer_model(
         model_name=embeddings_model_name,
-        seed=seed
+        seed=seed,
+        device=device
     )
 
     logger.info(f'Embeddings model {embeddings_model_name} loaded successfully')
@@ -609,7 +610,8 @@ def process_data_from_choosen_files(
                     model=embeddings_model,
                     tokenizer=embeddings_tokenizer,
                     save_path=save_path,
-                    vec_size=vec_size)
+                    vec_size=vec_size,
+                    device=device)
                 
                 logger.info('Embeddings exctracted successfully')
 

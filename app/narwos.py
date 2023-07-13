@@ -45,6 +45,7 @@ USED_AS_BASE_KEY = "used_as_base"
 ONLY_CLASSIFIED_KEY = "only_classified"
 TOPICS_CONCAT_FOR_VIZ = 'topics'
 LANG_DETECTION_COLUMN = 'detected_language'
+PREPROCESSED_CONTENT_COLUMN = 'preprocessed_content'
 TRANSLATION_COLUMN = 'translation'
 MIN_CLUSTER_SAMPLES = 15
 ZIP_EXT = '.zip'
@@ -157,7 +158,6 @@ if DATE_COLUMN not in REQUIRED_COLUMNS:
     logging.error(f'Required columns: {REQUIRED_COLUMNS} does not contain DATE_COLUMN: {DATE_COLUMN}')
     sys.exit(0)
 
-PREPROCESSED_CONTENT_COLUMN = REPORT_CONFIG.get('preprocessed_content_column', 'preprocessed_content')
 LABELS_COLUMN = REPORT_CONFIG.get('labels_column', 'labels')
 CARDINALITIES_COLUMN = REPORT_CONFIG.get('cardinalities_column', 'counts')
 SENTIMENT_COLUMN = REPORT_CONFIG.get('sentiment_column', 'sentiment')
@@ -503,7 +503,7 @@ def delete_file():
 
         logger.debug(f'Current data dir: {data_dir}')
 
-        filename_search_dir = {os.path.splitext(file_)[0]: file_ for file_ in os.listdir(data_dir)}
+        filename_search_dir = {file_.split('.')[0]: file_ for file_ in os.listdir(data_dir)}
 
         logger.debug(f'Current {data_dir} search dir: {filename_search_dir}')
 

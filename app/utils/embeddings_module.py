@@ -2,6 +2,9 @@ import torch
 import faiss
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModel, AutoTokenizer
+import logging
+
+logger = logging.getLogger(__file__)
 
 def mean_pooling(model_output, attention_mask):
 
@@ -12,7 +15,8 @@ def mean_pooling(model_output, attention_mask):
 
 def load_transformer_model(
         model_name: str,
-        seed: int = 42) -> AutoModel:
+        seed: int = 42,
+        device: str = 'cpu') -> AutoModel:
     
     """
     Load a pre-trained SentenceTransformer model.
@@ -27,7 +31,7 @@ def load_transformer_model(
     
     torch.manual_seed(seed)
 
-    model = AutoModel.from_pretrained(model_name)
+    model = AutoModel.from_pretrained(model_name).to(device)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     vec_size = model.config.hidden_size
@@ -38,7 +42,8 @@ def load_transformer_model(
 def embed_sentence(
         model: AutoModel,
         tokenizer: AutoTokenizer,
-        text) -> torch.Tensor:
+        text,
+        device: str = 'cpu') -> torch.Tensor:
     
     """
     Embed a single sentence using a pre-trained SentenceTransformer model.
@@ -55,12 +60,12 @@ def embed_sentence(
         text, 
         padding=True, 
         truncation=True, 
-        return_tensors='pt')
+        return_tensors='pt').to(device)
 
     with torch.no_grad():
         model_output = model(**encoded_input)
     
-    return mean_pooling(model_output, encoded_input['attention_mask']).detach().numpy()
+    return mean_pooling(model_output, encoded_input['attention_mask']).detach().cpu().numpy()
 
 
 def get_embeddings(
@@ -68,7 +73,8 @@ def get_embeddings(
         model: AutoModel,
         tokenizer: AutoTokenizer,
         save_path: str,
-        vec_size: int):
+        vec_size: int,
+        device: str = 'cpu'):
     
     """
     Compute sentence embeddings for a dataset using a pre-trained SentenceTransformer model
@@ -86,8 +92,11 @@ def get_embeddings(
 
     index = faiss.IndexFlatL2(int(vec_size))
 
+    logger.debug(f'Device for calculating embeddings: {device}')
+    logger.debug(f'Start getting embeddings for {save_path}')
+
     for batch in dataloader:
-        index.add(embed_sentence(model, tokenizer, batch))
+        index.add(embed_sentence(model, tokenizer, batch, device=device))
 
     assert save_path.endswith('.index')
     faiss.write_index(index, save_path)
