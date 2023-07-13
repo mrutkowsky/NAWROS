@@ -52,6 +52,7 @@ def load_files_into_df(
 
     return df_result
 
+
 def preprocess_text(text):
 
     """
@@ -69,7 +70,12 @@ def preprocess_text(text):
     # Remove newlines
     text = re.sub(r'\n+', ' ', text)
     
-    # text = re.sub('email_address_masked', '', text)
+    text = re.sub(
+        r'explain the details of the problem youre having',
+        '', text)
+    text = re.sub(
+        r'please describe the problem in as much detail as possible',
+        '', text)
     text = re.sub(r'application version \d+(\.\d+)+', '', text)
     text = re.sub(r'error code #\d+-\d+', '', text)
 
@@ -97,15 +103,9 @@ def preprocess_text(text):
     text = re.sub(r' \?', '?', text)
     text = re.sub(r' \!', '!', text)
 
-    text = text.strip()
+    return text.strip()
 
-    text = re.sub(
-        "explain the details of the problem youre having this can help us figure out what\'s going wrong",
-        '', text)
-
-    return text
-
-def layer_normalize(vector: np.array):
+def layer_normalize(vector: np.array) -> np.array:
     
     """
     Normalize a vector by subtracting the mean and dividing by the standard deviation.

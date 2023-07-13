@@ -14,7 +14,25 @@ def find_newer_report(
         second_report_name: str,
         only_for_existence: bool = False,
         older_report_key: str = 'old',
-        newer_report_key: str = 'new') -> dict:
+        newer_report_key: str = 'new') -> dict or bool or None: 
+    """
+    Function to compare two report files and return the newer one.
+
+    Args:
+        path_to_reports_dir (str): The path to the directory containing the reports.
+        first_report_name (str): The name of the first report.
+        second_report_name (str): The name of the second report.
+        only_for_existence (bool, optional): If True, the function will only check if the reports exist.
+            Defaults to False.
+        older_report_key (str, optional): The key for the older report in the returned dictionary.
+            Defaults to 'old'.
+        newer_report_key (str, optional): The key for the newer report in the returned dictionary.
+            Defaults to 'new'.
+
+    Returns:
+        dict or bool or None: A dictionary with the older and newer report names,
+            or True if only_for_existence
+    """
 
     TIMESTAMP_PATTERN = r"_(\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2})\..+"
     TIMESTAMP_FORMAT = "%Y_%m_%d_%H_%M_%S"
@@ -80,6 +98,7 @@ def find_newer_report(
         logger.error(f"Both reports have the same timestamp.")
         return None
 
+
 def compare_reports(
         first_report_name: str, 
         second_report_name: str,
@@ -93,7 +112,40 @@ def compare_reports(
         old_report_column_prefix: str = 'Old',
         new_report_column_prefix: str = 'New',
         old_cluster_value: str = 'Old group',
-        new_cluster_value: str = 'New group') -> pd.DataFrame:
+        new_cluster_value: str = 'New group') -> pd.DataFrame or None:
+    """
+    Function to compare the topics of two reports. For each topic, the function will check if the
+    topic is present in both reports, and if so, it will calulated the difference in counts.
+    If the topic is no present in one of the reports, the function will assign the label
+    old_cluster_value or new_cluster_value.
+
+
+    Args:
+        first_report_name (str): The name of the first report.
+        second_report_name (str): The name of the second report.
+        path_to_reports_dir (str): The path to the directory containing the reports.
+        only_for_existence (bool, optional): If True, the function will only check if the reports exist.
+            Defaults to False.
+        topics_number (int, optional): The number of topics in the reports. Defaults to 5.
+        must_match_topics_numbers (int, optional): The number of topics that must match in both reports.
+            Defaults to 3.
+        no_topic_token (str, optional): The token to use for topics that are not present in one of the reports.
+            Defaults to '-'.
+        topic_preffix_name (str, optional): The prefix for the topic names in the reports. Defaults to 'Word'.
+        cardinality_column (str, optional): The name of the column containing the counts of the topics.
+            Defaults to 'counts'.
+        old_report_column_prefix (str, optional): The prefix for the columns of the first report.
+            Defaults to 'Old'.
+        new_report_column_prefix (str, optional): The prefix for the columns of the second report.
+            Defaults to 'New'.
+        old_cluster_value (str, optional): The value to assign to topics that are not present in the first report.
+            Defaults to 'Old group'.
+        new_cluster_value (str, optional): The value to assign to topics that are not present in the second report.
+            Defaults to 'New group'.
+        
+    Returns:
+        pd.DataFrame: A dataframe with the comparison results.
+    """
 
     COMPARISON_COLUMN_NAME = 'Comparison'
     OLDER_REPORT_KEY = 'old'
@@ -207,8 +259,12 @@ def compare_reports(
 
     return result_df
 
+
 def find_latest_two_reports(
-        path_to_reports_dir: str):
+        path_to_reports_dir: str) -> list[str]:
+    """
+    Finds the two latest reports in the directory.
+    """
     report_files = []
 
     timestamp_pattern = r"_\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}"
@@ -224,10 +280,24 @@ def find_latest_two_reports(
 
     return report_files[:2]
 
+
 def find_latested_n_exec_report(
     path_to_dir: str,
     cluster_exec_prefix: str = 'cluster_exec',
     n_reports: int = 1) -> str or tuple[str, str]:
+    """
+    Find n latest cluster execution reports in the directory.
+    It is assumed that the name of the report file is in the format:
+    cluster_exec_2021_08_31_12_00_00.json
+
+    Args:
+        path_to_dir (str): Path to the directory with reports.
+        cluster_exec_prefix (str, optional): Prefix of the report file name. Defaults to 'cluster_exec'.
+        n_reports (int, optional): Number of reports to return. Defaults to 1.
+    
+    Returns:
+        str or tuple[str, str]: Name of the report file or tuple of two names of the report files.
+    """
 
     TIMESTAMP_PATTERN = r"_(\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2})\..+"
     TIMESTAMP_FORMAT = "%Y_%m_%d_%H_%M_%S"
