@@ -666,7 +666,7 @@ def get_empty_contents():
     filepath = os.path.join(PATH_TO_EMPTY_ARCHIVE, full_filename)
 
     if len(set(list(os.listdir(PATH_TO_EMPTY_CONTENTS))).difference(set([GITKEEP_FILE]))) == 0:
-        return redirect(url_for("show_clusters", message=f'Currently no empty content files are available!'))
+        return redirect(url_for("show_clusters", message_unsuccessful=f'Currently no empty content files are available!'))
     
     logger.debug(f'Empty content dir: {os.listdir(PATH_TO_EMPTY_CONTENTS)}')
     
@@ -1236,15 +1236,6 @@ def update_clusters_new_file():
                     content_column_name=PREPROCESSED_CONTENT_COLUMN,
                     no_topic_token=NO_TOPIC_TOKEN
                 )
-
-                # response = make_response(send_file(
-                #     path_to_exec_report,
-                #     mimetype = "application/octet-stream",
-                #     as_attachment = True,
-                #     download_name = destination_filename
-                # ))
-
-                # return response
 
                 n_clusters = len(new_current_df[LABELS_COLUMN].unique())
 
