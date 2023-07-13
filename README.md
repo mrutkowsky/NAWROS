@@ -6,7 +6,7 @@ It is recommended to run the app in conda virtual environment. Use guide linked 
 [creating conda environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands).
 
 ```
-git clone git@github.com:mrutkowsky/NAWROS.git
+git clone https://github.com/mrutkowsky/NAWROS.git
 cd NAWROS
 ```
 Creating conda environment
